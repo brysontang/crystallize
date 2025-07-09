@@ -1,5 +1,8 @@
 # Crystallize 🧪✨
 
+⚠️ Pre-Alpha Notice
+This project is in an early experimental phase. Breaking changes may occur at any time. Use at your own risk.
+
 **Rigorous, reproducible, and clear data science experiments.**
 
 Crystallize is an elegant, lightweight Python framework designed to help data scientists, researchers, and machine learning practitioners turn hypotheses into crystal-clear, reproducible experiments.

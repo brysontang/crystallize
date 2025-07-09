@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from typing import List, Dict, Any, Optional, Mapping
 import statistics as _stats
 from copy import deepcopy
+from typing import Any, Dict, List, Mapping, Optional
 
-from crystallize.core.datasource import DataSource
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.treatment import Treatment
-from crystallize.core.hypothesis import Hypothesis
-from crystallize.core.result import Result
 from crystallize.core.context import FrozenContext
+from crystallize.core.datasource import DataSource
+from crystallize.core.hypothesis import Hypothesis
+from crystallize.core.pipeline import Pipeline
+from crystallize.core.result import Result
+from crystallize.core.treatment import Treatment
 
 
 def _aggregate(samples: List[Mapping[str, Any]]) -> Mapping[str, Any]:
@@ -114,4 +114,9 @@ class Experiment:
             "hypothesis": hypothesis_result,
         }
 
-        return Result(metrics=metrics, errors=errors)
+        provenance = {
+            "pipeline_signature": self.pipeline.signature(),
+            "last_run": tuple(self.pipeline.get_provenance()),
+        }
+
+        return Result(metrics=metrics, errors=errors, provenance=provenance)

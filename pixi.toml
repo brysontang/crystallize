@@ -8,7 +8,7 @@ version = "0.1.0"
 [tasks]
 test = "pytest -q"
 cov  = "pytest --cov=crystallize --cov-report=term-missing"
-lint = "ruff crystallize tests"
+lint = "ruff check crystallize tests"
 
 [dependencies]
 python = "3.11.*"

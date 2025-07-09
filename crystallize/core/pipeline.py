@@ -1,5 +1,7 @@
+from types import MappingProxyType
 from typing import Any, List, Mapping
 
+from crystallize.core.cache import compute_hash, load_cache, store_cache
 from crystallize.core.context import FrozenContext
 from crystallize.core.exceptions import PipelineExecutionError
 from crystallize.core.pipeline_step import PipelineStep
@@ -39,12 +41,41 @@ class Pipeline:
         Raises:
             InvalidPipelineOutput: if the last step does not return Mapping.
         """
+        provenance = []
         for step in self.steps:
-            try:
-                data = step(data, ctx)
-            except Exception as exc:
-                raise PipelineExecutionError(step.__class__.__name__, exc) from exc
+            step_hash = step.step_hash
+            input_hash = compute_hash(data)
+            if step.cacheable:
+                try:
+                    data = load_cache(step_hash, input_hash)
+                    cache_hit = True
+                except (FileNotFoundError, IOError):
+                    try:
+                        data = step(data, ctx)
+                    except Exception as exc:
+                        raise PipelineExecutionError(
+                            step.__class__.__name__, exc
+                        ) from exc
+                    store_cache(step_hash, input_hash, data)
+                    cache_hit = False
+            else:
+                try:
+                    data = step(data, ctx)
+                except Exception as exc:
+                    raise PipelineExecutionError(step.__class__.__name__, exc) from exc
+                cache_hit = False
+            provenance.append(
+                {
+                    "step": step.__class__.__name__,
+                    "params": step.params,
+                    "step_hash": step_hash,
+                    "input_hash": input_hash,
+                    "output_hash": compute_hash(data),
+                    "cache_hit": cache_hit,
+                }
+            )
 
+        self._provenance = tuple(MappingProxyType(p) for p in provenance)
         if not isinstance(data, Mapping):
             raise InvalidPipelineOutput(
                 f"Last step `{self.steps[-1].__class__.__name__}` returned "
@@ -58,3 +89,9 @@ class Pipeline:
         """Hash‐friendly signature for caching/provenance."""
         parts = [step.__class__.__name__ + repr(step.params) for step in self.steps]
         return "|".join(parts)
+
+    # ------------------------------------------------------------------ #
+    def get_provenance(self) -> List[Mapping[str, Any]]:
+        """Return immutable provenance from the last run."""
+
+        return list(getattr(self, "_provenance", ()))

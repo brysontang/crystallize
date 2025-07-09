@@ -89,3 +89,18 @@ Captures metrics, artifacts, errors, and provenance.
 ## 🚀 Next Steps
 
 With these components, you're ready to build, run, and verify rigorous experiments. Explore implementations of DataSources, PipelineSteps, Treatments, and StatisticalTests to get started quickly!
+
+---
+
+## 📈 CSV Pipeline Example
+
+For a complete end-to-end demonstration, see `examples/csv_pipeline_example/`:
+
+```bash
+python examples/csv_pipeline_example/main.py
+```
+
+This example loads numeric data from CSV files, normalizes it, performs a simple
+PCA, and verifies that the treatment dataset yields higher explained variance
+than the baseline. The resulting metrics and pipeline provenance are printed to
+the console for inspection.

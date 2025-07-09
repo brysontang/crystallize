@@ -1,4 +1,4 @@
-from typing import Any, Mapping
+from typing import Any, Mapping, Optional, Sequence
 
 from crystallize.core.exceptions import MissingMetricError
 from crystallize.core.stat_test import StatisticalTest
@@ -19,11 +19,11 @@ class Hypothesis:
     def __init__(
         self,
         metric: str,
-        direction: str,
         statistical_test: StatisticalTest,
         alpha: float = 0.05,
+        direction: Optional[str] = None,
     ):
-        assert direction in {"increase", "decrease", "equal"}
+        assert direction in {"increase", "decrease", "equal", None}
         self.metric = metric
         self.direction = direction
         self.statistical_test = statistical_test
@@ -33,38 +33,37 @@ class Hypothesis:
 
     def verify(
         self,
-        baseline_metrics: Mapping[str, Any],
-        treatment_metrics: Mapping[str, Any],
+        baseline_metrics: Mapping[str, Sequence[float]],
+        treatment_metrics: Mapping[str, Sequence[float]],
     ) -> Mapping[str, Any]:
-        """
-        Verify hypothesis using the provided metrics.
-
-        Args:
-            baseline_metrics: Dict of aggregated baseline metrics.
-            treatment_metrics: Dict of aggregated treatment metrics.
-
-        Returns:
-            Dict with the statistical test result plus an `accepted` boolean.
-        """
         try:
-            baseline_sample = baseline_metrics[self.metric]
-            treatment_sample = treatment_metrics[self.metric]
+            baseline_samples = baseline_metrics[self.metric]
+            treatment_samples = treatment_metrics[self.metric]
         except KeyError:
             raise MissingMetricError(self.metric)
 
         test_result = self.statistical_test.run(
-            baseline_sample,
-            treatment_sample,
+            baseline_samples,
+            treatment_samples,
             alpha=self.alpha,
         )
 
-        accepted = False
-        if test_result["significant"]:
-            if self.direction == "decrease":
-                accepted = treatment_sample < baseline_sample
-            elif self.direction == "increase":
-                accepted = treatment_sample > baseline_sample
-            else:  # "equal"
-                accepted = True
+        result = {**test_result, "accepted": test_result["significant"]}
 
-        return {**test_result, "accepted": accepted}
+        if self.direction and test_result["significant"]:
+            baseline_mean = sum(baseline_samples) / len(baseline_samples)
+            treatment_mean = sum(treatment_samples) / len(treatment_samples)
+
+            if self.direction == "increase":
+                result["accepted"] = treatment_mean > baseline_mean
+            elif self.direction == "decrease":
+                result["accepted"] = treatment_mean < baseline_mean
+            elif self.direction == "equal":
+                result["accepted"] = abs(treatment_mean - baseline_mean) < 1e-6
+
+            result.update({
+                "baseline_mean": baseline_mean,
+                "treatment_mean": treatment_mean,
+            })
+
+        return result

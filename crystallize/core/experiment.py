@@ -12,26 +12,6 @@ from crystallize.core.result import Result
 from crystallize.core.treatment import Treatment
 
 
-def _aggregate(samples: List[Mapping[str, Any]]) -> Mapping[str, Any]:
-    """
-    Aggregate replicate metric dicts by computing their mean.
-
-    Args:
-        samples: List of metric dictionaries from each replicate.
-
-    Returns:
-        Dict[str, float]: mean value per metric key.
-    """
-    if not samples:
-        return {}
-
-    keys = samples[0].keys()
-    agg: Dict[str, float] = {}
-    for k in keys:
-        agg[k] = _stats.mean(sample[k] for sample in samples)
-    return agg
-
-
 class Experiment:
     """
     Orchestrates baseline + treatment pipelines across replicates, then
@@ -98,25 +78,31 @@ class Experiment:
                 except Exception as exc:  # pragma: no cover
                     errors[f"{t.name}_rep_{rep}"] = exc
 
-        # ---------- aggregation ---------------------------------------- #
-        baseline_metrics = _aggregate(baseline_samples)
-        # For now verify against the FIRST treatment (extend later)
-        primary_treatment = self.treatments[0]
-        treat_metrics = _aggregate(treatment_samples[primary_treatment.name])
+        # ---------- aggregation: preserve full sample arrays ------------ #
+        def collect_samples(samples: List[Mapping[str, Any]], metric: str) -> List[float]:
+            return [sample[metric] for sample in samples if metric in sample]
 
+        baseline_metric_samples = collect_samples(baseline_samples, self.hypothesis.metric)
+        primary_treatment = self.treatments[0]
+        treatment_metric_samples = collect_samples(
+            treatment_samples[primary_treatment.name], self.hypothesis.metric
+        )
+
+        # hypothesis verification (pass arrays directly)
         hypothesis_result = self.hypothesis.verify(
-            baseline_metrics=baseline_metrics, treatment_metrics=treat_metrics
+            baseline_metrics={self.hypothesis.metric: baseline_metric_samples},
+            treatment_metrics={self.hypothesis.metric: treatment_metric_samples},
         )
 
         metrics = {
-            "baseline": baseline_metrics,
-            primary_treatment.name: treat_metrics,
+            "baseline": {self.hypothesis.metric: baseline_metric_samples},
+            primary_treatment.name: {self.hypothesis.metric: treatment_metric_samples},
             "hypothesis": hypothesis_result,
         }
 
         provenance = {
             "pipeline_signature": self.pipeline.signature(),
-            "last_run": tuple(self.pipeline.get_provenance()),
+            "replicates": self.replicates,
         }
 
         return Result(metrics=metrics, errors=errors, provenance=provenance)

@@ -1,9 +1,11 @@
-import pytest
 from typing import Any, Mapping
 
-from crystallize.core.pipeline import Pipeline, InvalidPipelineOutput
-from crystallize.core.pipeline_step import PipelineStep
+import pytest
+
 from crystallize.core.context import FrozenContext
+from crystallize.core.exceptions import PipelineExecutionError
+from crystallize.core.pipeline import InvalidPipelineOutput, Pipeline
+from crystallize.core.pipeline_step import PipelineStep
 
 
 class AddStep(PipelineStep):
@@ -15,12 +17,21 @@ class AddStep(PipelineStep):
 
     @property
     def params(self) -> dict:
-        return {'value': self.value}
+        return {"value": self.value}
 
 
 class MetricsStep(PipelineStep):
     def __call__(self, data: Any, ctx: FrozenContext) -> Mapping[str, Any]:
-        return {'result': data}
+        return {"result": data}
+
+    @property
+    def params(self) -> dict:
+        return {}
+
+
+class FailStep(PipelineStep):
+    def __call__(self, data: Any, ctx: FrozenContext) -> Any:  # pragma: no cover
+        raise ValueError("boom")
 
     @property
     def params(self) -> dict:
@@ -31,7 +42,7 @@ def test_pipeline_runs_and_returns_metrics():
     pipeline = Pipeline([AddStep(1), MetricsStep()])
     ctx = FrozenContext({})
     result = pipeline.run(0, ctx)
-    assert result == {'result': 1}
+    assert result == {"result": 1}
 
 
 def test_invalid_pipeline_output_raises():
@@ -45,3 +56,10 @@ def test_pipeline_signature():
     pipeline = Pipeline([AddStep(2), MetricsStep()])
     sig = pipeline.signature()
     assert "AddStep" in sig and "MetricsStep" in sig
+
+
+def test_pipeline_execution_error():
+    pipeline = Pipeline([FailStep()])
+    ctx = FrozenContext({})
+    with pytest.raises(PipelineExecutionError):
+        pipeline.run(0, ctx)

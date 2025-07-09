@@ -1,8 +1,8 @@
-from typing import List, Any, Mapping
-import inspect
+from typing import Any, List, Mapping
 
-from crystallize.core.pipeline_step import PipelineStep
 from crystallize.core.context import FrozenContext
+from crystallize.core.exceptions import PipelineExecutionError
+from crystallize.core.pipeline_step import PipelineStep
 
 
 class InvalidPipelineOutput(Exception):
@@ -40,7 +40,10 @@ class Pipeline:
             InvalidPipelineOutput: if the last step does not return Mapping.
         """
         for step in self.steps:
-            data = step(data, ctx)
+            try:
+                data = step(data, ctx)
+            except Exception as exc:
+                raise PipelineExecutionError(step.__class__.__name__, exc) from exc
 
         if not isinstance(data, Mapping):
             raise InvalidPipelineOutput(

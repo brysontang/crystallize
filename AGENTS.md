@@ -1,6 +1,19 @@
 # AGENTS.md
 
-This document provides instructions for automated agents (Codex, Copilot, etc.) working within this repository.
+This document provides instructions and context for automated agents (Codex, Copilot, etc.) working within the Crystallize repository.
+
+---
+
+## 📖 Ethos & Philosophy
+
+Crystallize is built around rigorous, reproducible, and intuitive data science experimentation. When making changes or contributing code, always prioritize:
+
+- **Clarity**: Code should clearly communicate intent and implementation.
+- **Reproducibility**: Ensure deterministic outcomes, clear provenance, and robust caching.
+- **Minimalism**: Keep abstractions simple, intuitive, and easy to use without overcomplicating.
+- **Scientific Rigor**: Align closely with best practices in experimental science, emphasizing statistical verification and methodological correctness.
+
+---
 
 ## 🧭 Scope
 
@@ -10,119 +23,92 @@ Instructions here apply to all files and subdirectories rooted in the directory 
 
 ## 🚦 Coding Conventions
 
-- **Formatting**: Follow PEP 8 standards. Use `black` and `isort` to auto-format imports and code.
-- **Type Hints**: Always include type hints. Use `mypy` for static analysis.
-- **Imports**: Explicit imports only (no wildcard imports).
+- **Formatting**: Strictly follow PEP 8 standards. Use `black` and `isort` to auto-format imports and code.
+- **Type Hints**: Always include clear and explicit type hints. Use `mypy` for static type checking.
+- **Imports**: Only explicit imports; never use wildcard imports.
 - **Naming**:
 
   - Classes: `PascalCase`
   - Functions, methods, variables: `snake_case`
   - Constants: `UPPER_CASE`
 
+- **Error Handling**: Use explicit, informative, and custom-defined exceptions to provide clear debugging and user experience.
+
 ---
 
 ## 📂 Project Structure
 
-The repository follows this general layout:
+The repository structure is intentionally simple and clear:
 
 ```
 crystallize/
 ├── crystallize/
-│   ├── core/        # Core abstractions
-│   ├── steps/       # Pipeline step implementations
+│   ├── core/        # Core abstractions: minimal, abstract definitions only
+│   ├── steps/       # Minimal illustrative step implementations
 │   └── experiment.py
 ├── tests/
 │   └── test_*.py
 └── examples/
-    └── *.py
+    ├── minimal_experiment/
+    │   └── *.py
+    └── csv_pipeline_example/
+        └── *.py
 ```
 
-Respect this structure and organize new files accordingly.
+Maintain this clarity and simplicity. Clearly separate abstract core functionality from concrete example implementations.
 
 ---
 
-## 🔍 PR Messages
+## 📝 PR Messages
 
-Automated agents generating PR messages should follow these guidelines:
+Automated agents generating PR messages should follow these structured guidelines:
 
-- Clearly summarize the **what** and **why** of the changes.
-- Use the format:
+- Provide a clear and concise explanation of both **what** changed and **why**.
+- Follow this structured format:
 
 ```
 ### Summary
 
-Brief summary of the changes.
+Clearly describe the motivation and objectives for this PR.
 
 ### Changes
 
-- Bullet list of notable changes.
+- Bullet points highlighting key changes.
 
-### Testing
+### Testing & Verification
 
-Describe how changes were tested and verification instructions.
+Explain exactly how the changes were tested and provide clear verification steps.
 
 ### Notes
 
-Optional additional context or notes.
+Additional context or important details not covered elsewhere.
 ```
 
 ---
 
 ## ✅ Checks and Validation
 
-Before finalizing a PR:
+Before finalizing any PR, run and ensure passing results from:
 
-- Run all provided tests using `pytest`:
+- Unit tests:
 
 ```bash
 pixi run test
 ```
 
-- Ensure linting and formatting pass:
+- Formatting, linting, and static checks:
 
 ```bash
 pixi run lint
 ```
 
-- Run coverage report, make sure it's at 80%:
-
-```bash
-pixi run cov
-```
-
-All checks must pass prior to PR submission.
-
-## Testing Philosophy for Codex
-
-The primary objective of testing within Codex is to ensure robust, reliable code through thoughtful, targeted stress testing. Our philosophy prioritizes meaningful coverage over exhaustive, redundant testing. To achieve this:
-
-1. **Focus on Edge Cases:**
-
-   - Prioritize edge cases and boundary conditions that users are realistically likely to encounter.
-   - Validate inputs, handle unusual or unexpected user behaviors gracefully, and ensure the application remains stable under atypical scenarios.
-
-2. **Pragmatic Coverage:**
-
-   - Aim for clarity and precision rather than excessive coverage.
-   - Tests should clearly reflect plausible use-cases rather than contrived or improbable scenarios.
-
-3. **Stress Realism, Not Perfection:**
-
-   - Emphasize realistic stress conditions rather than theoretical extremes.
-   - The goal is resilient code, effectively tested against plausible scenarios, not absolute perfection in every hypothetical case.
-
-4. **Maintain Readability and Intent:**
-
-   - Tests should be clear and self-explanatory, reflecting the intent and logic behind them.
-   - Prioritize tests that enhance maintainability and long-term understandability of the codebase.
-
-Following this approach ensures Codex remains dependable, user-centric, and maintainable, without unnecessary overhead or complexity in testing.
+These checks are mandatory for all contributions.
 
 ---
 
-## ⚠️ Conflicts
+## ⚠️ Resolving Conflicts
 
 In case of conflicting instructions:
 
-1. Developer/user instructions in prompt take precedence.
-2. Instructions in deeper nested AGENTS.md files take precedence over this file.
+1. Instructions directly provided by developers/users in prompts have the highest precedence.
+2. Instructions in deeper nested AGENTS.md files override this document.

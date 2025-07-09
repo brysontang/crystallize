@@ -1,6 +1,6 @@
 # Crystallize 🧪✨
 
-⚠️ Pre-Alpha Notice
+⚠️ Pre-Alpha Notice  
 This project is in an early experimental phase. Breaking changes may occur at any time. Use at your own risk.
 
 ---

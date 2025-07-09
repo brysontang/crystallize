@@ -33,6 +33,13 @@ class PipelineStep(ABC):
 
     # ------------------------------------------------------------------ #
     @property
+    def cacheable(self) -> bool:
+        """Whether this step should use cached results."""
+
+        return True
+
+    # ------------------------------------------------------------------ #
+    @property
     def step_hash(self) -> str:
         """Unique hash identifying this step based on its parameters."""
 

@@ -116,7 +116,7 @@ class Experiment:
 
         provenance = {
             "pipeline_signature": self.pipeline.signature(),
-            "last_run": self.pipeline.get_provenance(),
+            "last_run": tuple(self.pipeline.get_provenance()),
         }
 
         return Result(metrics=metrics, errors=errors, provenance=provenance)

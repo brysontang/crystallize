@@ -1,0 +1,17 @@
+
+# pixi environments
+.pixi
+*.egg-info
+
+# test artefacts
+.coverage
+htmlcov/
+coverage.xml
+
+# python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# macos
+.DS_Store

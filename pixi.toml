@@ -1,0 +1,17 @@
+[workspace]
+authors = ["Bryson Tang <brysontang@gmail.com>"]
+channels = ["conda-forge"]
+name = "crystallize"
+platforms = ["osx-arm64", "linux-64"]
+version = "0.1.0"
+
+[tasks]
+test = "pytest -q"
+cov  = "pytest --cov=crystallize --cov-report=term-missing"
+lint = "ruff crystallize tests"
+
+[dependencies]
+python = "3.11.*"
+pytest = "*"
+pytest-cov = "*"
+ruff = "*"

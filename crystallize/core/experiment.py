@@ -9,7 +9,7 @@ from crystallize.core.pipeline import Pipeline
 from crystallize.core.treatment import Treatment
 from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.result import Result
-from crystallize.core.context import FrozenContext, ContextMutationError
+from crystallize.core.context import FrozenContext
 
 
 def _aggregate(samples: List[Mapping[str, Any]]) -> Mapping[str, Any]:

@@ -27,3 +27,8 @@ class CSVDataSource(DataSource):
                 for row in sampled_rows
             ]
         return data
+
+
+def set_csv_path(ctx: FrozenContext, path: str, ctx_key: str = "csv_path") -> None:
+    """Helper to update the CSV path in a context."""
+    ctx[ctx_key] = path

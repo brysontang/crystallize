@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-import statistics as _stats
 from copy import deepcopy
 from typing import Any, Dict, List, Mapping, Optional
 

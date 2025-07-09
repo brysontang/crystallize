@@ -44,7 +44,7 @@ def test_experiment_run_basic():
         replicates=2,
     )
     result = experiment.run()
-    assert result.metrics['baseline']['metric'] == 0.5
-    assert result.metrics['treat']['metric'] == 1.5
+    assert result.metrics['baseline']['metric'] == [0, 1]
+    assert result.metrics['treat']['metric'] == [1, 2]
     assert result.metrics['hypothesis']['accepted'] is True
     assert result.errors == {}

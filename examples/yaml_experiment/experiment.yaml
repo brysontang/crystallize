@@ -1,26 +1,29 @@
-{
-  "replicates": 2,
-  "datasource": {
-    "target": "examples.csv_pipeline_example.datasource.CSVDataSource",
-    "params": {"default_path": "examples/csv_pipeline_example/baseline.csv"}
-  },
-  "pipeline": [
-    {"target": "examples.csv_pipeline_example.steps.normalize.NormalizeStep", "params": {}},
-    {"target": "examples.csv_pipeline_example.steps.pca.PCAStep", "params": {}},
-    {"target": "examples.csv_pipeline_example.steps.metric.ExplainedVarianceStep", "params": {}}
-  ],
-  "hypothesis": {
-    "metric": "explained_variance",
-    "direction": "increase",
-    "statistical_test": {"target": "examples.csv_pipeline_example.main.WelchTTest", "params": {}}
-  },
-  "treatments": [
-    {
-      "name": "better_data",
-      "apply": {
-        "target": "examples.csv_pipeline_example.datasource.set_csv_path",
-        "params": {"path": "examples/csv_pipeline_example/treatment.csv"}
-      }
-    }
-  ]
-}
+# pixi run python -m crystallize.cli.main run examples/yaml_experiment/experiment.yaml
+replicates: 10
+
+datasource:
+  target: examples.csv_pipeline_example.datasource.CSVDataSource
+  params:
+    default_path: examples/csv_pipeline_example/baseline.csv
+
+pipeline:
+  - target: examples.csv_pipeline_example.steps.normalize.NormalizeStep
+    params: {}
+  - target: examples.csv_pipeline_example.steps.pca.PCAStep
+    params: {}
+  - target: examples.csv_pipeline_example.steps.metric.ExplainedVarianceStep
+    params: {}
+
+hypothesis:
+  metric: explained_variance
+  direction: increase
+  statistical_test:
+    target: examples.csv_pipeline_example.main.WelchTTest
+    params: {}
+
+treatments:
+  - name: better_data
+    apply:
+      target: examples.csv_pipeline_example.datasource.set_csv_path
+      params:
+        path: examples/csv_pipeline_example/treatment.csv

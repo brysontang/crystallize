@@ -8,7 +8,7 @@ from .yaml_loader import load_experiment_from_file
 
 
 def main(argv: List[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="recur")
+    parser = argparse.ArgumentParser(prog="crystallize")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_parser = subparsers.add_parser("run", help="Run experiment from YAML")

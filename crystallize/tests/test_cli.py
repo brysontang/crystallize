@@ -1,13 +1,15 @@
 import subprocess
 import sys
-from ast import literal_eval
 from pathlib import Path
+from ast import literal_eval
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.pipeline_step import PipelineStep
 from crystallize.core.stat_test import StatisticalTest
 
+
+import pytest
 
 class DummyDataSource(DataSource):
     def fetch(self, ctx: FrozenContext):
@@ -27,36 +29,39 @@ class AlwaysSig(StatisticalTest):
     def run(self, baseline, treatment, *, alpha: float = 0.05):
         return {"p_value": 0.01, "significant": True}
 
-
 def apply_value(ctx: FrozenContext, amount: int) -> None:
     ctx["value"] = amount
 
 
-def test_cli_runs_from_yaml(tmp_path: Path):
+@pytest.fixture
+def experiment_yaml(tmp_path: Path) -> Path:
     yaml_path = tmp_path / "exp.yaml"
-    yaml_path.write_text(
-        """
-{
-  "replicates": 1,
-  "datasource": {"target": "tests.test_yaml_cli.DummyDataSource", "params": {}},
-  "pipeline": [{"target": "tests.test_yaml_cli.PassStep", "params": {}}],
-  "hypothesis": {
-    "metric": "metric",
-    "direction": "increase",
-    "statistical_test": {"target": "tests.test_yaml_cli.AlwaysSig", "params": {}}
-  },
-  "treatments": [
-    {
-      "name": "inc",
-      "apply": {"target": "tests.test_yaml_cli.apply_value", "params": {"amount": 1}}
-    }
-  ]
-}
-"""
-    )
+    yaml_path.write_text("""
+replicates: 2
+datasource:
+  target: crystallize.tests.test_cli.DummyDataSource
+  params: {}
+pipeline:
+  - target: crystallize.tests.test_cli.PassStep
+    params: {}
+hypothesis:
+  metric: metric
+  direction: increase
+  statistical_test:
+    target: crystallize.tests.test_cli.AlwaysSig
+    params: {}
+treatments:
+  - name: increment
+    apply:
+      target: crystallize.tests.test_cli.apply_value
+      params:
+        amount: 1
+""")
+    return yaml_path
 
+def test_cli_runs_from_yaml(experiment_yaml: Path):
     result = subprocess.run(
-        [sys.executable, "-m", "crystallize.recur", "run", str(yaml_path)],
+        [sys.executable, "-m", "crystallize.cli.main", "run", str(experiment_yaml)],
         capture_output=True,
         text=True,
         check=True,

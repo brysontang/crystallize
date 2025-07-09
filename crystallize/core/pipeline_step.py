@@ -6,6 +6,8 @@ from crystallize.core.context import FrozenContext
 
 
 class PipelineStep(ABC):
+    cacheable = True
+
     @abstractmethod
     def __call__(self, data: Any, ctx: FrozenContext) -> Any:
         """
@@ -30,13 +32,6 @@ class PipelineStep(ABC):
             dict: Parameters dictionary.
         """
         raise NotImplementedError()
-
-    # ------------------------------------------------------------------ #
-    @property
-    def cacheable(self) -> bool:
-        """Whether this step should use cached results."""
-
-        return True
 
     # ------------------------------------------------------------------ #
     @property

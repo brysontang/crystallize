@@ -50,9 +50,7 @@ def test_cache_hit_and_miss(tmp_path, monkeypatch):
 
 
 class NoCacheStep(CountingStep):
-    @property
-    def cacheable(self) -> bool:
-        return False
+    cacheable = False
 
 
 def test_non_cacheable_step(tmp_path, monkeypatch):

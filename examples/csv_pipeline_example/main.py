@@ -34,14 +34,15 @@ def main() -> None:
         lambda ctx: ctx.__setitem__("csv_path", str(base_dir / "treatment.csv")),
     )
 
-    experiment = Experiment(
-        datasource=datasource,
-        pipeline=pipeline,
-        treatments=[treatment],
-        hypotheses=[hypothesis],
-        replicates=10,
+    experiment = (
+        Experiment()
+        .with_datasource(datasource)
+        .with_pipeline(pipeline)
+        .with_treatments([treatment])
+        .with_hypotheses([hypothesis])
+        .with_replicates(10)
     )
-
+    experiment.validate()
     result = experiment.run()
     print(result.metrics["hypotheses"])
     print(result.provenance)

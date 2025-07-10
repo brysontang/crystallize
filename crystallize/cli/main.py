@@ -18,6 +18,7 @@ def main(argv: List[str] | None = None) -> None:
 
     if args.command == "run":
         experiment = load_experiment_from_file(args.config)
+        experiment.validate()
         result = experiment.run()
         print(result.metrics["hypotheses"])
 

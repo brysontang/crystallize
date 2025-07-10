@@ -3,10 +3,8 @@ title: Next Steps & Additional Resources
 description: Next steps for the Crystallize framework.
 ---
 
-**First Paragraph (explicitly introduce explicitly next steps explicitly):**  
 Clearly and explicitly indicate explicitly immediate next steps explicitly after successful installation explicitly, explicitly directing users explicitly toward explicitly the Tutorials section explicitly for explicit deeper learning explicitly. Explicitly encourage explicitly exploration explicitly by clearly outlining explicitly recommended explicit starting tutorials explicitly explicitly.
 
-**Second Paragraph (explicitly further resources explicitly):**  
 Explicitly provide clear, concise links explicitly to additional explicit helpful resources explicitly clearly within your explicit documentation explicitly:
 
 - Link explicitly to Core Concepts explicitly to clearly deepen explicit foundational explicit understanding explicitly.

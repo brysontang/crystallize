@@ -3,7 +3,6 @@ title: Installation Instructions
 description: Installation instructions for the Crystallize framework.
 ---
 
-**First Paragraph (explicit setup clearly detailed):**  
 Clearly and explicitly introduce users to how they install Crystallize, explicitly focusing on straightforward steps. Explicitly state that Crystallize is easily available from PyPI, explicitly providing the explicit, minimal command clearly for installation:
 
 bash
@@ -14,7 +13,6 @@ CopyEdit
 
 Explicitly outline basic compatibility explicitly (Python version, dependencies explicitly). Explicitly mention that Crystallize has minimal core dependencies explicitly (numpy, scipy, pandas clearly), keeping installations explicit and clean.
 
-**Second Paragraph (virtual environments clearly recommended):**  
 Explicitly and clearly emphasize explicit best practices explicitly: using a clean virtual environment explicitly. Explicitly provide clear, concise instructions explicitly for popular virtual environment tools clearly:
 
 - **Pixi** (modern, popular clearly in data science):

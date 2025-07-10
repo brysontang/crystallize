@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 from functools import update_wrapper
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Mapping, Optional, Union
 
 from .context import FrozenContext
 from .datasource import DataSource
@@ -56,16 +56,26 @@ def pipeline_step(cacheable: bool = True) -> Callable[..., PipelineStep]:
     return decorator
 
 
-def treatment(name: str) -> Callable[..., Treatment]:
-    """Decorate a function to quickly create a :class:`Treatment`."""
+def treatment(
+    name: str,
+    apply: Union[Callable[[FrozenContext], Any], Mapping[str, Any], None] = None,
+) -> Union[Callable[[Callable[[FrozenContext], Any]], Callable[..., Treatment]], Treatment]:
+    """Create a :class:`Treatment` from a callable or mapping.
 
-    def decorator(fn: Callable[[FrozenContext], Any]) -> Callable[..., Treatment]:
-        def factory() -> Treatment:
-            return Treatment(name, fn)
+    When called with ``name`` only, returns a decorator for functions of
+    ``(ctx)``. Providing ``apply`` directly returns a ``Treatment`` instance.
+    """
 
-        return update_wrapper(factory, fn)
+    if apply is None:
+        def decorator(fn: Callable[[FrozenContext], Any]) -> Callable[..., Treatment]:
+            def factory() -> Treatment:
+                return Treatment(name, fn)
 
-    return decorator
+            return update_wrapper(factory, fn)
+
+        return decorator
+
+    return Treatment(name, apply)
 
 
 def hypothesis(

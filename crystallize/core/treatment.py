@@ -1,4 +1,4 @@
-from typing import Callable, Any
+from typing import Any, Callable, Mapping, Union
 from crystallize.core.context import FrozenContext
 
 
@@ -8,14 +8,26 @@ class Treatment:
 
     Args:
         name: Human-readable identifier.
-        apply_fn: Callable receiving (ctx) and mutating it by *adding new keys*
-                  or overriding step-specific param spaces. Must NOT mutate
-                  existing keys – FrozenContext enforces immutability.
+        apply: Either a callable ``apply(ctx)`` or a mapping of key-value pairs
+            to add to the context. The callable form allows dynamic logic while
+            the mapping form simply inserts the provided keys. Existing keys
+            must not be mutated – ``FrozenContext`` enforces immutability.
     """
 
-    def __init__(self, name: str, apply_fn: Callable[[FrozenContext], Any]):
+    def __init__(
+        self,
+        name: str,
+        apply: Union[Callable[[FrozenContext], Any], Mapping[str, Any]],
+    ):
         self.name = name
-        self._apply_fn = apply_fn
+        if callable(apply):
+            self._apply_fn = apply
+        else:
+            def _apply_fn(ctx: FrozenContext, items=apply) -> None:
+                for k, v in items.items():
+                    ctx.add(k, v)
+
+            self._apply_fn = _apply_fn
 
     # ---- framework use --------------------------------------------------
 

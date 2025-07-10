@@ -29,4 +29,4 @@ def csv_data_source(
 
 def set_csv_path(ctx: FrozenContext, path: str, ctx_key: str = "csv_path") -> None:
     """Helper to update the CSV path in a context."""
-    ctx[ctx_key] = path
+    ctx.add(ctx_key, path)

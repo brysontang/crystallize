@@ -33,7 +33,7 @@ def identity_step(data, ctx):
 
 @treatment("treat")
 def treat(ctx: FrozenContext) -> None:
-    ctx["increment"] = 1
+    ctx.add("increment", 1)
 
 
 if __name__ == "__main__":

@@ -23,9 +23,10 @@ def welch_t_test(baseline, treatment, *, alpha: float = 0.05):
     return {"p_value": p_value, "significant": p_value < alpha}
 
 
-@treatment("better_data")
-def better_data(ctx: FrozenContext) -> None:
-    ctx["csv_path"] = str(Path(__file__).parent / "treatment.csv")
+better_data = treatment(
+    "better_data",
+    {"csv_path": str(Path(__file__).parent / "treatment.csv")},
+)
 
 
 def main() -> None:
@@ -37,7 +38,7 @@ def main() -> None:
         statistical_test=welch_t_test(),
         direction="increase",
     )
-    treat = better_data()
+    treat = better_data
 
     experiment = (
         Experiment()

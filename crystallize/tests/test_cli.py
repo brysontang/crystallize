@@ -31,7 +31,7 @@ class AlwaysSig(StatisticalTest):
 
 
 def apply_value(ctx: FrozenContext, amount: int) -> None:
-    ctx["value"] = amount
+    ctx.add("value", amount)
 
 
 @pytest.fixture

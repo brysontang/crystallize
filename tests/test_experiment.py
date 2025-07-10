@@ -36,7 +36,7 @@ def test_experiment_run_basic():
     hypothesis = Hypothesis(
         metric="metric", direction="increase", statistical_test=AlwaysSignificant()
     )
-    treatment = Treatment("treat", lambda ctx: ctx.__setitem__("increment", 1))
+    treatment = Treatment("treat", {"increment": 1})
 
     experiment = Experiment(
         datasource=datasource,
@@ -59,8 +59,8 @@ def test_experiment_run_multiple_treatments():
     hypothesis = Hypothesis(
         metric="metric", direction="increase", statistical_test=AlwaysSignificant()
     )
-    treatment1 = Treatment("treat1", lambda ctx: ctx.__setitem__("increment", 1))
-    treatment2 = Treatment("treat2", lambda ctx: ctx.__setitem__("increment", 2))
+    treatment1 = Treatment("treat1", {"increment": 1})
+    treatment2 = Treatment("treat2", {"increment": 2})
     experiment = Experiment(
         datasource=datasource,
         pipeline=pipeline,
@@ -94,7 +94,7 @@ def test_experiment_run_baseline_only():
 def test_experiment_run_treatments_no_hypotheses():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()
-    treatment = Treatment("treat", lambda ctx: ctx.__setitem__("increment", 1))
+    treatment = Treatment("treat", {"increment": 1})
 
     experiment = Experiment(
         datasource=datasource,
@@ -157,9 +157,7 @@ def test_experiment_builder_chaining():
         Experiment()
         .with_datasource(DummyDataSource())
         .with_pipeline(Pipeline([PassStep()]))
-        .with_treatments(
-            [Treatment("t", lambda ctx: ctx.__setitem__("increment", 1))]
-        )
+        .with_treatments([Treatment("t", {"increment": 1})])
         .with_hypotheses(
             [
                 Hypothesis(

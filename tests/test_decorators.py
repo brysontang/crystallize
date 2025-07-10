@@ -31,7 +31,7 @@ def always_significant(baseline, treatment, *, alpha: float = 0.05):
 
 @treatment("inc")
 def inc_treatment(ctx):
-    ctx["increment"] = 1
+    ctx.add("increment", 1)
 
 
 h = hypothesis(
@@ -52,7 +52,14 @@ def test_treatment_decorator():
     t = inc_treatment()
     ctx = FrozenContext({})
     t.apply(ctx)
-    assert ctx["increment"] == 1
+    assert ctx.get("increment") == 1
+
+
+def test_treatment_factory_with_mapping():
+    t = treatment("inc_map", {"increment": 2})
+    ctx = FrozenContext({})
+    t.apply(ctx)
+    assert ctx.get("increment") == 2
 
 
 def test_hypothesis_factory():

@@ -74,6 +74,7 @@ def hypothesis(
     statistical_test: StatisticalTest,
     alpha: float = 0.05,
     direction: Optional[str] = None,
+    name: Optional[str] = None,
 ) -> Hypothesis:
     """Create a :class:`Hypothesis` instance."""
 
@@ -82,6 +83,7 @@ def hypothesis(
         statistical_test=statistical_test,
         alpha=alpha,
         direction=direction,
+        name=name,
     )
 
 

@@ -1,10 +1,6 @@
 from pathlib import Path
-from scipy.stats import ttest_ind
 
-from .datasource import CSVDataSource
-from .steps.metric import ExplainedVarianceStep
-from .steps.normalize import NormalizeStep
-from .steps.pca import PCAStep
+from scipy.stats import ttest_ind
 
 from crystallize.core.experiment import Experiment
 from crystallize.core.hypothesis import Hypothesis
@@ -12,14 +8,16 @@ from crystallize.core.pipeline import Pipeline
 from crystallize.core.stat_test import StatisticalTest
 from crystallize.core.treatment import Treatment
 
+from .datasource import CSVDataSource
+from .steps.metric import ExplainedVarianceStep
+from .steps.normalize import NormalizeStep
+from .steps.pca import PCAStep
+
 
 class WelchTTest(StatisticalTest):
     def run(self, baseline, treatment, *, alpha=0.05):
         t_stat, p_value = ttest_ind(baseline, treatment, equal_var=False)
-        return {
-            "p_value": p_value,
-            "significant": p_value < alpha
-        }
+        return {"p_value": p_value, "significant": p_value < alpha}
 
 
 def main() -> None:
@@ -40,12 +38,12 @@ def main() -> None:
         datasource=datasource,
         pipeline=pipeline,
         treatments=[treatment],
-        hypothesis=hypothesis,
+        hypotheses=[hypothesis],
         replicates=10,
     )
 
     result = experiment.run()
-    print(result.metrics['hypothesis'])
+    print(result.metrics["hypotheses"])
     print(result.provenance)
 
 

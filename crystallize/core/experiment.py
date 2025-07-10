@@ -1,6 +1,8 @@
 from __future__ import annotations
+
+from collections import defaultdict
 from copy import deepcopy
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, DefaultDict, Dict, List, Mapping, Optional
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
@@ -12,8 +14,8 @@ from crystallize.core.treatment import Treatment
 
 class Experiment:
     """
-    Orchestrates baseline + treatment pipelines across replicates, then
-    verifies the hypothesis using aggregated metrics.
+    Orchestrates baseline + treatment pipelines across replicates, then verifies
+    one or more hypotheses using aggregated metrics.
     """
 
     def __init__(
@@ -21,13 +23,13 @@ class Experiment:
         datasource: DataSource,
         pipeline: Pipeline,
         treatments: List[Treatment],
-        hypothesis: Hypothesis,
+        hypotheses: List[Hypothesis],
         replicates: int = 1,
     ):
         self.datasource = datasource
         self.pipeline = pipeline
         self.treatments = treatments
-        self.hypothesis = hypothesis
+        self.hypotheses = hypotheses
         self.replicates = max(1, replicates)
 
     # ------------------------------------------------------------------ #
@@ -77,28 +79,34 @@ class Experiment:
                     errors[f"{t.name}_rep_{rep}"] = exc
 
         # ---------- aggregation: preserve full sample arrays ------------ #
-        def collect_samples(samples: List[Mapping[str, Any]], metric: str) -> List[float]:
-            return [sample[metric] for sample in samples if metric in sample]
+        def collect_all_samples(
+            samples: List[Mapping[str, Any]],
+        ) -> Dict[str, List[Any]]:
+            metrics: DefaultDict[str, List[Any]] = defaultdict(list)
+            for sample in samples:
+                for metric, value in sample.items():
+                    metrics[metric].append(value)
+            return dict(metrics)
 
-        hypothesis_result = {}
-        treatment_metrics_dict = {}
+        baseline_metrics = collect_all_samples(baseline_samples)
+        treatment_metrics_dict = {
+            name: collect_all_samples(samp) for name, samp in treatment_samples.items()
+        }
 
-        baseline_metric_samples = collect_samples(baseline_samples, self.hypothesis.metric)
-
-        for treatment in self.treatments:
-            treatment_metric_samples = collect_samples(
-                treatment_samples[treatment.name], self.hypothesis.metric
-            )
-            hypothesis_result[treatment.name] = self.hypothesis.verify(
-                baseline_metrics={self.hypothesis.metric: baseline_metric_samples},
-                treatment_metrics={self.hypothesis.metric: treatment_metric_samples},
-            )
-            treatment_metrics_dict[treatment.name] = treatment_metric_samples
+        hypothesis_results: Dict[str, Dict[str, Any]] = {}
+        for hyp in self.hypotheses:
+            per_treatment: Dict[str, Any] = {}
+            for treatment in self.treatments:
+                per_treatment[treatment.name] = hyp.verify(
+                    baseline_metrics=baseline_metrics,
+                    treatment_metrics=treatment_metrics_dict[treatment.name],
+                )
+            hypothesis_results[hyp.name] = per_treatment
 
         metrics = {
-            "baseline": {self.hypothesis.metric: baseline_metric_samples},
-            **{name: {self.hypothesis.metric: samples} for name, samples in treatment_metrics_dict.items()},
-            "hypothesis": hypothesis_result,
+            "baseline": baseline_metrics,
+            **treatment_metrics_dict,
+            "hypotheses": hypothesis_results,
         }
 
         provenance = {

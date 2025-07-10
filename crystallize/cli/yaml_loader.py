@@ -10,9 +10,12 @@ try:  # Prefer PyYAML if available
 
     def _yaml_load(content: str):
         return yaml.safe_load(content)
+
 except Exception:  # pragma: no cover - fallback when PyYAML missing
+
     def _yaml_load(content: str):
         return json.loads(content)
+
 
 from crystallize.core.experiment import Experiment
 from crystallize.core.hypothesis import Hypothesis
@@ -52,13 +55,22 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
     ]
     pipeline = Pipeline(steps)
 
-    hyp_spec = config["hypothesis"]
-    stat_test = _instantiate(hyp_spec["statistical_test"])
-    hypothesis = Hypothesis(
-        metric=hyp_spec["metric"],
-        statistical_test=stat_test,
-        direction=hyp_spec.get("direction"),
-    )
+    hypotheses: List[Hypothesis] = []
+    if "hypotheses" in config:
+        hyp_specs = config["hypotheses"]
+    else:
+        hyp_specs = [config["hypothesis"]]
+
+    for spec in hyp_specs:
+        stat_test = _instantiate(spec["statistical_test"])
+        hypotheses.append(
+            Hypothesis(
+                metric=spec["metric"],
+                statistical_test=stat_test,
+                direction=spec.get("direction"),
+                name=spec.get("name"),
+            )
+        )
 
     treatments = []
     for t_spec in config.get("treatments", []):
@@ -70,7 +82,7 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
         datasource=datasource,
         pipeline=pipeline,
         treatments=treatments,
-        hypothesis=hypothesis,
+        hypotheses=hypotheses,
         replicates=replicates,
     )
 

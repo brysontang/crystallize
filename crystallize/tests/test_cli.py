@@ -1,15 +1,15 @@
 import subprocess
 import sys
-from pathlib import Path
 from ast import literal_eval
+from pathlib import Path
+
+import pytest
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.pipeline_step import PipelineStep
 from crystallize.core.stat_test import StatisticalTest
 
-
-import pytest
 
 class DummyDataSource(DataSource):
     def fetch(self, ctx: FrozenContext):
@@ -29,6 +29,7 @@ class AlwaysSig(StatisticalTest):
     def run(self, baseline, treatment, *, alpha: float = 0.05):
         return {"p_value": 0.01, "significant": True}
 
+
 def apply_value(ctx: FrozenContext, amount: int) -> None:
     ctx["value"] = amount
 
@@ -36,7 +37,8 @@ def apply_value(ctx: FrozenContext, amount: int) -> None:
 @pytest.fixture
 def experiment_yaml(tmp_path: Path) -> Path:
     yaml_path = tmp_path / "exp.yaml"
-    yaml_path.write_text("""
+    yaml_path.write_text(
+        """
 replicates: 2
 datasource:
   target: crystallize.tests.test_cli.DummyDataSource
@@ -56,8 +58,10 @@ treatments:
       target: crystallize.tests.test_cli.apply_value
       params:
         amount: 1
-""")
+"""
+    )
     return yaml_path
+
 
 def test_cli_runs_from_yaml(experiment_yaml: Path):
     result = subprocess.run(
@@ -67,5 +71,5 @@ def test_cli_runs_from_yaml(experiment_yaml: Path):
         check=True,
     )
     output = literal_eval(result.stdout.strip())
-    assert output["increment"]["significant"] is True
-    assert output["increment"]["accepted"] is True
+    assert output["metric"]["increment"]["significant"] is True
+    assert output["metric"]["increment"]["accepted"] is True

@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import catppuccin from '@catppuccin/starlight';
+import starlightClientMermaid from '@pasqal-io/starlight-client-mermaid';
 
 // https://astro.build/config
 export default defineConfig({
@@ -48,10 +49,14 @@ export default defineConfig({
         {
           label: 'Core Concepts',
           items: [
-            { label: 'Data Sources', slug: 'core-concepts/data-sources' },
+            { label: 'Experiments', slug: 'core-concepts/experiments' },
             {
               label: 'Pipelines & Pipeline Steps',
               slug: 'core-concepts/pipelines',
+            },
+            {
+              label: 'Data Sources',
+              slug: 'core-concepts/data-sources',
             },
             {
               label: 'Immutable Context',
@@ -61,7 +66,6 @@ export default defineConfig({
               label: 'Treatments, Hypothesis & Statistical Validation',
               slug: 'core-concepts/treatments',
             },
-            { label: 'Experiments', slug: 'core-concepts/experiments' },
           ],
         },
         {
@@ -104,6 +108,11 @@ export default defineConfig({
         catppuccin({
           dark: { flavor: 'frappe', accent: 'sky' },
           light: { flavor: 'latte', accent: 'sky' },
+        }),
+        starlightClientMermaid({
+          // optional tweaks
+          className: 'mermaid', // wrapper class for styling
+          loadingPlaceholder: '⏳', // shown while SVG renders
         }),
       ],
     }),

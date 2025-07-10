@@ -52,13 +52,15 @@ hypothesis = Hypothesis(metric="accuracy", direction="increase", statistical_tes
 
 treatment = Treatment(name="experiment_variant", apply_fn=lambda ctx: ctx.update({"learning_rate": 0.001}))
 
-experiment = Experiment(
-    pipeline=pipeline,
-    datasource=datasource,
-    treatments=[treatment],
-    hypothesis=hypothesis,
-    replicates=3,
+experiment = (
+    Experiment()
+    .with_pipeline(pipeline)
+    .with_datasource(datasource)
+    .with_treatments([treatment])
+    .with_hypotheses([hypothesis])
+    .with_replicates(3)
 )
+experiment.validate()
 
 result = experiment.run()
 print(result.metrics)

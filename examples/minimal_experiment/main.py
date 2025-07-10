@@ -44,13 +44,15 @@ if __name__ == "__main__":
     )
     treatment = Treatment("treat", lambda ctx: ctx.__setitem__("increment", 1))
 
-    experiment = Experiment(
-        datasource=datasource,
-        pipeline=pipeline,
-        treatments=[treatment],
-        hypotheses=[hypothesis],
-        replicates=2,
+    experiment = (
+        Experiment()
+        .with_datasource(datasource)
+        .with_pipeline(pipeline)
+        .with_treatments([treatment])
+        .with_hypotheses([hypothesis])
+        .with_replicates(2)
     )
+    experiment.validate()
     result = experiment.run()
     print(result.metrics)
     print(result.errors)

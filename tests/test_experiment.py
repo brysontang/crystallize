@@ -45,6 +45,7 @@ def test_experiment_run_basic():
         hypotheses=[hypothesis],
         replicates=2,
     )
+    experiment.validate()
     result = experiment.run()
     assert result.metrics["baseline"]["metric"] == [0, 1]
     assert result.metrics["treat"]["metric"] == [1, 2]
@@ -67,6 +68,7 @@ def test_experiment_run_multiple_treatments():
         hypotheses=[hypothesis],
         replicates=2,
     )
+    experiment.validate()
     result = experiment.run()
     assert result.metrics["baseline"]["metric"] == [0, 1]
     assert result.metrics["treat1"]["metric"] == [1, 2]
@@ -83,6 +85,7 @@ def test_experiment_run_baseline_only():
         datasource=datasource,
         pipeline=pipeline,
     )
+    experiment.validate()
     result = experiment.run()
     assert result.metrics["baseline"]["metric"] == [0]
     assert result.metrics["hypotheses"] == {}
@@ -98,6 +101,7 @@ def test_experiment_run_treatments_no_hypotheses():
         pipeline=pipeline,
         treatments=[treatment],
     )
+    experiment.validate()
     result = experiment.run()
     assert result.metrics["treat"]["metric"] == [1]
 
@@ -117,7 +121,7 @@ def test_experiment_run_hypothesis_without_treatments_raises():
         hypotheses=[hypothesis],
     )
     with pytest.raises(ValueError):
-        experiment.run()
+        experiment.validate()
 
 
 class IdentityStep(PipelineStep):
@@ -133,5 +137,40 @@ def test_experiment_apply_with_exit_step():
     pipeline = Pipeline([exit_step(IdentityStep()), PassStep()])
     datasource = DummyDataSource()
     experiment = Experiment(datasource=datasource, pipeline=pipeline)
+    experiment.validate()
     output = experiment.apply(data=5)
     assert output == 5
+
+
+def test_experiment_requires_validation():
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+    experiment = Experiment(datasource=datasource, pipeline=pipeline)
+    with pytest.raises(RuntimeError):
+        experiment.run()
+    with pytest.raises(RuntimeError):
+        experiment.apply(data=1)
+
+
+def test_experiment_builder_chaining():
+    experiment = (
+        Experiment()
+        .with_datasource(DummyDataSource())
+        .with_pipeline(Pipeline([PassStep()]))
+        .with_treatments(
+            [Treatment("t", lambda ctx: ctx.__setitem__("increment", 1))]
+        )
+        .with_hypotheses(
+            [
+                Hypothesis(
+                    metric="metric",
+                    direction="increase",
+                    statistical_test=AlwaysSignificant(),
+                )
+            ]
+        )
+        .with_replicates(2)
+    )
+    experiment.validate()
+    result = experiment.run()
+    assert result.metrics["t"]["metric"] == [1, 2]

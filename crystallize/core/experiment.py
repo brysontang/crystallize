@@ -20,17 +20,47 @@ class Experiment:
 
     def __init__(
         self,
-        datasource: DataSource,
-        pipeline: Pipeline,
+        datasource: Optional[DataSource] = None,
+        pipeline: Optional[Pipeline] = None,
         treatments: Optional[List[Treatment]] = None,
         hypotheses: Optional[List[Hypothesis]] = None,
         replicates: int = 1,
-    ):
+    ) -> None:
         self.datasource = datasource
         self.pipeline = pipeline
         self.treatments = treatments or []
         self.hypotheses = hypotheses or []
         self.replicates = max(1, replicates)
+        self._validated = False
+
+    # ------------------------------------------------------------------ #
+
+    def with_datasource(self, datasource: DataSource) -> "Experiment":
+        self.datasource = datasource
+        return self
+
+    def with_pipeline(self, pipeline: Pipeline) -> "Experiment":
+        self.pipeline = pipeline
+        return self
+
+    def with_treatments(self, treatments: List[Treatment]) -> "Experiment":
+        self.treatments = treatments
+        return self
+
+    def with_hypotheses(self, hypotheses: List[Hypothesis]) -> "Experiment":
+        self.hypotheses = hypotheses
+        return self
+
+    def with_replicates(self, replicates: int) -> "Experiment":
+        self.replicates = max(1, replicates)
+        return self
+
+    def validate(self) -> None:
+        if self.datasource is None or self.pipeline is None:
+            raise ValueError("Experiment requires datasource and pipeline")
+        if self.hypotheses and not self.treatments:
+            raise ValueError("Cannot verify hypotheses without treatments")
+        self._validated = True
 
     # ------------------------------------------------------------------ #
 
@@ -55,10 +85,8 @@ class Experiment:
     # ------------------------------------------------------------------ #
 
     def run(self) -> Result:
-        if self.datasource is None or self.pipeline is None:
-            raise ValueError("Experiment requires datasource and pipeline")
-        if self.hypotheses and not self.treatments:
-            raise ValueError("Cannot verify hypotheses without treatments")
+        if not self._validated:
+            raise RuntimeError("Experiment must be validated before execution")
 
         baseline_samples: List[Mapping[str, Any]] = []
         treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
@@ -129,9 +157,8 @@ class Experiment:
         data: Any | None = None,
     ) -> Any:
         """Run the pipeline once with optional treatment and return outputs."""
-
-        if self.datasource is None or self.pipeline is None:
-            raise ValueError("Experiment requires datasource and pipeline")
+        if not self._validated:
+            raise RuntimeError("Experiment must be validated before execution")
 
         treatment = None
         if treatment_name:

@@ -80,21 +80,24 @@ class Experiment:
         def collect_samples(samples: List[Mapping[str, Any]], metric: str) -> List[float]:
             return [sample[metric] for sample in samples if metric in sample]
 
-        baseline_metric_samples = collect_samples(baseline_samples, self.hypothesis.metric)
-        primary_treatment = self.treatments[0]
-        treatment_metric_samples = collect_samples(
-            treatment_samples[primary_treatment.name], self.hypothesis.metric
-        )
+        hypothesis_result = {}
+        treatment_metrics_dict = {}
 
-        # hypothesis verification (pass arrays directly)
-        hypothesis_result = self.hypothesis.verify(
-            baseline_metrics={self.hypothesis.metric: baseline_metric_samples},
-            treatment_metrics={self.hypothesis.metric: treatment_metric_samples},
-        )
+        baseline_metric_samples = collect_samples(baseline_samples, self.hypothesis.metric)
+
+        for treatment in self.treatments:
+            treatment_metric_samples = collect_samples(
+                treatment_samples[treatment.name], self.hypothesis.metric
+            )
+            hypothesis_result[treatment.name] = self.hypothesis.verify(
+                baseline_metrics={self.hypothesis.metric: baseline_metric_samples},
+                treatment_metrics={self.hypothesis.metric: treatment_metric_samples},
+            )
+            treatment_metrics_dict[treatment.name] = treatment_metric_samples
 
         metrics = {
             "baseline": {self.hypothesis.metric: baseline_metric_samples},
-            primary_treatment.name: {self.hypothesis.metric: treatment_metric_samples},
+            **{name: {self.hypothesis.metric: samples} for name, samples in treatment_metrics_dict.items()},
             "hypothesis": hypothesis_result,
         }
 

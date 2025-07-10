@@ -67,5 +67,5 @@ def test_cli_runs_from_yaml(experiment_yaml: Path):
         check=True,
     )
     output = literal_eval(result.stdout.strip())
-    assert output["significant"] is True
-    assert output["accepted"] is True
+    assert output["increment"]["significant"] is True
+    assert output["increment"]["accepted"] is True

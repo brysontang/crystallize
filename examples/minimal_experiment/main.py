@@ -3,7 +3,7 @@ from crystallize.core.datasource import DataSource
 from crystallize.core.experiment import Experiment
 from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep
+from crystallize.core.pipeline_step import PipelineStep, exit_step
 from crystallize.core.stat_test import StatisticalTest
 from crystallize.core.treatment import Treatment
 
@@ -27,8 +27,17 @@ class PassStep(PipelineStep):
         return {}
 
 
+class IdentityStep(PipelineStep):
+    def __call__(self, data, ctx):
+        return data
+
+    @property
+    def params(self):
+        return {}
+
+
 if __name__ == "__main__":
-    pipeline = Pipeline([PassStep()])
+    pipeline = Pipeline([exit_step(IdentityStep()), PassStep()])
     datasource = DummyDataSource()
     hypothesis = Hypothesis(
         metric="metric", direction="increase", statistical_test=AlwaysSignificant()
@@ -45,3 +54,5 @@ if __name__ == "__main__":
     result = experiment.run()
     print(result.metrics)
     print(result.errors)
+    print("apply baseline:", experiment.apply(data=5))
+    print("apply treatment:", experiment.apply(treatment_name="treat", data=5))

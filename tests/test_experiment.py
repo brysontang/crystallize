@@ -1,9 +1,11 @@
+import pytest
+
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.experiment import Experiment
 from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep
+from crystallize.core.pipeline_step import PipelineStep, exit_step
 from crystallize.core.stat_test import StatisticalTest
 from crystallize.core.treatment import Treatment
 
@@ -71,3 +73,65 @@ def test_experiment_run_multiple_treatments():
     assert result.metrics["treat2"]["metric"] == [2, 3]
     assert result.metrics["hypotheses"][hypothesis.name]["treat1"]["accepted"] is True
     assert result.metrics["hypotheses"][hypothesis.name]["treat2"]["accepted"] is True
+
+
+def test_experiment_run_baseline_only():
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+
+    experiment = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+    )
+    result = experiment.run()
+    assert result.metrics["baseline"]["metric"] == [0]
+    assert result.metrics["hypotheses"] == {}
+
+
+def test_experiment_run_treatments_no_hypotheses():
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+    treatment = Treatment("treat", lambda ctx: ctx.__setitem__("increment", 1))
+
+    experiment = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+    )
+    result = experiment.run()
+    assert result.metrics["treat"]["metric"] == [1]
+
+
+def test_experiment_run_hypothesis_without_treatments_raises():
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+    hypothesis = Hypothesis(
+        metric="metric",
+        direction="increase",
+        statistical_test=AlwaysSignificant(),
+    )
+
+    experiment = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        hypotheses=[hypothesis],
+    )
+    with pytest.raises(ValueError):
+        experiment.run()
+
+
+class IdentityStep(PipelineStep):
+    def __call__(self, data, ctx):
+        return data
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_experiment_apply_with_exit_step():
+    pipeline = Pipeline([exit_step(IdentityStep()), PassStep()])
+    datasource = DummyDataSource()
+    experiment = Experiment(datasource=datasource, pipeline=pipeline)
+    output = experiment.apply(data=5)
+    assert output == 5

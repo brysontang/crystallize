@@ -19,7 +19,7 @@ def main(argv: List[str] | None = None) -> None:
     if args.command == "run":
         experiment = load_experiment_from_file(args.config)
         result = experiment.run()
-        print(result.metrics["hypothesis"])
+        print(result.metrics["hypotheses"])
 
 
 if __name__ == "__main__":

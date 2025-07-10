@@ -22,9 +22,11 @@ class Hypothesis:
         statistical_test: StatisticalTest,
         alpha: float = 0.05,
         direction: Optional[str] = None,
+        name: Optional[str] = None,
     ):
         assert direction in {"increase", "decrease", "equal", None}
         self.metric = metric
+        self.name = name or metric
         self.direction = direction
         self.statistical_test = statistical_test
         self.alpha = alpha
@@ -61,9 +63,11 @@ class Hypothesis:
             elif self.direction == "equal":
                 result["accepted"] = abs(treatment_mean - baseline_mean) < 1e-6
 
-            result.update({
-                "baseline_mean": baseline_mean,
-                "treatment_mean": treatment_mean,
-            })
+            result.update(
+                {
+                    "baseline_mean": baseline_mean,
+                    "treatment_mean": treatment_mean,
+                }
+            )
 
         return result

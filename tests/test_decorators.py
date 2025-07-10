@@ -6,7 +6,8 @@ from crystallize import (
     statistical_test,
     treatment,
 )
-from crystallize.core.context import FrozenContext
+import pytest
+from crystallize.core.context import ContextMutationError, FrozenContext
 
 
 @pipeline_step()
@@ -62,6 +63,37 @@ def test_treatment_factory_with_mapping():
     assert ctx.get("increment") == 2
 
 
+def test_treatment_multi_key_mapping():
+    t = treatment("multi", {"key1": 1, "key2": 2})
+    ctx = FrozenContext({})
+    t.apply(ctx)
+    assert ctx.get("key1") == 1 and ctx.get("key2") == 2
+
+
+def test_treatment_mapping_existing_key_raises():
+    t = treatment("conflict", {"key1": 1})
+    ctx = FrozenContext({"key1": 0})
+    with pytest.raises(ContextMutationError):
+        t.apply(ctx)
+
+
 def test_hypothesis_factory():
     res = h.verify({"result": [1, 2]}, {"result": [3, 4]})
     assert res["accepted"] is True
+
+
+@data_source
+def required_source(ctx, value):
+    return value
+
+
+@statistical_test
+def dummy_test(baseline, treatment, *, threshold):
+    return {"p_value": 0.5, "significant": True}
+
+
+def test_factories_missing_params():
+    with pytest.raises(TypeError):
+        required_source()
+    with pytest.raises(TypeError):
+        dummy_test()

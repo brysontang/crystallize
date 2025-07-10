@@ -172,3 +172,96 @@ def test_experiment_builder_chaining():
     experiment.validate()
     result = experiment.run()
     assert result.metrics["t"]["metric"] == [1, 2]
+
+
+def test_run_zero_replicates():
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+    experiment = Experiment(datasource=datasource, pipeline=pipeline, replicates=0)
+    experiment.validate()
+    result = experiment.run()
+    assert len(result.metrics["baseline"]["metric"]) == 1
+
+
+def test_validate_partial_config():
+    experiment = Experiment().with_pipeline(Pipeline([PassStep()]))
+    with pytest.raises(ValueError):
+        experiment.validate()
+
+
+def test_apply_without_exit_step():
+    pipeline = Pipeline([IdentityStep(), PassStep()])
+    datasource = DummyDataSource()
+    experiment = Experiment(datasource=datasource, pipeline=pipeline)
+    experiment.validate()
+    output = experiment.apply(data=7)
+    assert output == {"metric": 7}
+
+
+class TrackStep(PipelineStep):
+    def __init__(self):
+        self.called = False
+
+    def __call__(self, data, ctx):
+        self.called = True
+        return data
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_apply_multiple_exit_steps():
+    step1 = TrackStep()
+    step2 = TrackStep()
+    pipeline = Pipeline([exit_step(step1), exit_step(step2), PassStep()])
+    datasource = DummyDataSource()
+    experiment = Experiment(datasource=datasource, pipeline=pipeline)
+    experiment.validate()
+    output = experiment.apply(data=3)
+    assert output == 3
+    assert step1.called is True
+    assert step2.called is False
+
+
+class StringMetricsStep(PipelineStep):
+    def __call__(self, data, ctx):
+        return {"metric": "a"}
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_run_with_non_numeric_metrics_raises():
+    pipeline = Pipeline([StringMetricsStep()])
+    datasource = DummyDataSource()
+    hypothesis = Hypothesis(
+        metric="metric", direction="increase", statistical_test=AlwaysSignificant()
+    )
+    treatment = Treatment("t", {"increment": 0})
+    experiment = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+        hypotheses=[hypothesis],
+    )
+    experiment.validate()
+    with pytest.raises(TypeError):
+        experiment.run()
+
+
+def test_cache_provenance_reused_between_runs(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    step = PassStep()
+    pipeline1 = Pipeline([step])
+    ds = DummyDataSource()
+    exp1 = Experiment(datasource=ds, pipeline=pipeline1)
+    exp1.validate()
+    exp1.run()
+
+    pipeline2 = Pipeline([PassStep()])
+    exp2 = Experiment(datasource=ds, pipeline=pipeline2)
+    exp2.validate()
+    exp2.run()
+    assert pipeline2.get_provenance()[0]["cache_hit"] is True

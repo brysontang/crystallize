@@ -10,7 +10,7 @@ from .context import FrozenContext
 from .datasource import DataSource
 from .hypothesis import Hypothesis
 from .pipeline import Pipeline
-from .pipeline_step import PipelineStep
+from .pipeline_step import PipelineStep, exit_step
 from .stat_test import StatisticalTest
 from .treatment import Treatment
 
@@ -170,6 +170,7 @@ def pipeline(*steps: PipelineStep) -> Pipeline:
 
 __all__ = [
     "pipeline_step",
+    "exit_step",
     "treatment",
     "hypothesis",
     "data_source",

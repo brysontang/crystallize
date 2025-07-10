@@ -40,3 +40,10 @@ class PipelineStep(ABC):
 
         payload = {"class": self.__class__.__name__, "params": self.params}
         return compute_hash(payload)
+
+
+def exit_step(step: PipelineStep) -> PipelineStep:
+    """Mark a :class:`PipelineStep` instance as an exit point."""
+
+    setattr(step, "is_exit_step", True)
+    return step

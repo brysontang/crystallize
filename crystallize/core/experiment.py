@@ -22,14 +22,14 @@ class Experiment:
         self,
         datasource: DataSource,
         pipeline: Pipeline,
-        treatments: List[Treatment],
-        hypotheses: List[Hypothesis],
+        treatments: Optional[List[Treatment]] = None,
+        hypotheses: Optional[List[Hypothesis]] = None,
         replicates: int = 1,
     ):
         self.datasource = datasource
         self.pipeline = pipeline
-        self.treatments = treatments
-        self.hypotheses = hypotheses
+        self.treatments = treatments or []
+        self.hypotheses = hypotheses or []
         self.replicates = max(1, replicates)
 
     # ------------------------------------------------------------------ #
@@ -55,6 +55,11 @@ class Experiment:
     # ------------------------------------------------------------------ #
 
     def run(self) -> Result:
+        if self.datasource is None or self.pipeline is None:
+            raise ValueError("Experiment requires datasource and pipeline")
+        if self.hypotheses and not self.treatments:
+            raise ValueError("Cannot verify hypotheses without treatments")
+
         baseline_samples: List[Mapping[str, Any]] = []
         treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
             t.name: [] for t in self.treatments
@@ -115,3 +120,38 @@ class Experiment:
         }
 
         return Result(metrics=metrics, errors=errors, provenance=provenance)
+
+    # ------------------------------------------------------------------ #
+    def apply(
+        self,
+        treatment_name: Optional[str] = None,
+        *,
+        data: Any | None = None,
+    ) -> Any:
+        """Run the pipeline once with optional treatment and return outputs."""
+
+        if self.datasource is None or self.pipeline is None:
+            raise ValueError("Experiment requires datasource and pipeline")
+
+        treatment = None
+        if treatment_name:
+            for t in self.treatments:
+                if t.name == treatment_name:
+                    treatment = t
+                    break
+            if treatment is None:
+                raise ValueError(f"Unknown treatment '{treatment_name}'")
+
+        ctx = FrozenContext({"condition": treatment_name or "baseline"})
+        if treatment:
+            treatment.apply(ctx)
+
+        if data is None:
+            data = self.datasource.fetch(ctx)
+
+        for step in self.pipeline.steps:
+            data = step(data, ctx)
+            if getattr(step, "is_exit_step", False):
+                break
+
+        return data

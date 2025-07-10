@@ -1,7 +1,10 @@
 from crystallize.core.cache import compute_hash
+from typing import Any
 from crystallize.core.context import FrozenContext
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.pipeline_step import PipelineStep
+import pytest
+import numpy as np
 
 
 class CountingStep(PipelineStep):
@@ -84,3 +87,59 @@ def test_corrupted_cache_recovers(tmp_path, monkeypatch):
     pipeline.run(0, ctx)
 
     assert step.calls == 1
+
+
+class ReturnStep(PipelineStep):
+    def __init__(self, value: Any):
+        self.value = value
+
+    def __call__(self, data, ctx):
+        return self.value
+
+    @property
+    def params(self):
+        return {}
+
+
+class Unpickleable:
+    def __getstate__(self):  # pragma: no cover - can't pickle
+        raise TypeError("unpickleable")
+
+
+@pytest.mark.parametrize(
+    "value,should_fail",
+    [(np.zeros((10, 10)), False), (Unpickleable(), True)],
+)
+def test_cache_large_and_unpickleable(tmp_path, monkeypatch, value, should_fail):
+    monkeypatch.chdir(tmp_path)
+    step1 = ReturnStep(value)
+    pipeline1 = Pipeline([step1, MetricsStep()])
+    ctx = FrozenContext({})
+
+    if should_fail:
+        with pytest.raises(IOError):
+            pipeline1.run(None, ctx)
+    else:
+        pipeline1.run(None, ctx)
+        step2 = ReturnStep(value)
+        pipeline2 = Pipeline([step2, MetricsStep()])
+        pipeline2.run(None, ctx)
+        assert pipeline2.get_provenance()[0]["cache_hit"] is True
+
+
+def test_cache_dir_permission_error(tmp_path, monkeypatch):
+    cache_dir = tmp_path / "cache"
+    monkeypatch.setenv("CRYSTALLIZE_CACHE_DIR", str(cache_dir))
+    monkeypatch.chdir(tmp_path)
+
+    def deny_open(*args, **kwargs):
+        raise PermissionError("read-only")
+
+    monkeypatch.setattr("pathlib.Path.open", deny_open)
+
+    step = CountingStep()
+    pipeline = Pipeline([step, MetricsStep()])
+    ctx = FrozenContext({})
+
+    with pytest.raises(IOError):
+        pipeline.run(0, ctx)

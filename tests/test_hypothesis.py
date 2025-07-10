@@ -87,3 +87,13 @@ def test_hypothesis_name_defaults_to_metric():
 def test_hypothesis_custom_name():
     h = Hypothesis(metric="metric", statistical_test=DummyStatTest(True), name="custom")
     assert h.name == "custom"
+
+
+def test_verify_empty_samples():
+    h = Hypothesis(
+        metric="metric",
+        direction="increase",
+        statistical_test=DummyStatTest(True),
+    )
+    with pytest.raises(ZeroDivisionError):
+        h.verify({"metric": []}, {"metric": []})

@@ -1,55 +1,55 @@
+from crystallize import (
+    data_source,
+    hypothesis,
+    pipeline,
+    pipeline_step,
+    statistical_test,
+    treatment,
+)
 from crystallize.core.context import FrozenContext
-from crystallize.core.datasource import DataSource
 from crystallize.core.experiment import Experiment
-from crystallize.core.hypothesis import Hypothesis
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep, exit_step
-from crystallize.core.stat_test import StatisticalTest
-from crystallize.core.treatment import Treatment
+from crystallize.core.pipeline_step import exit_step
 
 
-class AlwaysSignificant(StatisticalTest):
-    def run(self, baseline, treatment, *, alpha: float = 0.05):
-        return {"p_value": 0.01, "significant": True}
+@statistical_test
+def always_significant(baseline, treatment, *, alpha: float = 0.05):
+    return {"p_value": 0.01, "significant": True}
 
 
-class DummyDataSource(DataSource):
-    def fetch(self, ctx: FrozenContext):
-        return ctx.as_dict().get("increment", 0)
+@data_source
+def dummy_source(ctx: FrozenContext):
+    return ctx.as_dict().get("increment", 0)
 
 
-class PassStep(PipelineStep):
-    def __call__(self, data, ctx):
-        return {"metric": data}
-
-    @property
-    def params(self):
-        return {}
+@pipeline_step()
+def pass_step(data, ctx):
+    return {"metric": data}
 
 
-class IdentityStep(PipelineStep):
-    def __call__(self, data, ctx):
-        return data
+@pipeline_step()
+def identity_step(data, ctx):
+    return data
 
-    @property
-    def params(self):
-        return {}
+
+@treatment("treat")
+def treat(ctx: FrozenContext) -> None:
+    ctx["increment"] = 1
 
 
 if __name__ == "__main__":
-    pipeline = Pipeline([exit_step(IdentityStep()), PassStep()])
-    datasource = DummyDataSource()
-    hypothesis = Hypothesis(
-        metric="metric", direction="increase", statistical_test=AlwaysSignificant()
+    pipeline_obj = pipeline(exit_step(identity_step()), pass_step())
+    datasource = dummy_source()
+    hyp = hypothesis(
+        metric="metric", direction="increase", statistical_test=always_significant()
     )
-    treatment = Treatment("treat", lambda ctx: ctx.__setitem__("increment", 1))
+    treat_step = treat()
 
     experiment = (
         Experiment()
         .with_datasource(datasource)
-        .with_pipeline(pipeline)
-        .with_treatments([treatment])
-        .with_hypotheses([hypothesis])
+        .with_pipeline(pipeline_obj)
+        .with_treatments([treat_step])
+        .with_hypotheses([hyp])
         .with_replicates(2)
     )
     experiment.validate()

@@ -1,9 +1,9 @@
 [workspace]
 authors = ["Bryson Tang <brysontang@gmail.com>"]
 channels = ["conda-forge"]
-name = "crystallize"
+name = "crystallize-ml"
 platforms = ["osx-arm64", "linux-64"]
-version = "0.1.0"
+version = "0.2.0"
 
 [tasks]
 test = "pytest -q"
@@ -11,9 +11,11 @@ cov  = "pytest --cov=crystallize --cov-report=term-missing"
 lint = "ruff check crystallize tests"
 
 [dependencies]
-python = "3.11.*"
+python = "3.10.*"
 pytest = "*"
 pytest-cov = "*"
 ruff = "*"
-scipy = ">=1.16.0,<2"
 pyyaml = ">=6.0.2,<7"
+python-build = ">=1.2.2.post1,<2"
+twine = ">=6.1.0,<7"
+scipy = ">=1.15.2,<2"

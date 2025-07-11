@@ -1,106 +1,63 @@
-# Crystallize Core Components Documentation
+# Crystallize Framework: Getting Started
 
-Welcome to the Crystallize framework! This document provides a quick overview of core abstractions and how they fit together to form reproducible and statistically rigorous data science experiments.
+Crystallize is a Python framework for reproducible experiments with pipelines, treatments, and hypotheses. It supports caching, immutability, and statistical verification.
 
----
-
-## 📦 Core Components
-
-### 1. **DataSource**
-
-Abstract class for fetching or generating data.
-
-- **Method:** `fetch(ctx: FrozenContext) -> Any`
-- Implementations: CSV loader, synthetic data generator, API fetcher
-
----
-
-### 2. **PipelineStep**
-
-Abstract class for a deterministic transformation of data.
-
-- **Method:** `__call__(data: Any, ctx: FrozenContext) -> Any`
-- **Property:** `params` (for caching/provenance)
-
----
-
-### 3. **Pipeline**
-
-Sequential container of `PipelineStep` instances.
-
-- **Method:** `run(data: Any, ctx: FrozenContext) -> Mapping[str, Any]`
-- Ensures final step returns a metrics dictionary.
-
----
-
-### 4. **FrozenContext**
-
-Immutable execution context for provenance and reproducibility.
-
-- Raises `ContextMutationError` on attempts to overwrite existing keys.
-- Allows adding new keys safely.
-
----
-
-### 5. **Experiment**
-
-Core orchestrator of experiment execution.
-
-- Executes baseline and treatment pipelines across replicates.
-- Aggregates metrics and verifies hypotheses.
-
----
-
-### 6. **Treatment**
-
-Named configuration variations applied to experiments.
-
-- **Method:** `apply(ctx: FrozenContext)`
-- Adds parameters or overrides hyperparameter spaces.
-
----
-
-### 7. **Hypothesis**
-
-Quantifiable assertion verified post-experiment.
-
-- Uses `StatisticalTest` for verification.
-- Determines if experiment results confirm hypothesis.
-
----
-
-### 8. **StatisticalTest**
-
-Abstract class encapsulating statistical tests (e.g., t-tests, ANOVA).
-
-- **Method:** `run(baseline: Mapping, treatment: Mapping, alpha: float) -> dict`
-- Returns significance and p-value results.
-
----
-
-### 9. **Result**
-
-Captures metrics, artifacts, errors, and provenance.
-
-- Offers helper methods for easy access to experiment outcomes.
-
----
-
-## 🚀 Next Steps
-
-With these components, you're ready to build, run, and verify rigorous experiments. Explore implementations of DataSources, PipelineSteps, Treatments, and StatisticalTests to get started quickly!
-
----
-
-## 📈 CSV Pipeline Example
-
-For a complete end-to-end demonstration, see `examples/csv_pipeline_example/`:
+## Installation
 
 ```bash
-python examples/csv_pipeline_example/main.py
+pip install crystallize-ml
 ```
 
-This example loads numeric data from CSV files, normalizes it, performs a simple
-PCA, and verifies that the treatment dataset yields higher explained variance
-than the baseline. The resulting metrics and pipeline provenance are printed to
-the console for inspection.
+## Quick Example
+
+```python
+from crystallize import (
+    Experiment, data_source, hypothesis, pipeline, pipeline_step, statistical_test, treatment
+)
+from crystallize.core.context import FrozenContext
+
+@data_source
+def dummy_data(ctx):
+    return ctx.get('value', 0)
+
+@pipeline_step()
+def process(data, ctx):
+    return data + 1
+
+@pipeline_step()
+def metrics(data, ctx):
+    return {"result": data}
+
+@statistical_test
+def t_test(baseline, treatment, *, alpha=0.05):
+    # Implement or use scipy
+    return {"p_value": 0.01, "significant": True}
+
+treatment_example = treatment("add_one", {"value": 1})
+
+exp = (
+    Experiment()
+    .with_datasource(dummy_data())
+    .with_pipeline(pipeline(process(), metrics()))
+    .with_treatments([treatment_example])
+    .with_hypotheses([hypothesis(metric="result", statistical_test=t_test())])
+    .with_replicates(5)
+)
+exp.validate()
+result = exp.run()
+print(result.metrics)
+
+# Prod apply
+output = exp.apply("add_one", data=10)
+print(output)
+```
+
+## Key Features
+
+- Pipelines with caching.
+- Immutable contexts for safety.
+- Treatments as dicts or callables.
+- Multi-hypothesis verification.
+- Fluent builders and prod apply mode.
+
+For full API, see code/docs. Issues? File at [repo link].

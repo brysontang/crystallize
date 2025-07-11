@@ -1,4 +1,3 @@
-from functools import partial
 from crystallize import (
     data_source,
     hypothesis,

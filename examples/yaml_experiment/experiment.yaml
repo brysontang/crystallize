@@ -16,8 +16,7 @@ pipeline:
 
 hypothesis:
   metric: explained_variance
-  direction: increase
-  statistical_test:
+  verifier:
     target: examples.csv_pipeline_example.main.welch_t_test
     params: {}
 

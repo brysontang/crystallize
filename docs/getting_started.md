@@ -16,7 +16,7 @@ from crystallize import (
     data_source,
     hypothesis,
     pipeline_step,
-    statistical_test,
+    verifier,
     treatment,
 )
 from crystallize.core.context import FrozenContext
@@ -33,7 +33,7 @@ def process(data, ctx):
 def metrics(data, ctx):
     return {"result": data}
 
-@statistical_test
+@verifier
 def t_test(baseline, treatment, *, alpha=0.05):
     # Implement or use scipy
     return {"p_value": 0.01, "significant": True}
@@ -45,7 +45,7 @@ exp = (
     .datasource(dummy_data)
     .pipeline([process, metrics])
     .treatments([treatment_example])
-    .hypotheses([hypothesis(metric="result", statistical_test=t_test())])
+    .hypotheses([hypothesis(metric="result", verifier=t_test())])
     .replicates(5)
     .build()
 )

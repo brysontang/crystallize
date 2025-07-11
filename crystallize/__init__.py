@@ -9,7 +9,7 @@ from .core import (
     hypothesis,
     pipeline,
     pipeline_step,
-    statistical_test,
+    verifier,
     treatment,
 )
 
@@ -18,7 +18,7 @@ __all__ = [
     "treatment",
     "hypothesis",
     "data_source",
-    "statistical_test",
+    "verifier",
     "pipeline",
     "ExperimentBuilder",
     "StepInput",

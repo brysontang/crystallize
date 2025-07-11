@@ -1,13 +1,12 @@
 from crystallize import (
     data_source,
     hypothesis,
-    pipeline,
     pipeline_step,
     statistical_test,
     treatment,
 )
+from crystallize.core.builder import ExperimentBuilder
 from crystallize.core.context import FrozenContext
-from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline_step import exit_step
 
 
@@ -37,22 +36,20 @@ def treat(ctx: FrozenContext) -> None:
 
 
 if __name__ == "__main__":
-    pipeline_obj = pipeline(exit_step(identity_step()), pass_step())
-    datasource = dummy_source()
     hyp = hypothesis(
         metric="metric", direction="increase", statistical_test=always_significant()
     )
     treat_step = treat()
 
     experiment = (
-        Experiment()
-        .with_datasource(datasource)
-        .with_pipeline(pipeline_obj)
-        .with_treatments([treat_step])
-        .with_hypotheses([hyp])
-        .with_replicates(2)
+        ExperimentBuilder()
+        .datasource(dummy_source)
+        .pipeline([exit_step(identity_step()), pass_step])
+        .treatments([treat_step])
+        .hypotheses([hyp])
+        .replicates(2)
+        .build()
     )
-    experiment.validate()
     result = experiment.run()
     print(result.metrics)
     print(result.errors)

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from .core import (
+    ExperimentBuilder,
+    StepInput,
     data_source,
     hypothesis,
     pipeline,
@@ -18,4 +20,6 @@ __all__ = [
     "data_source",
     "statistical_test",
     "pipeline",
+    "ExperimentBuilder",
+    "StepInput",
 ]

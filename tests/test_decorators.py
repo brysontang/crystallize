@@ -1,3 +1,5 @@
+import pytest
+
 from crystallize import (
     data_source,
     hypothesis,
@@ -6,7 +8,7 @@ from crystallize import (
     statistical_test,
     treatment,
 )
-import pytest
+from crystallize.core.builder import ExperimentBuilder
 from crystallize.core.context import ContextMutationError, FrozenContext
 
 
@@ -97,3 +99,16 @@ def test_factories_missing_params():
         required_source()
     with pytest.raises(TypeError):
         dummy_test()
+
+
+def test_experiment_builder_integration():
+    result = (
+        ExperimentBuilder()
+        .datasource((dummy_source, {"value": 3}))
+        .pipeline([(add, {"value": 2}), metrics])
+        .treatments([inc_treatment()])
+        .hypotheses([h])
+        .replicates(1)
+        .build_and_run()
+    )
+    assert result.metrics["baseline"]["result"] == [5]

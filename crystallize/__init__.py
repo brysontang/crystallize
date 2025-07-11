@@ -11,6 +11,7 @@ from .core import (
     pipeline_step,
     statistical_test,
     treatment,
+    param,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "pipeline",
     "ExperimentBuilder",
     "StepInput",
+    "param",
 ]

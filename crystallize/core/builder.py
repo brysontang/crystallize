@@ -57,6 +57,8 @@ class ExperimentBuilder:
 
     # ------------------------------------------------------------------ #
     def _instantiate(self, item: Any) -> Any:
+        if isinstance(item, PipelineStep):
+            return item
         if isinstance(item, tuple):
             factory, kwargs = item
             return factory(**kwargs)

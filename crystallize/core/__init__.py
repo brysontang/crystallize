@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 from functools import update_wrapper
-from typing import Any, Callable, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
 
 from .builder import ExperimentBuilder, StepInput
 from .context import FrozenContext
@@ -181,6 +181,9 @@ def pipeline(*steps: PipelineStep) -> Pipeline:
 
     return Pipeline(list(steps))
 
+def param(factory: Callable[..., PipelineStep], **kwargs: Any) -> Tuple[Callable[..., PipelineStep], Dict[str, Any]]:
+    """Helper to parameterize a pipeline step factory."""
+    return (factory, kwargs)
 
 __all__ = [
     "pipeline_step",
@@ -192,4 +195,5 @@ __all__ = [
     "pipeline",
     "ExperimentBuilder",
     "StepInput",
+    "param",
 ]

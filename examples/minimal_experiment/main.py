@@ -1,7 +1,7 @@
+from functools import partial
 from crystallize import (
     data_source,
     hypothesis,
-    param,
     pipeline_step,
     statistical_test,
     treatment,

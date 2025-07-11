@@ -11,6 +11,7 @@ from .core import (
     pipeline_step,
     verifier,
     treatment,
+    from_scipy,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "pipeline",
     "ExperimentBuilder",
     "StepInput",
+    "from_scipy",
 ]

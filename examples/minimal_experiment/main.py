@@ -12,9 +12,10 @@ from crystallize.core.pipeline_step import exit_step
 
 @verifier
 def always_significant(baseline, treatment, *, alpha: float = 0.05):
+    print(baseline, treatment)
     # Simplified: Use built-ins, check mean increase
-    treatment_mean = sum(treatment) / len(treatment)
-    baseline_mean = sum(baseline) / len(baseline)
+    treatment_mean = sum(treatment['metric']) / len(treatment)
+    baseline_mean = sum(baseline['metric']) / len(baseline)
     return {"p_value": 0.01, "significant": treatment_mean > baseline_mean}
 
 

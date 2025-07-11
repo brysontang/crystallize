@@ -14,7 +14,7 @@ from .steps.pca import pca
 
 @verifier
 def welch_t_test(baseline, treatment, *, alpha: float = 0.05):
-    t_stat, p_value = ttest_ind(baseline, treatment, equal_var=False)
+    t_stat, p_value = ttest_ind(baseline['explained_variance'], treatment['explained_variance'], equal_var=False)
     return {"p_value": p_value, "significant": p_value < alpha}
 
 

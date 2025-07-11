@@ -12,7 +12,12 @@ pip install crystallize-ml
 
 ```python
 from crystallize import (
-    Experiment, data_source, hypothesis, pipeline, pipeline_step, statistical_test, treatment
+    ExperimentBuilder,
+    data_source,
+    hypothesis,
+    pipeline_step,
+    statistical_test,
+    treatment,
 )
 from crystallize.core.context import FrozenContext
 
@@ -36,14 +41,14 @@ def t_test(baseline, treatment, *, alpha=0.05):
 treatment_example = treatment("add_one", {"value": 1})
 
 exp = (
-    Experiment()
-    .with_datasource(dummy_data())
-    .with_pipeline(pipeline(process(), metrics()))
-    .with_treatments([treatment_example])
-    .with_hypotheses([hypothesis(metric="result", statistical_test=t_test())])
-    .with_replicates(5)
+    ExperimentBuilder()
+    .datasource(dummy_data)
+    .pipeline([process, metrics])
+    .treatments([treatment_example])
+    .hypotheses([hypothesis(metric="result", statistical_test=t_test())])
+    .replicates(5)
+    .build()
 )
-exp.validate()
 result = exp.run()
 print(result.metrics)
 

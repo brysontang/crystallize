@@ -2,14 +2,9 @@ from pathlib import Path
 
 from scipy.stats import ttest_ind
 
-from crystallize import (
-    hypothesis,
-    pipeline,
-    statistical_test,
-    treatment,
-)
+from crystallize import hypothesis, statistical_test, treatment
+from crystallize.core.builder import ExperimentBuilder
 from crystallize.core.context import FrozenContext
-from crystallize.core.experiment import Experiment
 
 from .datasource import csv_data_source, set_csv_path
 from .steps.metric import explained_variance
@@ -31,8 +26,6 @@ better_data = treatment(
 
 def main() -> None:
     base_dir = Path(__file__).parent
-    datasource = csv_data_source(default_path=str(base_dir / "baseline.csv"))
-    pipe = pipeline(normalize(), pca(), explained_variance())
     hyp = hypothesis(
         metric="explained_variance",
         statistical_test=welch_t_test(),
@@ -41,14 +34,14 @@ def main() -> None:
     treat = better_data
 
     experiment = (
-        Experiment()
-        .with_datasource(datasource)
-        .with_pipeline(pipe)
-        .with_treatments([treat])
-        .with_hypotheses([hyp])
-        .with_replicates(10)
+        ExperimentBuilder()
+        .datasource((csv_data_source, {"default_path": str(base_dir / "baseline.csv")}))
+        .pipeline([normalize, pca, explained_variance])
+        .treatments([treat])
+        .hypotheses([hyp])
+        .replicates(10)
+        .build()
     )
-    experiment.validate()
     result = experiment.run()
     print(result.metrics["hypotheses"])
     print(result.provenance)

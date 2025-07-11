@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import inspect
 from functools import update_wrapper
-from typing import Any, Callable, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
 
+from .builder import ExperimentBuilder, StepInput
 from .context import FrozenContext
 from .datasource import DataSource
 from .hypothesis import Hypothesis
@@ -59,7 +60,9 @@ def pipeline_step(cacheable: bool = True) -> Callable[..., PipelineStep]:
 def treatment(
     name: str,
     apply: Union[Callable[[FrozenContext], Any], Mapping[str, Any], None] = None,
-) -> Union[Callable[[Callable[[FrozenContext], Any]], Callable[..., Treatment]], Treatment]:
+) -> Union[
+    Callable[[Callable[[FrozenContext], Any]], Callable[..., Treatment]], Treatment
+]:
     """Create a :class:`Treatment` from a callable or mapping.
 
     When called with ``name`` only, returns a decorator for functions of
@@ -67,6 +70,7 @@ def treatment(
     """
 
     if apply is None:
+
         def decorator(fn: Callable[[FrozenContext], Any]) -> Callable[..., Treatment]:
             def factory() -> Treatment:
                 return Treatment(name, fn)
@@ -177,6 +181,9 @@ def pipeline(*steps: PipelineStep) -> Pipeline:
 
     return Pipeline(list(steps))
 
+def param(factory: Callable[..., PipelineStep], **kwargs: Any) -> Tuple[Callable[..., PipelineStep], Dict[str, Any]]:
+    """Helper to parameterize a pipeline step factory."""
+    return (factory, kwargs)
 
 __all__ = [
     "pipeline_step",
@@ -186,4 +193,7 @@ __all__ = [
     "data_source",
     "statistical_test",
     "pipeline",
+    "ExperimentBuilder",
+    "StepInput",
+    "param",
 ]

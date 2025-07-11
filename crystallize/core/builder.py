@@ -1,0 +1,84 @@
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
+from .datasource import DataSource
+from .experiment import Experiment
+from .hypothesis import Hypothesis
+from .pipeline import Pipeline
+from .pipeline_step import PipelineStep
+from .result import Result
+from .treatment import Treatment
+
+StepInput = Union[
+    PipelineStep,
+    Callable[..., PipelineStep],
+    Tuple[Callable[..., PipelineStep], Dict[str, Any]],
+]
+
+
+class ExperimentBuilder:
+    """Fluent helper for constructing :class:`Experiment` instances."""
+
+    def __init__(self) -> None:
+        self._datasource: Optional[DataSource] = None
+        self._pipeline_steps: List[StepInput] = []
+        self._treatments: List[Treatment] = []
+        self._hypotheses: List[Hypothesis] = []
+        self._replicates: int = 1
+
+    # ------------------------------------------------------------------ #
+    def datasource(
+        self,
+        source: Union[
+            DataSource,
+            Callable[..., DataSource],
+            Tuple[Callable[..., DataSource], Dict[str, Any]],
+        ],
+    ) -> "ExperimentBuilder":
+        self._datasource = self._instantiate(source)
+        return self
+
+    def pipeline(self, steps: List[StepInput]) -> "ExperimentBuilder":
+        self._pipeline_steps = steps
+        return self
+
+    def treatments(self, treatments: List[Treatment]) -> "ExperimentBuilder":
+        self._treatments = treatments
+        return self
+
+    def hypotheses(self, hypotheses: List[Hypothesis]) -> "ExperimentBuilder":
+        self._hypotheses = hypotheses
+        return self
+
+    def replicates(self, replicates: int) -> "ExperimentBuilder":
+        self._replicates = max(1, replicates)
+        return self
+
+    # ------------------------------------------------------------------ #
+    def _instantiate(self, item: Any) -> Any:
+        if isinstance(item, PipelineStep):
+            return item
+        if isinstance(item, tuple):
+            factory, kwargs = item
+            return factory(**kwargs)
+        if callable(item):
+            return item()
+        return item
+
+    # ------------------------------------------------------------------ #
+    def build(self) -> Experiment:
+        normalized_steps = [self._instantiate(step) for step in self._pipeline_steps]
+        pipeline_obj = Pipeline(normalized_steps)
+        exp = Experiment(
+            datasource=self._datasource,
+            pipeline=pipeline_obj,
+            treatments=self._treatments,
+            hypotheses=self._hypotheses,
+            replicates=self._replicates,
+        )
+        exp.validate()
+        return exp
+
+    def build_and_run(self) -> Result:
+        return self.build().run()

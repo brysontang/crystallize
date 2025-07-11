@@ -40,3 +40,6 @@ coverage = "*"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["crystallize*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

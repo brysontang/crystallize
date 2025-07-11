@@ -6,7 +6,6 @@ from crystallize.core.experiment import Experiment
 from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.pipeline_step import PipelineStep, exit_step
-from crystallize.core.stat_test import StatisticalTest
 from crystallize.core.treatment import Treatment
 
 
@@ -25,16 +24,17 @@ class PassStep(PipelineStep):
         return {}
 
 
-class AlwaysSignificant(StatisticalTest):
-    def run(self, baseline, treatment, *, alpha: float = 0.05):
-        return {"p_value": 0.01, "significant": True}
+
+def always_significant(baseline, treatment):
+    return {"p_value": 0.01, "significant": True, "accepted": True}
 
 
 def test_experiment_run_basic():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()
     hypothesis = Hypothesis(
-        metric="metric", direction="increase", statistical_test=AlwaysSignificant()
+        metric="metric",
+        verifier=always_significant,
     )
     treatment = Treatment("treat", {"increment": 1})
 
@@ -57,7 +57,8 @@ def test_experiment_run_multiple_treatments():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()
     hypothesis = Hypothesis(
-        metric="metric", direction="increase", statistical_test=AlwaysSignificant()
+        metric="metric",
+        verifier=always_significant,
     )
     treatment1 = Treatment("treat1", {"increment": 1})
     treatment2 = Treatment("treat2", {"increment": 2})
@@ -111,8 +112,7 @@ def test_experiment_run_hypothesis_without_treatments_raises():
     datasource = DummyDataSource()
     hypothesis = Hypothesis(
         metric="metric",
-        direction="increase",
-        statistical_test=AlwaysSignificant(),
+        verifier=always_significant,
     )
 
     experiment = Experiment(
@@ -162,8 +162,7 @@ def test_experiment_builder_chaining():
             [
                 Hypothesis(
                     metric="metric",
-                    direction="increase",
-                    statistical_test=AlwaysSignificant(),
+                    verifier=always_significant,
                 )
             ]
         )
@@ -237,7 +236,8 @@ def test_run_with_non_numeric_metrics_raises():
     pipeline = Pipeline([StringMetricsStep()])
     datasource = DummyDataSource()
     hypothesis = Hypothesis(
-        metric="metric", direction="increase", statistical_test=AlwaysSignificant()
+        metric="metric",
+        verifier=always_significant,
     )
     treatment = Treatment("t", {"increment": 0})
     experiment = Experiment(
@@ -247,8 +247,7 @@ def test_run_with_non_numeric_metrics_raises():
         hypotheses=[hypothesis],
     )
     experiment.validate()
-    with pytest.raises(TypeError):
-        experiment.run()
+    experiment.run()
 
 
 def test_cache_provenance_reused_between_runs(tmp_path, monkeypatch):

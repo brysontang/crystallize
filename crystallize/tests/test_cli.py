@@ -8,7 +8,7 @@ import pytest
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.stat_test import StatisticalTest
+from crystallize import verifier
 
 
 class DummyDataSource(DataSource):
@@ -25,9 +25,9 @@ class PassStep(PipelineStep):
         return {}
 
 
-class AlwaysSig(StatisticalTest):
-    def run(self, baseline, treatment, *, alpha: float = 0.05):
-        return {"p_value": 0.01, "significant": True}
+@verifier
+def always_sig(baseline, treatment):
+    return {"p_value": 0.01, "significant": True, "accepted": True}
 
 
 def apply_value(ctx: FrozenContext, amount: int) -> None:
@@ -48,9 +48,8 @@ pipeline:
     params: {}
 hypothesis:
   metric: metric
-  direction: increase
-  statistical_test:
-    target: crystallize.tests.test_cli.AlwaysSig
+  verifier:
+    target: crystallize.tests.test_cli.always_sig
     params: {}
 treatments:
   - name: increment

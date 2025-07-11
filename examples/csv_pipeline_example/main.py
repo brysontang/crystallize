@@ -2,7 +2,7 @@ from pathlib import Path
 
 from scipy.stats import ttest_ind
 
-from crystallize import hypothesis, statistical_test, treatment
+from crystallize import hypothesis, verifier, treatment
 from crystallize.core.builder import ExperimentBuilder
 from crystallize.core.context import FrozenContext
 
@@ -12,7 +12,7 @@ from .steps.normalize import normalize
 from .steps.pca import pca
 
 
-@statistical_test
+@verifier
 def welch_t_test(baseline, treatment, *, alpha: float = 0.05):
     t_stat, p_value = ttest_ind(baseline, treatment, equal_var=False)
     return {"p_value": p_value, "significant": p_value < alpha}
@@ -28,8 +28,7 @@ def main() -> None:
     base_dir = Path(__file__).parent
     hyp = hypothesis(
         metric="explained_variance",
-        statistical_test=welch_t_test(),
-        direction="increase",
+        verifier=welch_t_test(),
     )
     treat = better_data
 

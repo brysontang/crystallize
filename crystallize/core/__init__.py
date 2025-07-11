@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 from functools import update_wrapper
-from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Mapping, Optional, Union, Sequence
 
 from .builder import ExperimentBuilder, StepInput
 from .context import FrozenContext
@@ -12,7 +12,6 @@ from .datasource import DataSource
 from .hypothesis import Hypothesis
 from .pipeline import Pipeline
 from .pipeline_step import PipelineStep, exit_step
-from .stat_test import StatisticalTest
 from .treatment import Treatment
 
 
@@ -84,21 +83,13 @@ def treatment(
 
 def hypothesis(
     *,
-    metric: str,
-    statistical_test: StatisticalTest,
-    alpha: float = 0.05,
-    direction: Optional[str] = None,
+    metric: str | Sequence[str],
+    verifier: Callable[[Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]],
     name: Optional[str] = None,
 ) -> Hypothesis:
     """Create a :class:`Hypothesis` instance."""
 
-    return Hypothesis(
-        metric=metric,
-        statistical_test=statistical_test,
-        alpha=alpha,
-        direction=direction,
-        name=name,
-    )
+    return Hypothesis(metric=metric, verifier=verifier, name=name)
 
 
 def data_source(fn: Callable[..., Any]) -> Callable[..., DataSource]:
@@ -133,45 +124,38 @@ def data_source(fn: Callable[..., Any]) -> Callable[..., DataSource]:
     return update_wrapper(factory, fn)
 
 
-def statistical_test(fn: Callable[..., Any]) -> Callable[..., StatisticalTest]:
-    """Decorate a function to produce a :class:`StatisticalTest` factory."""
+def verifier(
+    fn: Callable[..., Any],
+) -> Callable[..., Callable[[Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]]]:
+    """Decorate a function to produce a parameterized verifier callable."""
 
     sig = inspect.signature(fn)
     param_names = [
         p.name
         for p in sig.parameters.values()
-        if p.name not in {"baseline", "treatment", "alpha"}
+        if p.name not in {"baseline_samples", "treatment_samples", "baseline", "treatment"}
     ]
     defaults = {
         name: p.default
         for name, p in sig.parameters.items()
-        if name not in {"baseline", "treatment", "alpha"}
+        if name not in {"baseline_samples", "treatment_samples", "baseline", "treatment"}
         and p.default is not inspect.Signature.empty
     }
 
-    def factory(**overrides: Any) -> StatisticalTest:
+    def factory(**overrides: Any) -> Callable[[Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]]:
         params = {**defaults, **overrides}
         missing = [n for n in param_names if n not in params]
         if missing:
             raise TypeError(f"Missing parameters: {', '.join(missing)}")
 
-        class FunctionTest(StatisticalTest):
-            def run(
-                self,
-                baseline: Any,
-                treatment: Any,
-                *,
-                alpha: float = 0.05,
-            ) -> Any:
-                kwargs = {n: params[n] for n in param_names}
-                return fn(baseline, treatment, alpha=alpha, **kwargs)
+        def wrapped(
+            baseline_samples: Mapping[str, Sequence[Any]],
+            treatment_samples: Mapping[str, Sequence[Any]],
+        ) -> Mapping[str, Any]:
+            kwargs = {n: params[n] for n in param_names}
+            return fn(baseline_samples, treatment_samples, **kwargs)
 
-            @property
-            def params(self) -> dict:
-                return {n: params[n] for n in param_names}
-
-        FunctionTest.__name__ = f"{fn.__name__.title()}Test"
-        return FunctionTest()
+        return wrapped
 
     return update_wrapper(factory, fn)
 
@@ -181,14 +165,22 @@ def pipeline(*steps: PipelineStep) -> Pipeline:
 
     return Pipeline(list(steps))
 
+def from_scipy(test_func, alternative='two-sided', alpha=0.05):
+    def verifier(baseline, treatment):
+        if len(baseline) != 1: raise ValueError("Single metric only")
+        stat, p = test_func(treatment[list(treatment)[0]], baseline[list(baseline)[0]], alternative=alternative)
+        return {"p_value": p, "significant": p < alpha}
+    return verifier
+
 __all__ = [
     "pipeline_step",
     "exit_step",
     "treatment",
     "hypothesis",
+    "verifier",
     "data_source",
-    "statistical_test",
     "pipeline",
     "ExperimentBuilder",
     "StepInput",
+    "from_scipy",
 ]

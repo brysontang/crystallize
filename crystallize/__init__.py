@@ -9,8 +9,9 @@ from .core import (
     hypothesis,
     pipeline,
     pipeline_step,
-    statistical_test,
+    verifier,
     treatment,
+    from_scipy,
 )
 
 __all__ = [
@@ -18,8 +19,9 @@ __all__ = [
     "treatment",
     "hypothesis",
     "data_source",
-    "statistical_test",
+    "verifier",
     "pipeline",
     "ExperimentBuilder",
     "StepInput",
+    "from_scipy",
 ]

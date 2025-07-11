@@ -62,12 +62,11 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
         hyp_specs = [config["hypothesis"]]
 
     for spec in hyp_specs:
-        stat_test = _instantiate(spec["statistical_test"])
+        verifier_fn = _instantiate(spec["verifier"])
         hypotheses.append(
             Hypothesis(
                 metric=spec["metric"],
-                statistical_test=stat_test,
-                direction=spec.get("direction"),
+                verifier=verifier_fn,
                 name=spec.get("name"),
             )
         )

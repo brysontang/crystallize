@@ -5,7 +5,7 @@ from crystallize import (
     hypothesis,
     pipeline,
     pipeline_step,
-    statistical_test,
+    verifier,
     treatment,
 )
 from crystallize.core.builder import ExperimentBuilder
@@ -27,9 +27,9 @@ def dummy_source(ctx, value=1):
     return value
 
 
-@statistical_test
+@verifier
 def always_significant(baseline, treatment, *, alpha: float = 0.05):
-    return {"p_value": 0.01, "significant": True}
+    return {"p_value": 0.01, "significant": True, "accepted": True}
 
 
 @treatment("inc")
@@ -38,7 +38,8 @@ def inc_treatment(ctx):
 
 
 h = hypothesis(
-    metric="result", statistical_test=always_significant(), direction="increase"
+    metric="result",
+    verifier=always_significant(),
 )
 
 
@@ -89,7 +90,7 @@ def required_source(ctx, value):
     return value
 
 
-@statistical_test
+@verifier
 def dummy_test(baseline, treatment, *, threshold):
     return {"p_value": 0.5, "significant": True}
 

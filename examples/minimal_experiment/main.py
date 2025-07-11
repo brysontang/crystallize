@@ -2,7 +2,7 @@ from crystallize import (
     data_source,
     hypothesis,
     pipeline_step,
-    statistical_test,
+    verifier,
     treatment,
 )
 from crystallize.core.builder import ExperimentBuilder
@@ -10,7 +10,7 @@ from crystallize.core.context import FrozenContext
 from crystallize.core.pipeline_step import exit_step
 
 
-@statistical_test
+@verifier
 def always_significant(baseline, treatment, *, alpha: float = 0.05):
     # Simplified: Use built-ins, check mean increase
     treatment_mean = sum(treatment) / len(treatment)
@@ -41,7 +41,7 @@ def treat(ctx: FrozenContext) -> None:
 
 if __name__ == "__main__":
     hyp = hypothesis(
-        metric="metric", statistical_test=always_significant()
+        metric="metric", verifier=always_significant()
     )
     treat_step = treat()
 

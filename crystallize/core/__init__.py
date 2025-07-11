@@ -181,10 +181,6 @@ def pipeline(*steps: PipelineStep) -> Pipeline:
 
     return Pipeline(list(steps))
 
-def param(factory: Callable[..., PipelineStep], **kwargs: Any) -> Tuple[Callable[..., PipelineStep], Dict[str, Any]]:
-    """Helper to parameterize a pipeline step factory."""
-    return (factory, kwargs)
-
 __all__ = [
     "pipeline_step",
     "exit_step",
@@ -195,5 +191,4 @@ __all__ = [
     "pipeline",
     "ExperimentBuilder",
     "StepInput",
-    "param",
 ]

@@ -6,6 +6,8 @@ import starlightClientMermaid from '@pasqal-io/starlight-client-mermaid';
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://brysontang.github.io',
+  base: '/crystallize/',
   integrations: [
     starlight({
       title: 'My Docs',
@@ -17,20 +19,32 @@ export default defineConfig({
         },
       ],
       sidebar: [
-        // {
-        //   label: 'Tutorials',
-        //   items: [
-        //     {
-        //       label: 'Your First Experiment',
-        //       slug: 'tutorials/first-experiment',
-        //     },
-        //     { label: 'Real-World CSV Example', slug: 'tutorials/csv-example' },
-        //     {
-        //       label: 'Advanced Scientific Experimentation',
-        //       slug: 'tutorials/scientific-experimentation',
-        //     },
-        //   ],
-        // },
+        {
+          label: 'Tutorials',
+          items: [
+            {
+              label: 'Getting Started',
+              slug: 'tutorials/intro',
+            },
+            {
+              label: 'Building Your First Experiment',
+              slug: 'tutorials/basic-experiment',
+            },
+            { label: 'Adding Treatments', slug: 'tutorials/adding-treatments' },
+            {
+              label: 'Verifying Hypotheses',
+              slug: 'tutorials/hypotheses',
+            },
+            {
+              label: 'Scaling with Replicates and Parallelism',
+              slug: 'tutorials/parallelism',
+            },
+          ],
+        },
+        {
+          label: 'Glossary',
+          slug: 'glossary',
+        },
         {
           label: 'Contributing',
           slug: 'contributing',

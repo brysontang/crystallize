@@ -716,7 +716,7 @@ def test_auto_seed_reproducible_serial_vs_parallel():
 
     assert res_serial.metrics == res_parallel.metrics
     assert res_serial.provenance["seeds"] == res_parallel.provenance["seeds"]
-    expected = [hash((123, rep, "baseline")) for rep in range(3)]
+    expected = [hash(123 + rep) for rep in range(3)]
     assert res_serial.provenance["seeds"]["baseline"] == expected
 
 
@@ -738,4 +738,4 @@ def test_custom_seed_function_called():
     )
     exp.validate()
     exp.run()
-    assert called == [hash((7, 0, "baseline"))]
+    assert called == [hash(7)]

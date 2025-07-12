@@ -46,6 +46,7 @@ def default_seed_function(seed: int) -> None:
 
 
 class Experiment:
+    VALID_EXECUTOR_TYPES = VALID_EXECUTOR_TYPES
     """
     Orchestrates baseline + treatment pipelines across replicates, then verifies
     one or more hypotheses using aggregated metrics.
@@ -159,7 +160,7 @@ class Experiment:
         local_seed: Optional[int] = None
         if self.auto_seed:
             local_seed = hash(
-                (self.seed or 0, run_ctx.get("replicate", 0), run_ctx.get("condition", "baseline"))
+                (self.seed or 0) + run_ctx.get("replicate", 0)
             )
             if self.seed_fn is not None:
                 self.seed_fn(local_seed)

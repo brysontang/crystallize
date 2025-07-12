@@ -25,7 +25,7 @@ def test_concrete_step_basic():
     assert step.step_hash == expected_hash
 
 
-@pipeline_step()
+@pipeline_step(cacheable=True)
 def add(data, ctx, value: int = 1):
     return data + value
 

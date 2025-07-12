@@ -9,6 +9,8 @@ import numpy as np
 
 
 class CountingStep(PipelineStep):
+    cacheable = True
+
     def __init__(self):
         self.calls = 0
 
@@ -22,6 +24,8 @@ class CountingStep(PipelineStep):
 
 
 class MetricsStep(PipelineStep):
+    cacheable = True
+
     def __call__(self, data, ctx):
         return {"result": data}
 
@@ -91,6 +95,8 @@ def test_corrupted_cache_recovers(tmp_path, monkeypatch):
 
 
 class ReturnStep(PipelineStep):
+    cacheable = True
+
     def __init__(self, value: Any):
         self.value = value
 
@@ -147,6 +153,8 @@ def test_cache_dir_permission_error(tmp_path, monkeypatch):
 
 
 class ParamStep(PipelineStep):
+    cacheable = True
+
     def __init__(self, value: int) -> None:
         self.value = value
 

@@ -1,13 +1,14 @@
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 
 class Result:
     def __init__(
-        self, 
-        metrics: Dict[str, Any], 
+        self,
+        metrics: Dict[str, Any],
         artifacts: Optional[Dict[str, Any]] = None,
         errors: Optional[Dict[str, Exception]] = None,
-        provenance: Optional[Dict[str, Any]] = None
-    ):
+        provenance: Optional[Dict[str, Any]] = None,
+    ) -> None:
         self.metrics = metrics
         self.artifacts = artifacts or {}
         self.errors = errors or {}

@@ -79,12 +79,14 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
         treatments.append(Treatment(t_spec["name"], apply_fn))
 
     replicates = int(config.get("replicates", 1))
+    parallel = bool(config.get("parallel", False))
     return Experiment(
         datasource=datasource,
         pipeline=pipeline,
         treatments=treatments,
         hypotheses=hypotheses,
         replicates=replicates,
+        parallel=parallel,
     )
 
 

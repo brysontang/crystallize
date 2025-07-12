@@ -26,6 +26,7 @@ class ExperimentBuilder:
         self._treatments: List[Treatment] = []
         self._hypotheses: List[Hypothesis] = []
         self._replicates: int = 1
+        self._parallel: bool = False
 
     # ------------------------------------------------------------------ #
     def datasource(
@@ -55,6 +56,10 @@ class ExperimentBuilder:
         self._replicates = max(1, replicates)
         return self
 
+    def parallel(self, parallel: bool) -> "ExperimentBuilder":
+        self._parallel = parallel
+        return self
+
     # ------------------------------------------------------------------ #
     def _instantiate(self, item: Any) -> Any:
         if isinstance(item, PipelineStep):
@@ -76,6 +81,7 @@ class ExperimentBuilder:
             treatments=self._treatments,
             hypotheses=self._hypotheses,
             replicates=self._replicates,
+            parallel=self._parallel,
         )
         exp.validate()
         return exp

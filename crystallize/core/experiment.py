@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
@@ -24,12 +25,15 @@ class Experiment:
         treatments: Optional[List[Treatment]] = None,
         hypotheses: Optional[List[Hypothesis]] = None,
         replicates: int = 1,
+        *,
+        parallel: bool = False,
     ) -> None:
         self.datasource = datasource
         self.pipeline = pipeline
         self.treatments = treatments or []
         self.hypotheses = hypotheses or []
         self.replicates = max(1, replicates)
+        self.parallel = parallel
         self._validated = False
 
     # ------------------------------------------------------------------ #
@@ -52,6 +56,10 @@ class Experiment:
 
     def with_replicates(self, replicates: int) -> "Experiment":
         self.replicates = max(1, replicates)
+        return self
+
+    def with_parallel(self, parallel: bool) -> "Experiment":
+        self.parallel = parallel
         return self
 
     def validate(self) -> None:
@@ -94,21 +102,65 @@ class Experiment:
 
         errors: Dict[str, Exception] = {}
 
-        # ---------- replicate loop ------------------------------------- #
-        for rep in range(self.replicates):
+        # ---------- replicate execution -------------------------------- #
+        def _execute_replicate(rep: int) -> Tuple[
+            Optional[Mapping[str, Any]],
+            Dict[str, Mapping[str, Any]],
+            Dict[str, Exception],
+        ]:
+            baseline_result: Optional[Mapping[str, Any]] = None
+            treatment_result: Dict[str, Mapping[str, Any]] = {}
+            rep_errors: Dict[str, Exception] = {}
             base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
             try:
-                baseline_samples.append(self._run_condition(base_ctx))
+                baseline_result = self._run_condition(base_ctx)
             except Exception as exc:  # pragma: no cover
-                errors[f"baseline_rep_{rep}"] = exc
-                continue
+                rep_errors[f"baseline_rep_{rep}"] = exc
+                return baseline_result, treatment_result, rep_errors
 
             for t in self.treatments:
                 ctx = FrozenContext({"replicate": rep, "condition": t.name})
                 try:
-                    treatment_samples[t.name].append(self._run_condition(ctx, t))
+                    treatment_result[t.name] = self._run_condition(ctx, t)
                 except Exception as exc:  # pragma: no cover
-                    errors[f"{t.name}_rep_{rep}"] = exc
+                    rep_errors[f"{t.name}_rep_{rep}"] = exc
+
+            return baseline_result, treatment_result, rep_errors
+
+        if self.parallel and self.replicates > 1:
+            results: List[Tuple[Optional[Mapping[str, Any]], Dict[str, Mapping[str, Any]], Dict[str, Exception]]] = [
+                (None, {}, {})
+            ] * self.replicates
+            with ThreadPoolExecutor(max_workers=self.replicates) as executor:
+                future_map = {
+                    executor.submit(_execute_replicate, rep): rep
+                    for rep in range(self.replicates)
+                }
+                for future in future_map:
+                    rep = future_map[future]
+                    results[rep] = future.result()
+
+            for rep, (base, treats, errs) in enumerate(results):
+                if base is not None:
+                    baseline_samples.append(base)
+                for name, sample in treats.items():
+                    treatment_samples[name].append(sample)
+                errors.update(errs)
+        else:
+            for rep in range(self.replicates):
+                base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
+                try:
+                    baseline_samples.append(self._run_condition(base_ctx))
+                except Exception as exc:  # pragma: no cover
+                    errors[f"baseline_rep_{rep}"] = exc
+                    continue
+
+                for t in self.treatments:
+                    ctx = FrozenContext({"replicate": rep, "condition": t.name})
+                    try:
+                        treatment_samples[t.name].append(self._run_condition(ctx, t))
+                    except Exception as exc:  # pragma: no cover
+                        errors[f"{t.name}_rep_{rep}"] = exc
 
         # ---------- aggregation: preserve full sample arrays ------------ #
         def collect_all_samples(samples: List[Mapping[str, Sequence[Any]]]) -> Dict[str, List[Any]]:

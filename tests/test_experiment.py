@@ -287,3 +287,37 @@ def test_cache_provenance_reused_between_runs(tmp_path, monkeypatch):
     exp2.validate()
     exp2.run()
     assert pipeline2.get_provenance()[0]["cache_hit"] is True
+
+
+def test_parallel_execution_matches_serial():
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+    hypothesis = Hypothesis(
+        verifier=always_significant,
+        metrics="metric",
+        ranker=lambda r: r["p_value"],
+    )
+    treatment = Treatment("t", {"increment": 1})
+
+    serial_exp = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+        hypotheses=[hypothesis],
+        replicates=2,
+    )
+    serial_exp.validate()
+    serial_result = serial_exp.run()
+
+    parallel_exp = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+        hypotheses=[hypothesis],
+        replicates=2,
+        parallel=True,
+    )
+    parallel_exp.validate()
+    parallel_result = parallel_exp.run()
+
+    assert parallel_result.metrics == serial_result.metrics

@@ -71,6 +71,7 @@ experiment = (
     .treatments([treatment])
     .hypotheses([hypothesis])
     .replicates(3)
+    .parallel(True)
     .build()
 )
 result = experiment.run()

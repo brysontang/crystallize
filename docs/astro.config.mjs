@@ -17,19 +17,23 @@ export default defineConfig({
         },
       ],
       sidebar: [
+        // {
+        //   label: 'Tutorials',
+        //   items: [
+        //     {
+        //       label: 'Your First Experiment',
+        //       slug: 'tutorials/first-experiment',
+        //     },
+        //     { label: 'Real-World CSV Example', slug: 'tutorials/csv-example' },
+        //     {
+        //       label: 'Advanced Scientific Experimentation',
+        //       slug: 'tutorials/scientific-experimentation',
+        //     },
+        //   ],
+        // },
         {
-          label: 'Tutorials',
-          items: [
-            {
-              label: 'Your First Experiment',
-              slug: 'tutorials/first-experiment',
-            },
-            { label: 'Real-World CSV Example', slug: 'tutorials/csv-example' },
-            {
-              label: 'Advanced Scientific Experimentation',
-              slug: 'tutorials/scientific-experimentation',
-            },
-          ],
+          label: 'Contributing',
+          slug: 'contributing',
         },
       ],
       plugins: [

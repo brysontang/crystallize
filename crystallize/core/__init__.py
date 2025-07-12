@@ -15,7 +15,7 @@ from .pipeline_step import PipelineStep, exit_step
 from .treatment import Treatment
 
 
-def pipeline_step(cacheable: bool = True) -> Callable[..., PipelineStep]:
+def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:
     """Decorate a function and convert it into a :class:`PipelineStep` factory."""
 
     def decorator(fn: Callable[..., Any]) -> Callable[..., PipelineStep]:

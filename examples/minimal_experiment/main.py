@@ -1,61 +1,71 @@
+# main.py
 from crystallize import (
+    ExperimentBuilder,
     data_source,
     hypothesis,
     pipeline_step,
-    verifier,
     treatment,
+    from_scipy,
 )
-from crystallize.core.builder import ExperimentBuilder
 from crystallize.core.context import FrozenContext
-from crystallize.core.pipeline_step import exit_step
-
-
+from scipy.stats import ttest_ind
+import random
+ 
+# 1. Define how to get data
 @data_source
-def dummy_source(ctx: FrozenContext):
-    return ctx.get("delta", 0)
+def initial_data(ctx: FrozenContext):
+    return [0, 0, 0]
 
+# 2. Define the data processing pipeline
+@pipeline_step()
+def add_delta(data, ctx: FrozenContext):
+    # The 'delta' value is injected by our treatment
+    return [x + ctx.get("delta", 0.0) for x in data]
 
-@pipeline_step(cacheable=False)
-def pass_step(data, ctx):
-    ctx.metrics.add("metric", data)
-    return data
+@pipeline_step()
+def add_random(data, ctx: FrozenContext):
+    # Add some random noise to the data
+    # This removes scipy's "catastrophic cancellation" error
+    return [x + random.random() for x in data]
 
+@pipeline_step()
+def compute_metrics(data, ctx: FrozenContext):
+    # The last step must return a dict of named metrics
+    # and add them to the context for the hypothesis.
+    ctx.metrics.add("result", sum(data))
+    return {"result": sum(data)}
 
-@pipeline_step(cacheable=False)
-def delta_step(data, ctx):
-    delta = ctx.get("delta", 0)
-    return data + delta 
+# 3. Define the treatment (the change we are testing)
+add_ten = treatment(
+    name="add_ten_treatment",
+    apply={"delta": 10.0} # This dict is added to the context
+)
 
+# 4. Define the hypothesis to verify
+# Here, we use a helper to wrap a t-test from SciPy.
+t_test_verifier = from_scipy(ttest_ind, alpha=0.05)
 
-treat = treatment("treat", {"delta": 10})
+@hypothesis(verifier=t_test_verifier, metrics="result")
+def check_for_improvement(res):
+    # The ranker function determines the "best" treatment.
+    # Lower p-value is better.
+    return res.get("p_value", 1.0)
 
-
-@verifier
-def always_significant(baseline, treatment, *, alpha: float = 0.05):
-    # Simplified: Use built-ins, check mean increase
-    treatment_mean = sum(treatment['metric']) / len(treatment)
-    baseline_mean = sum(baseline['metric']) / len(baseline)
-    return {"p_value": 0.01, "significant": treatment_mean > baseline_mean}
-
-
-@hypothesis(verifier=always_significant(), metrics="metric")
-def hyp(result):
-    return result["p_value"]
-
-
+# 5. Build and run the experiment
 if __name__ == "__main__":
     experiment = (
         ExperimentBuilder()
-        .datasource(dummy_source)
-        .pipeline([exit_step(delta_step), pass_step])
-        .treatments([treat])
-        .hypotheses([hyp])
-        .replicates(2)
+        .datasource(initial_data)
+        .pipeline([add_delta, add_random, compute_metrics])
+        .treatments([add_ten])
+        .hypotheses([check_for_improvement])
+        .replicates(20) # Run the experiment 20 times for statistical power
+        .parallel(True) # Run replicates in parallel
         .build()
     )
 
     result = experiment.run()
-    print(result.metrics)
-    print(result.errors)
-    print("apply baseline:", experiment.apply(data=5))
-    print("apply treatment:", experiment.apply(treatment_name="treat", data=5))
+
+    # Print the results for our hypothesis
+    hyp_result = result.get_hypothesis("check_for_improvement")
+    print(hyp_result.results)

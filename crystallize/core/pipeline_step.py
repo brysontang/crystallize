@@ -6,7 +6,7 @@ from crystallize.core.context import FrozenContext
 
 
 class PipelineStep(ABC):
-    cacheable = True
+    cacheable = False
 
     @abstractmethod
     def __call__(self, data: Any, ctx: FrozenContext) -> Any:

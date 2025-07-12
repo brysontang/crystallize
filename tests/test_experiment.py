@@ -1,3 +1,4 @@
+import time
 import pytest
 
 from crystallize.core.context import FrozenContext
@@ -321,3 +322,87 @@ def test_parallel_execution_matches_serial():
     parallel_result = parallel_exp.run()
 
     assert parallel_result.metrics == serial_result.metrics
+
+
+class FailingStep(PipelineStep):
+    def __call__(self, data, ctx):
+        if ctx["replicate"] == 1:
+            raise RuntimeError("boom")
+        ctx.metrics.add("metric", data)
+        return {"metric": data}
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_parallel_execution_handles_errors():
+    pipeline = Pipeline([FailingStep()])
+    datasource = DummyDataSource()
+    treatment = Treatment("t", {"increment": 1})
+
+    serial = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+        replicates=2,
+    )
+    serial.validate()
+    serial_res = serial.run()
+
+    parallel = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+        replicates=2,
+        parallel=True,
+    )
+    parallel.validate()
+    parallel_res = parallel.run()
+
+    assert parallel_res.metrics == serial_res.metrics
+    assert parallel_res.errors.keys() == serial_res.errors.keys()
+
+
+class SleepStep(PipelineStep):
+    cacheable = False
+    def __call__(self, data, ctx):
+        time.sleep(0.1)
+        ctx.metrics.add("metric", data)
+        return {"metric": data}
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_parallel_is_faster_for_sleep_step():
+    pipeline = Pipeline([SleepStep()])
+    ds = DummyDataSource()
+    exp_serial = Experiment(datasource=ds, pipeline=pipeline, replicates=5)
+    exp_serial.validate()
+    start = time.time()
+    exp_serial.run()
+    serial_time = time.time() - start
+
+    exp_parallel = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=5,
+        parallel=True,
+    )
+    exp_parallel.validate()
+    start = time.time()
+    exp_parallel.run()
+    parallel_time = time.time() - start
+
+    assert serial_time > parallel_time
+
+
+def test_parallel_high_replicate_count():
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+    exp = Experiment(datasource=ds, pipeline=pipeline, replicates=10, parallel=True)
+    exp.validate()
+    result = exp.run()
+    assert len(result.metrics["baseline"]["metric"]) == 10

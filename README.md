@@ -72,6 +72,8 @@ experiment = (
     .hypotheses([hypothesis])
     .replicates(3)
     .parallel(True)
+    .max_workers(4)
+    .executor_type("thread")
     .build()
 )
 result = experiment.run()

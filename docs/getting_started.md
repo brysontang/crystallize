@@ -53,6 +53,7 @@ exp = (
     .hypotheses([ranker()])
     .replicates(5)
     .parallel(True)  # run replicates concurrently
+    .max_workers(4)
     .build()
 )
 result = exp.run()
@@ -71,5 +72,9 @@ print(output)
 - Multi-hypothesis verification.
 - Fluent builders and prod apply mode.
 - Optional parallel execution for heavy experiments.
+- Configurable worker count and executor type.
+
+For heavy parallel workloads, ensure the cache directory supports file locks or
+switch to a thread-safe backend.
 
 For full API, see code/docs. Issues? File at [repo link].

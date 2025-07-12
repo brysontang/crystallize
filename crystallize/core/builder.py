@@ -27,6 +27,8 @@ class ExperimentBuilder:
         self._hypotheses: List[Hypothesis] = []
         self._replicates: int = 1
         self._parallel: bool = False
+        self._max_workers: Optional[int] = None
+        self._executor_type: str = "thread"
 
     # ------------------------------------------------------------------ #
     def datasource(
@@ -60,6 +62,14 @@ class ExperimentBuilder:
         self._parallel = parallel
         return self
 
+    def max_workers(self, max_workers: Optional[int]) -> "ExperimentBuilder":
+        self._max_workers = max_workers
+        return self
+
+    def executor_type(self, executor_type: str) -> "ExperimentBuilder":
+        self._executor_type = executor_type
+        return self
+
     # ------------------------------------------------------------------ #
     def _instantiate(self, item: Any) -> Any:
         if isinstance(item, PipelineStep):
@@ -82,6 +92,8 @@ class ExperimentBuilder:
             hypotheses=self._hypotheses,
             replicates=self._replicates,
             parallel=self._parallel,
+            max_workers=self._max_workers,
+            executor_type=self._executor_type,
         )
         exp.validate()
         return exp

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
+import os
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from crystallize.core.context import FrozenContext
@@ -27,6 +28,8 @@ class Experiment:
         replicates: int = 1,
         *,
         parallel: bool = False,
+        max_workers: Optional[int] = None,
+        executor_type: str = "thread",
     ) -> None:
         self.datasource = datasource
         self.pipeline = pipeline
@@ -34,6 +37,8 @@ class Experiment:
         self.hypotheses = hypotheses or []
         self.replicates = max(1, replicates)
         self.parallel = parallel
+        self.max_workers = max_workers
+        self.executor_type = executor_type
         self._validated = False
 
     # ------------------------------------------------------------------ #
@@ -60,6 +65,14 @@ class Experiment:
 
     def with_parallel(self, parallel: bool) -> "Experiment":
         self.parallel = parallel
+        return self
+
+    def with_max_workers(self, max_workers: Optional[int]) -> "Experiment":
+        self.max_workers = max_workers
+        return self
+
+    def with_executor_type(self, executor_type: str) -> "Experiment":
+        self.executor_type = executor_type
         return self
 
     def validate(self) -> None:
@@ -131,14 +144,20 @@ class Experiment:
             results: List[Tuple[Optional[Mapping[str, Any]], Dict[str, Mapping[str, Any]], Dict[str, Exception]]] = [
                 (None, {}, {})
             ] * self.replicates
-            with ThreadPoolExecutor(max_workers=self.replicates) as executor:
+            worker_count = self.max_workers or min(self.replicates, os.cpu_count() or 8)
+            exec_cls = ThreadPoolExecutor if self.executor_type == "thread" else ProcessPoolExecutor
+            with exec_cls(max_workers=worker_count) as executor:
                 future_map = {
                     executor.submit(_execute_replicate, rep): rep
                     for rep in range(self.replicates)
                 }
                 for future in future_map:
                     rep = future_map[future]
-                    results[rep] = future.result()
+                    try:
+                        results[rep] = future.result()
+                    except Exception as exc:  # pragma: no cover
+                        errors[f"replicate_{rep}_execution_error"] = exc
+                        results[rep] = (None, {}, {})
 
             for rep, (base, treats, errs) in enumerate(results):
                 if base is not None:

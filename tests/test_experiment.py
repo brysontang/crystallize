@@ -1,3 +1,4 @@
+import time
 import pytest
 
 from crystallize.core.context import FrozenContext
@@ -287,3 +288,174 @@ def test_cache_provenance_reused_between_runs(tmp_path, monkeypatch):
     exp2.validate()
     exp2.run()
     assert pipeline2.get_provenance()[0]["cache_hit"] is True
+
+
+def test_parallel_execution_matches_serial():
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+    hypothesis = Hypothesis(
+        verifier=always_significant,
+        metrics="metric",
+        ranker=lambda r: r["p_value"],
+    )
+    treatment = Treatment("t", {"increment": 1})
+
+    serial_exp = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+        hypotheses=[hypothesis],
+        replicates=2,
+    )
+    serial_exp.validate()
+    serial_result = serial_exp.run()
+
+    parallel_exp = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+        hypotheses=[hypothesis],
+        replicates=2,
+        parallel=True,
+    )
+    parallel_exp.validate()
+    parallel_result = parallel_exp.run()
+
+    assert parallel_result.metrics == serial_result.metrics
+
+
+class FailingStep(PipelineStep):
+    def __call__(self, data, ctx):
+        if ctx["replicate"] == 1:
+            raise RuntimeError("boom")
+        ctx.metrics.add("metric", data)
+        return {"metric": data}
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_parallel_execution_handles_errors():
+    pipeline = Pipeline([FailingStep()])
+    datasource = DummyDataSource()
+    treatment = Treatment("t", {"increment": 1})
+
+    serial = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+        replicates=2,
+    )
+    serial.validate()
+    serial_res = serial.run()
+
+    parallel = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+        replicates=2,
+        parallel=True,
+    )
+    parallel.validate()
+    parallel_res = parallel.run()
+
+    assert parallel_res.metrics == serial_res.metrics
+    assert parallel_res.errors.keys() == serial_res.errors.keys()
+
+
+class SleepStep(PipelineStep):
+    cacheable = False
+    def __call__(self, data, ctx):
+        time.sleep(0.1)
+        ctx.metrics.add("metric", data)
+        return {"metric": data}
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_parallel_is_faster_for_sleep_step():
+    pipeline = Pipeline([SleepStep()])
+    ds = DummyDataSource()
+    exp_serial = Experiment(datasource=ds, pipeline=pipeline, replicates=5)
+    exp_serial.validate()
+    start = time.time()
+    exp_serial.run()
+    serial_time = time.time() - start
+
+    exp_parallel = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=5,
+        parallel=True,
+    )
+    exp_parallel.validate()
+    start = time.time()
+    exp_parallel.run()
+    parallel_time = time.time() - start
+
+    assert serial_time > parallel_time
+
+
+def test_parallel_high_replicate_count():
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+    exp = Experiment(datasource=ds, pipeline=pipeline, replicates=10, parallel=True)
+    exp.validate()
+    result = exp.run()
+    assert len(result.metrics["baseline"]["metric"]) == 10
+
+
+class FibStep(PipelineStep):
+    def __init__(self, n: int = 32) -> None:
+        self.n = n
+
+    def __call__(self, data, ctx):
+        def fib(k: int) -> int:
+            return k if k < 2 else fib(k - 1) + fib(k - 2)
+
+        fib(self.n)
+        ctx.metrics.add("metric", data)
+        return {"metric": data}
+
+    @property
+    def params(self):
+        return {"n": self.n}
+
+
+def test_process_executor_faster_for_cpu_bound_step():
+    pipeline = Pipeline([FibStep(32)])
+    ds = DummyDataSource()
+
+    exp_thread = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=4,
+        parallel=True,
+        executor_type="thread",
+    )
+    exp_thread.validate()
+    start = time.time()
+    exp_thread.run()
+    thread_time = time.time() - start
+
+    exp_process = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=4,
+        parallel=True,
+        executor_type="process",
+    )
+    exp_process.validate()
+    start = time.time()
+    exp_process.run()
+    process_time = time.time() - start
+
+    assert process_time < thread_time
+
+
+def test_invalid_executor_type_raises():
+    with pytest.raises(ValueError):
+        Experiment(executor_type="bogus")

@@ -40,13 +40,11 @@ def delta_step(data, ctx):
 def treat(ctx: FrozenContext) -> None:
     ctx.add("delta", 10)
 
+@hypothesis(verifier=always_significant(), metrics="metric")
+def hyp(result):
+    return result["p_value"]
 
 if __name__ == "__main__":
-    @hypothesis(verifier=always_significant(), metrics="metric")
-    def hyp(result):
-        return result["p_value"]
-
-    hyp = hyp()
     treat_step = treat()
 
     experiment = (

@@ -1,15 +1,33 @@
-from typing import Any, Mapping, Optional
+from collections import defaultdict
 from types import MappingProxyType
+from typing import Any, DefaultDict, List, Mapping, Optional
 
 class ContextMutationError(Exception):
     """Raised when attempting to mutate an existing key in FrozenContext."""
     pass
+
+class FrozenMetrics:
+    """Immutable mapping of metric lists with safe append."""
+
+    def __init__(self) -> None:
+        self._metrics: DefaultDict[str, List[Any]] = defaultdict(list)
+
+    def __getitem__(self, key: str) -> List[Any]:
+        return self._metrics[key]
+
+    def add(self, key: str, value: Any) -> None:
+        self._metrics[key].append(value)
+
+    def as_dict(self) -> Mapping[str, List[Any]]:
+        return MappingProxyType(self._metrics)
+
 
 class FrozenContext:
     """Immutable execution context with safe mutation helpers."""
 
     def __init__(self, initial: Mapping[str, Any]):
         self._data = dict(initial)
+        self.metrics = FrozenMetrics()
 
     def __getitem__(self, key: str) -> Any:
         return self._data[key]

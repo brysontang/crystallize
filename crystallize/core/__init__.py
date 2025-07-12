@@ -83,13 +83,16 @@ def treatment(
 
 def hypothesis(
     *,
-    metric: str | Sequence[str],
     verifier: Callable[[Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]],
+    metrics: str | Sequence[str] | Sequence[Sequence[str]] | None = None,
     name: Optional[str] = None,
-) -> Hypothesis:
-    """Create a :class:`Hypothesis` instance."""
+) -> Callable[[Callable[[Mapping[str, Any]], float]], Hypothesis]:
+    """Decorate a ranker function and produce a :class:`Hypothesis`."""
 
-    return Hypothesis(metric=metric, verifier=verifier, name=name)
+    def decorator(fn: Callable[[Mapping[str, Any]], float]) -> Hypothesis:
+        return Hypothesis(verifier=verifier, metrics=metrics, ranker=fn, name=name or fn.__name__)
+
+    return decorator
 
 
 def data_source(fn: Callable[..., Any]) -> Callable[..., DataSource]:
@@ -165,10 +168,15 @@ def pipeline(*steps: PipelineStep) -> Pipeline:
 
     return Pipeline(list(steps))
 
-def from_scipy(test_func, alternative='two-sided', alpha=0.05):
+def from_scipy(test_func, alternative="two-sided", alpha=0.05):
     def verifier(baseline, treatment):
-        if len(baseline) != 1: raise ValueError("Single metric only")
-        stat, p = test_func(treatment[list(treatment)[0]], baseline[list(baseline)[0]], alternative=alternative)
+        if len(baseline) != 1:
+            raise ValueError("Single metric only")
+        stat, p = test_func(
+            treatment[list(treatment)[0]],
+            baseline[list(baseline)[0]],
+            alternative=alternative,
+        )
         return {"p_value": p, "significant": p < alpha}
     return verifier
 

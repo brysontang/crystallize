@@ -17,8 +17,9 @@ def add(data, ctx, value=1):
     return data + value
 
 
-@pipeline_step()
+@pipeline_step(cacheable=False)
 def metrics(data, ctx):
+    ctx.metrics.add("result", data)
     return {"result": data}
 
 
@@ -37,10 +38,9 @@ def inc_treatment(ctx):
     ctx.add("increment", 1)
 
 
-h = hypothesis(
-    metric="result",
-    verifier=always_significant(),
-)
+@hypothesis(verifier=always_significant(), metrics="result")
+def h(result):
+    return result["p_value"]
 
 
 def test_pipeline_factory_and_decorators():

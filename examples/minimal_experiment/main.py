@@ -26,6 +26,7 @@ def dummy_source(ctx: FrozenContext):
 
 @pipeline_step()
 def pass_step(data, ctx):
+    ctx.metrics.add("metric", data)
     return {"metric": data}
 
 
@@ -41,9 +42,11 @@ def treat(ctx: FrozenContext) -> None:
 
 
 if __name__ == "__main__":
-    hyp = hypothesis(
-        metric="metric", verifier=always_significant()
-    )
+    @hypothesis(verifier=always_significant(), metrics="metric")
+    def hyp(result):
+        return result["p_value"]
+
+    hyp = hyp()
     treat_step = treat()
 
     experiment = (

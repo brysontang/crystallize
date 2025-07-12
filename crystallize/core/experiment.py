@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from copy import deepcopy
-from typing import Any, DefaultDict, Dict, List, Mapping, Optional
+from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
@@ -72,15 +71,15 @@ class Experiment:
         or a specific treatment.
         """
         # Clone ctx to avoid cross‐run contamination
-        run_ctx = deepcopy(ctx)
+        run_ctx = FrozenContext(ctx.as_dict())
 
         # Apply treatment if present
         if treatment:
             treatment.apply(run_ctx)
 
         data = self.datasource.fetch(run_ctx)
-        metrics = self.pipeline.run(data, run_ctx)
-        return metrics
+        self.pipeline.run(data, run_ctx)
+        return run_ctx.metrics.as_dict()
 
     # ------------------------------------------------------------------ #
 
@@ -112,13 +111,11 @@ class Experiment:
                     errors[f"{t.name}_rep_{rep}"] = exc
 
         # ---------- aggregation: preserve full sample arrays ------------ #
-        def collect_all_samples(
-            samples: List[Mapping[str, Any]],
-        ) -> Dict[str, List[Any]]:
+        def collect_all_samples(samples: List[Mapping[str, Sequence[Any]]]) -> Dict[str, List[Any]]:
             metrics: DefaultDict[str, List[Any]] = defaultdict(list)
             for sample in samples:
-                for metric, value in sample.items():
-                    metrics[metric].append(value)
+                for metric, values in sample.items():
+                    metrics[metric].extend(list(values))
             return dict(metrics)
 
         baseline_metrics = collect_all_samples(baseline_samples)
@@ -134,7 +131,10 @@ class Experiment:
                     baseline_metrics=baseline_metrics,
                     treatment_metrics=treatment_metrics_dict[treatment.name],
                 )
-            hypothesis_results[hyp.name] = per_treatment
+            hypothesis_results[hyp.name] = {
+                "results": per_treatment,
+                "ranking": hyp.rank_treatments(per_treatment),
+            }
 
         metrics = {
             "baseline": baseline_metrics,

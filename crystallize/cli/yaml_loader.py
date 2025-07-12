@@ -63,10 +63,12 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
 
     for spec in hyp_specs:
         verifier_fn = _instantiate(spec["verifier"])
+        ranker_fn = _load_attr(spec["ranker"])
         hypotheses.append(
             Hypothesis(
-                metric=spec["metric"],
                 verifier=verifier_fn,
+                metrics=spec.get("metrics", spec.get("metric")),
+                ranker=ranker_fn,
                 name=spec.get("name"),
             )
         )

@@ -31,12 +31,17 @@ def process(data, ctx):
 
 @pipeline_step()
 def metrics(data, ctx):
+    ctx.metrics.add("result", data)
     return {"result": data}
 
 @verifier
 def t_test(baseline, treatment, *, alpha=0.05):
     # Implement or use scipy
     return {"p_value": 0.01, "significant": True}
+
+@hypothesis(verifier=t_test(), metrics="result")
+def ranker(res):
+    return res["p_value"]
 
 treatment_example = treatment("add_one", {"value": 1})
 
@@ -45,7 +50,7 @@ exp = (
     .datasource(dummy_data)
     .pipeline([process, metrics])
     .treatments([treatment_example])
-    .hypotheses([hypothesis(metric="result", verifier=t_test())])
+    .hypotheses([ranker()])
     .replicates(5)
     .build()
 )

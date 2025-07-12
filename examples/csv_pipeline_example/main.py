@@ -24,12 +24,17 @@ better_data = treatment(
 )
 
 
+def rank_by_p(result: dict) -> float:
+    return result["p_value"]
+
+
 def main() -> None:
     base_dir = Path(__file__).parent
-    hyp = hypothesis(
-        metric="explained_variance",
-        verifier=welch_t_test(),
-    )
+    @hypothesis(verifier=welch_t_test(), metrics="explained_variance")
+    def hyp(result):
+        return result["p_value"]
+
+    hyp = hyp()
     treat = better_data
 
     experiment = (

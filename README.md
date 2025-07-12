@@ -73,7 +73,7 @@ experiment = (
     .replicates(3)
     .parallel(True)
     .max_workers(4)
-    .executor_type("thread")
+    .executor_type("thread")  # or "process" for CPU-bound steps
     .build()
 )
 result = experiment.run()

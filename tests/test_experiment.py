@@ -406,3 +406,56 @@ def test_parallel_high_replicate_count():
     exp.validate()
     result = exp.run()
     assert len(result.metrics["baseline"]["metric"]) == 10
+
+
+class FibStep(PipelineStep):
+    def __init__(self, n: int = 32) -> None:
+        self.n = n
+
+    def __call__(self, data, ctx):
+        def fib(k: int) -> int:
+            return k if k < 2 else fib(k - 1) + fib(k - 2)
+
+        fib(self.n)
+        ctx.metrics.add("metric", data)
+        return {"metric": data}
+
+    @property
+    def params(self):
+        return {"n": self.n}
+
+
+def test_process_executor_faster_for_cpu_bound_step():
+    pipeline = Pipeline([FibStep(32)])
+    ds = DummyDataSource()
+
+    exp_thread = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=4,
+        parallel=True,
+        executor_type="thread",
+    )
+    exp_thread.validate()
+    start = time.time()
+    exp_thread.run()
+    thread_time = time.time() - start
+
+    exp_process = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=4,
+        parallel=True,
+        executor_type="process",
+    )
+    exp_process.validate()
+    start = time.time()
+    exp_process.run()
+    process_time = time.time() - start
+
+    assert process_time < thread_time
+
+
+def test_invalid_executor_type_raises():
+    with pytest.raises(ValueError):
+        Experiment(executor_type="bogus")

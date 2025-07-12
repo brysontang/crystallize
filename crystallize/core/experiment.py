@@ -3,7 +3,16 @@ from __future__ import annotations
 from collections import defaultdict
 import os
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    DefaultDict,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
@@ -11,6 +20,8 @@ from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.result import Result
 from crystallize.core.treatment import Treatment
+
+VALID_EXECUTOR_TYPES = {"thread", "process"}
 
 
 class Experiment:
@@ -38,6 +49,10 @@ class Experiment:
         self.replicates = max(1, replicates)
         self.parallel = parallel
         self.max_workers = max_workers
+        if executor_type not in VALID_EXECUTOR_TYPES:
+            raise ValueError(
+                f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{executor_type}'"
+            )
         self.executor_type = executor_type
         self._validated = False
 
@@ -72,6 +87,10 @@ class Experiment:
         return self
 
     def with_executor_type(self, executor_type: str) -> "Experiment":
+        if executor_type not in VALID_EXECUTOR_TYPES:
+            raise ValueError(
+                f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{executor_type}'"
+            )
         self.executor_type = executor_type
         return self
 
@@ -144,8 +163,13 @@ class Experiment:
             results: List[Tuple[Optional[Mapping[str, Any]], Dict[str, Mapping[str, Any]], Dict[str, Exception]]] = [
                 (None, {}, {})
             ] * self.replicates
-            worker_count = self.max_workers or min(self.replicates, os.cpu_count() or 8)
-            exec_cls = ThreadPoolExecutor if self.executor_type == "thread" else ProcessPoolExecutor
+            if self.executor_type == "process":
+                default_workers = max(1, (os.cpu_count() or 2) - 1)
+                exec_cls = ProcessPoolExecutor
+            else:
+                default_workers = os.cpu_count() or 8
+                exec_cls = ThreadPoolExecutor
+            worker_count = self.max_workers or min(self.replicates, default_workers)
             with exec_cls(max_workers=worker_count) as executor:
                 future_map = {
                     executor.submit(_execute_replicate, rep): rep

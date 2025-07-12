@@ -54,6 +54,7 @@ exp = (
     .replicates(5)
     .parallel(True)  # run replicates concurrently
     .max_workers(4)
+    .executor_type("thread")  # use "process" for CPU heavy steps
     .build()
 )
 result = exp.run()
@@ -72,7 +73,7 @@ print(output)
 - Multi-hypothesis verification.
 - Fluent builders and prod apply mode.
 - Optional parallel execution for heavy experiments.
-- Configurable worker count and executor type.
+- Configurable worker count and executor type ("thread" or "process").
 
 For heavy parallel workloads, ensure the cache directory supports file locks or
 switch to a thread-safe backend.

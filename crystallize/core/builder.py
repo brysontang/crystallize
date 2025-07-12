@@ -67,6 +67,10 @@ class ExperimentBuilder:
         return self
 
     def executor_type(self, executor_type: str) -> "ExperimentBuilder":
+        if executor_type not in Experiment.VALID_EXECUTOR_TYPES:
+            raise ValueError(
+                f"executor_type must be one of {Experiment.VALID_EXECUTOR_TYPES}, got '{executor_type}'"
+            )
         self._executor_type = executor_type
         return self
 

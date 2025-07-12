@@ -2,9 +2,12 @@ from collections import defaultdict
 from types import MappingProxyType
 from typing import Any, DefaultDict, List, Mapping, Optional
 
+
 class ContextMutationError(Exception):
     """Raised when attempting to mutate an existing key in FrozenContext."""
+
     pass
+
 
 class FrozenMetrics:
     """Immutable mapping of metric lists with safe append."""
@@ -25,14 +28,14 @@ class FrozenMetrics:
 class FrozenContext:
     """Immutable execution context with safe mutation helpers."""
 
-    def __init__(self, initial: Mapping[str, Any]):
+    def __init__(self, initial: Mapping[str, Any]) -> None:
         self._data = dict(initial)
         self.metrics = FrozenMetrics()
 
     def __getitem__(self, key: str) -> Any:
         return self._data[key]
 
-    def __setitem__(self, key: str, value: Any):
+    def __setitem__(self, key: str, value: Any) -> None:
         if key in self._data:
             raise ContextMutationError(f"Cannot mutate existing key: '{key}'")
         self._data[key] = value

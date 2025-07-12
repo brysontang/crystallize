@@ -20,7 +20,7 @@ class Pipeline:
     intermediate representation.
     """
 
-    def __init__(self, steps: List[PipelineStep]):
+    def __init__(self, steps: List[PipelineStep]) -> None:
         if not steps:
             raise ValueError("Pipeline must contain at least one step.")
         self.steps = steps

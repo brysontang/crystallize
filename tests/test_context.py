@@ -1,4 +1,5 @@
 import pytest
+from concurrent.futures import ThreadPoolExecutor
 from crystallize.core.context import FrozenContext, ContextMutationError
 
 
@@ -39,15 +40,18 @@ def test_metrics_accumulates_without_mutation():
     ctx = FrozenContext({})
     ctx.metrics.add("a", 1)
     ctx.metrics.add("a", 2)
-    assert ctx.metrics["a"] == [1, 2]
+    assert ctx.metrics["a"] == (1, 2)
 
 
 def test_context_handles_empty_and_nested_values():
     source = {"nested": {"x": 1}}
     ctx = FrozenContext(source)
     source["nested"]["x"] = 2
-    # nested mutation of source propagates since deep copy is not performed
-    assert ctx.get("nested")["x"] == 2
+    # deep immutability: source mutations should not affect context
+    assert ctx.get("nested")["x"] == 1
+    nested = ctx.get("nested")
+    nested["x"] = 3
+    assert ctx.get("nested")["x"] == 1
 
 
 def test_context_as_dict_is_read_only():
@@ -55,3 +59,22 @@ def test_context_as_dict_is_read_only():
     view = ctx.as_dict()
     with pytest.raises(TypeError):
         view["new"] = 1
+    ctx.metrics.add("a", 1)
+    metrics_view = ctx.metrics.as_dict()
+    with pytest.raises(TypeError):
+        metrics_view["b"] = (2,)
+    with pytest.raises(AttributeError):
+        metrics_view["a"].append(2)
+
+
+def test_metrics_thread_safety():
+    ctx = FrozenContext({})
+
+    def add_many(_: int) -> None:
+        for _ in range(100):
+            ctx.metrics.add("x", 1)
+
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        ex.map(add_many, range(4))
+
+    assert len(ctx.metrics["x"]) == 400 and all(v == 1 for v in ctx.metrics["x"]) 

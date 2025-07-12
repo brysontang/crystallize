@@ -67,6 +67,20 @@ def test_context_as_dict_is_read_only():
         metrics_view["a"].append(2)
 
 
+def test_nested_values_not_deep_copied_but_immutable_view():
+    import copy
+
+    source = {"nested": [1]}
+    ctx = FrozenContext(source)
+    view = ctx.as_dict()
+    view["nested"].append(2)
+    assert ctx["nested"] == [1]
+
+    ctx_deep = FrozenContext(copy.deepcopy(source))
+    source["nested"].append(3)
+    assert ctx_deep["nested"] == [1]
+
+
 def test_metrics_thread_safety():
     ctx = FrozenContext({})
 
@@ -77,4 +91,19 @@ def test_metrics_thread_safety():
     with ThreadPoolExecutor(max_workers=4) as ex:
         ex.map(add_many, range(4))
 
-    assert len(ctx.metrics["x"]) == 400 and all(v == 1 for v in ctx.metrics["x"]) 
+    assert len(ctx.metrics["x"]) == 400 and all(v == 1 for v in ctx.metrics["x"])
+
+
+def test_metrics_thread_safe_adds():
+    from concurrent.futures import ThreadPoolExecutor
+
+    ctx = FrozenContext({})
+
+    def add_metric(i: int) -> None:
+        ctx.metrics.add("key", i)
+
+    with ThreadPoolExecutor(5) as ex:
+        ex.map(add_metric, range(5))
+
+    vals = ctx.metrics["key"]
+    assert sorted(vals) == [0, 1, 2, 3, 4]

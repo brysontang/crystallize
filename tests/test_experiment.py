@@ -646,3 +646,29 @@ def test_builder_invalid_replicates_type():
     builder = ExperimentBuilder().datasource(DummyDataSource()).pipeline([PassStep()])
     with pytest.raises(TypeError):
         builder.replicates("three")
+
+
+def test_zero_negative_replicates_clamped():
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+    for reps in [0, -5]:
+        exp = Experiment(datasource=ds, pipeline=pipeline, replicates=reps)
+        exp.validate()
+        result = exp.run()
+        assert len(result.metrics["baseline"]["metric"]) == 1
+
+
+@pytest.mark.slow
+def test_high_replicates_parallel_no_issues():
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=50,
+        parallel=True,
+        executor_type="thread",
+    )
+    exp.validate()
+    result = exp.run()
+    assert len(result.metrics["baseline"]["metric"]) == 50

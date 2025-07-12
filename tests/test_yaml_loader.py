@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from crystallize.cli.yaml_loader import load_experiment_from_file
+from crystallize.cli.yaml_loader import load_experiment, load_experiment_from_file
 from crystallize import data_source, pipeline_step, verifier
 
 
@@ -72,3 +72,34 @@ def test_load_experiment_invalid(tmp_path: Path):
     bad.write_text("[]")
     with pytest.raises(ValueError):
         load_experiment_from_file(bad)
+
+
+def test_load_valid_yaml_config():
+    config = {
+        "datasource": {"target": f"{__name__}.dummy_source", "params": {"value": 2}},
+        "pipeline": [{"target": f"{__name__}.add"}],
+        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+        "treatments": [
+            {"name": "t", "apply": {"target": f"{__name__}.inc"}},
+        ],
+        "replicates": 2,
+    }
+    exp = load_experiment(config)
+    assert exp.replicates == 2 and len(exp.treatments) == 1
+
+
+def test_load_invalid_yaml_missing_section():
+    config = {"replicates": 1}
+    with pytest.raises(KeyError):
+        load_experiment(config)
+
+
+def test_load_yaml_type_conversion_error():
+    config = {
+        "datasource": {"target": f"{__name__}.dummy_source"},
+        "pipeline": [{"target": f"{__name__}.add"}],
+        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+        "replicates": "two",
+    }
+    with pytest.raises(ValueError):
+        load_experiment(config)

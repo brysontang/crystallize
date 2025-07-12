@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 import os
+import random
+import numpy as np
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from typing import (
     Any,
@@ -44,6 +46,8 @@ class Experiment:
         replicates: int = 1,
         *,
         parallel: bool = False,
+        seed: Optional[int] = None,
+        auto_seed: bool = True,
         max_workers: Optional[int] = None,
         executor_type: str = "thread",
     ) -> None:
@@ -53,6 +57,8 @@ class Experiment:
         self.hypotheses = hypotheses or []
         self.replicates = max(1, replicates)
         self.parallel = parallel
+        self.seed = seed
+        self.auto_seed = auto_seed
         self.max_workers = max_workers
         if executor_type not in VALID_EXECUTOR_TYPES:
             raise ValueError(
@@ -91,6 +97,14 @@ class Experiment:
         self.max_workers = max_workers
         return self
 
+    def with_seed(self, seed: Optional[int]) -> "Experiment":
+        self.seed = seed
+        return self
+
+    def with_auto_seed(self, auto_seed: bool) -> "Experiment":
+        self.auto_seed = auto_seed
+        return self
+
     def with_executor_type(self, executor_type: str) -> "Experiment":
         if executor_type not in VALID_EXECUTOR_TYPES:
             raise ValueError(
@@ -110,7 +124,7 @@ class Experiment:
 
     def _run_condition(
         self, ctx: FrozenContext, treatment: Optional[Treatment] = None
-    ) -> Mapping[str, Any]:
+    ) -> Tuple[Mapping[str, Any], Optional[int]]:
         """
         Execute one pipeline run for either the baseline (treatment is None)
         or a specific treatment.
@@ -122,9 +136,18 @@ class Experiment:
         if treatment:
             treatment.apply(run_ctx)
 
+        local_seed: Optional[int] = None
+        if self.auto_seed:
+            local_seed = hash(
+                (self.seed or 0, run_ctx.get("replicate", 0), run_ctx.get("condition", "baseline"))
+            )
+            random.seed(local_seed)
+            np.random.seed(local_seed % (2 ** 32 - 1))
+            run_ctx.add("seed_used", local_seed)
+
         data = self.datasource.fetch(run_ctx)
         self.pipeline.run(data, run_ctx)
-        return run_ctx.metrics.as_dict()
+        return run_ctx.metrics.as_dict(), local_seed
 
     # ------------------------------------------------------------------ #
 
@@ -136,38 +159,53 @@ class Experiment:
         treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
             t.name: [] for t in self.treatments
         }
+        baseline_seeds: List[int] = []
+        treatment_seeds_agg: Dict[str, List[int]] = {t.name: [] for t in self.treatments}
 
         errors: Dict[str, Exception] = {}
 
         # ---------- replicate execution -------------------------------- #
         def _execute_replicate(rep: int) -> Tuple[
             Optional[Mapping[str, Any]],
+            Optional[int],
             Dict[str, Mapping[str, Any]],
+            Dict[str, int],
             Dict[str, Exception],
         ]:
             baseline_result: Optional[Mapping[str, Any]] = None
+            baseline_seed: Optional[int] = None
             treatment_result: Dict[str, Mapping[str, Any]] = {}
+            treatment_seeds: Dict[str, int] = {}
             rep_errors: Dict[str, Exception] = {}
             base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
             try:
-                baseline_result = self._run_condition(base_ctx)
+                baseline_result, baseline_seed = self._run_condition(base_ctx)
             except Exception as exc:  # pragma: no cover
                 rep_errors[f"baseline_rep_{rep}"] = exc
-                return baseline_result, treatment_result, rep_errors
+                return baseline_result, baseline_seed, treatment_result, treatment_seeds, rep_errors
 
             for t in self.treatments:
                 ctx = FrozenContext({"replicate": rep, "condition": t.name})
                 try:
-                    treatment_result[t.name] = self._run_condition(ctx, t)
+                    result, seed = self._run_condition(ctx, t)
+                    treatment_result[t.name] = result
+                    if seed is not None:
+                        treatment_seeds[t.name] = seed
                 except Exception as exc:  # pragma: no cover
                     rep_errors[f"{t.name}_rep_{rep}"] = exc
 
-            return baseline_result, treatment_result, rep_errors
+            return baseline_result, baseline_seed, treatment_result, treatment_seeds, rep_errors
 
         if self.parallel and self.replicates > 1:
-            results: List[Tuple[Optional[Mapping[str, Any]], Dict[str, Mapping[str, Any]], Dict[str, Exception]]] = [
-                (None, {}, {})
-            ] * self.replicates
+            results: List[
+                Tuple[
+                    Optional[Mapping[str, Any]],
+                    Optional[int],
+                    Dict[str, Mapping[str, Any]],
+                    Dict[str, int],
+                    Dict[str, Exception],
+                ]
+            ] = [(None, None, {}, {}, {})] * self.replicates
             if self.executor_type == "process":
                 default_workers = max(1, (os.cpu_count() or 2) - 1)
                 exec_cls = ProcessPoolExecutor
@@ -186,19 +224,26 @@ class Experiment:
                         results[rep] = future.result()
                     except Exception as exc:  # pragma: no cover
                         errors[f"replicate_{rep}_execution_error"] = exc
-                        results[rep] = (None, {}, {})
+                        results[rep] = (None, None, {}, {}, {})
 
-            for rep, (base, treats, errs) in enumerate(results):
+            for rep, (base, seed, treats, seeds, errs) in enumerate(results):
                 if base is not None:
                     baseline_samples.append(base)
+                if seed is not None:
+                    baseline_seeds.append(seed)
                 for name, sample in treats.items():
                     treatment_samples[name].append(sample)
+                for name, sd in seeds.items():
+                    treatment_seeds_agg[name].append(sd)
                 errors.update(errs)
         else:
             for rep in range(self.replicates):
                 base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
                 try:
-                    baseline_samples.append(self._run_condition(base_ctx))
+                    base_res, base_seed = self._run_condition(base_ctx)
+                    baseline_samples.append(base_res)
+                    if base_seed is not None:
+                        baseline_seeds.append(base_seed)
                 except Exception as exc:  # pragma: no cover
                     errors[f"baseline_rep_{rep}"] = exc
                     continue
@@ -206,7 +251,10 @@ class Experiment:
                 for t in self.treatments:
                     ctx = FrozenContext({"replicate": rep, "condition": t.name})
                     try:
-                        treatment_samples[t.name].append(self._run_condition(ctx, t))
+                        res, sd = self._run_condition(ctx, t)
+                        treatment_samples[t.name].append(res)
+                        if sd is not None:
+                            treatment_seeds_agg[t.name].append(sd)
                     except Exception as exc:  # pragma: no cover
                         errors[f"{t.name}_rep_{rep}"] = exc
 
@@ -250,6 +298,7 @@ class Experiment:
         provenance = {
             "pipeline_signature": self.pipeline.signature(),
             "replicates": self.replicates,
+            "seeds": {"baseline": baseline_seeds, **treatment_seeds_agg},
         }
 
         return Result(metrics=metrics, errors=errors, provenance=provenance)

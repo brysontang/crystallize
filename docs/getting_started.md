@@ -52,6 +52,7 @@ exp = (
     .treatments([treatment_example])
     .hypotheses([ranker()])
     .replicates(5)
+    .seed(42)
     .parallel(True)  # run replicates concurrently
     .max_workers(4)
     .executor_type("thread")  # use "process" for CPU heavy steps

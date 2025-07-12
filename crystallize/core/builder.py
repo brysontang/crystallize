@@ -27,6 +27,8 @@ class ExperimentBuilder:
         self._hypotheses: List[Hypothesis] = []
         self._replicates: int = 1
         self._parallel: bool = False
+        self._seed: Optional[int] = None
+        self._auto_seed: bool = True
         self._max_workers: Optional[int] = None
         self._executor_type: str = "thread"
 
@@ -60,6 +62,14 @@ class ExperimentBuilder:
 
     def parallel(self, parallel: bool) -> "ExperimentBuilder":
         self._parallel = parallel
+        return self
+
+    def seed(self, seed: Optional[int]) -> "ExperimentBuilder":
+        self._seed = seed
+        return self
+
+    def auto_seed(self, auto: bool) -> "ExperimentBuilder":
+        self._auto_seed = auto
         return self
 
     def max_workers(self, max_workers: Optional[int]) -> "ExperimentBuilder":
@@ -96,6 +106,8 @@ class ExperimentBuilder:
             hypotheses=self._hypotheses,
             replicates=self._replicates,
             parallel=self._parallel,
+            seed=self._seed,
+            auto_seed=self._auto_seed,
             max_workers=self._max_workers,
             executor_type=self._executor_type,
         )

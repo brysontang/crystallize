@@ -71,6 +71,7 @@ experiment = (
     .treatments([treatment])
     .hypotheses([hypothesis])
     .replicates(3)
+    .seed(42)
     .parallel(True)
     .max_workers(4)
     .executor_type("thread")  # or "process" for CPU-bound steps

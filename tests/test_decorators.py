@@ -112,7 +112,7 @@ def test_experiment_builder_integration():
         .replicates(1)
         .build_and_run()
     )
-    assert result.metrics["baseline"]["result"] == [5]
+    assert result.metrics.baseline.metrics["result"] == [5]
 
 
 def test_builder_negative_replicates_clamped():

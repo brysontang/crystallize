@@ -4,7 +4,7 @@ import pytest
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.exceptions import PipelineExecutionError
-from crystallize.core.pipeline import InvalidPipelineOutput, Pipeline
+from crystallize.core.pipeline import Pipeline
 from crystallize.core.pipeline_step import PipelineStep, exit_step
 
 

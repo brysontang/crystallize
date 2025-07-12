@@ -19,6 +19,11 @@ from crystallize.core.datasource import DataSource
 from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.result import Result
+from crystallize.core.result_structs import (
+    ExperimentMetrics,
+    HypothesisResult,
+    TreatmentMetrics,
+)
 from crystallize.core.treatment import Treatment
 
 VALID_EXECUTOR_TYPES = {"thread", "process"}
@@ -218,7 +223,7 @@ class Experiment:
             name: collect_all_samples(samp) for name, samp in treatment_samples.items()
         }
 
-        hypothesis_results: Dict[str, Dict[str, Any]] = {}
+        hypothesis_results: List[HypothesisResult] = []
         for hyp in self.hypotheses:
             per_treatment: Dict[str, Any] = {}
             for treatment in self.treatments:
@@ -226,16 +231,21 @@ class Experiment:
                     baseline_metrics=baseline_metrics,
                     treatment_metrics=treatment_metrics_dict[treatment.name],
                 )
-            hypothesis_results[hyp.name] = {
-                "results": per_treatment,
-                "ranking": hyp.rank_treatments(per_treatment),
-            }
+            hypothesis_results.append(
+                HypothesisResult(
+                    name=hyp.name,
+                    results=per_treatment,
+                    ranking=hyp.rank_treatments(per_treatment),
+                )
+            )
 
-        metrics = {
-            "baseline": baseline_metrics,
-            **treatment_metrics_dict,
-            "hypotheses": hypothesis_results,
-        }
+        metrics = ExperimentMetrics(
+            baseline=TreatmentMetrics(baseline_metrics),
+            treatments={
+                name: TreatmentMetrics(m) for name, m in treatment_metrics_dict.items()
+            },
+            hypotheses=hypothesis_results,
+        )
 
         provenance = {
             "pipeline_signature": self.pipeline.signature(),

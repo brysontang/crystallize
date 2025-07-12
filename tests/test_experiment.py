@@ -53,13 +53,11 @@ def test_experiment_run_basic():
     )
     experiment.validate()
     result = experiment.run()
-    assert result.metrics["baseline"]["metric"] == [0, 1]
-    assert result.metrics["treat"]["metric"] == [1, 2]
-    assert (
-        result.metrics["hypotheses"][hypothesis.name]["results"]["treat"]["accepted"]
-        is True
-    )
-    assert result.metrics["hypotheses"][hypothesis.name]["ranking"]["best"] == "treat"
+    assert result.metrics.baseline.metrics["metric"] == [0, 1]
+    assert result.metrics.treatments["treat"].metrics["metric"] == [1, 2]
+    hyp_res = result.get_hypothesis(hypothesis.name)
+    assert hyp_res is not None and hyp_res.results["treat"]["accepted"] is True
+    assert hyp_res.ranking["best"] == "treat"
     assert result.errors == {}
 
 
@@ -82,18 +80,13 @@ def test_experiment_run_multiple_treatments():
     )
     experiment.validate()
     result = experiment.run()
-    assert result.metrics["baseline"]["metric"] == [0, 1]
-    assert result.metrics["treat1"]["metric"] == [1, 2]
-    assert result.metrics["treat2"]["metric"] == [2, 3]
-    assert (
-        result.metrics["hypotheses"][hypothesis.name]["results"]["treat1"]["accepted"]
-        is True
-    )
-    assert (
-        result.metrics["hypotheses"][hypothesis.name]["results"]["treat2"]["accepted"]
-        is True
-    )
-    ranked = result.metrics["hypotheses"][hypothesis.name]["ranking"]["ranked"]
+    assert result.metrics.baseline.metrics["metric"] == [0, 1]
+    assert result.metrics.treatments["treat1"].metrics["metric"] == [1, 2]
+    assert result.metrics.treatments["treat2"].metrics["metric"] == [2, 3]
+    hyp_res = result.get_hypothesis(hypothesis.name)
+    assert hyp_res is not None and hyp_res.results["treat1"]["accepted"] is True
+    assert hyp_res.results["treat2"]["accepted"] is True
+    ranked = hyp_res.ranking["ranked"]
     assert ranked[0][0] == "treat1"
 
 
@@ -107,8 +100,8 @@ def test_experiment_run_baseline_only():
     )
     experiment.validate()
     result = experiment.run()
-    assert result.metrics["baseline"]["metric"] == [0]
-    assert result.metrics["hypotheses"] == {}
+    assert result.metrics.baseline.metrics["metric"] == [0]
+    assert result.metrics.hypotheses == []
 
 
 def test_experiment_run_treatments_no_hypotheses():
@@ -123,7 +116,7 @@ def test_experiment_run_treatments_no_hypotheses():
     )
     experiment.validate()
     result = experiment.run()
-    assert result.metrics["treat"]["metric"] == [1]
+    assert result.metrics.treatments["treat"].metrics["metric"] == [1]
 
 
 def test_experiment_run_hypothesis_without_treatments_raises():
@@ -192,8 +185,9 @@ def test_experiment_builder_chaining():
     )
     experiment.validate()
     result = experiment.run()
-    assert result.metrics["t"]["metric"] == [1, 2]
-    assert result.metrics["hypotheses"]["hypothesis"]["ranking"]["best"] == "t"
+    assert result.metrics.treatments["t"].metrics["metric"] == [1, 2]
+    hyp_res = result.get_hypothesis("hypothesis")
+    assert hyp_res is not None and hyp_res.ranking["best"] == "t"
 
 
 def test_run_zero_replicates():
@@ -202,7 +196,7 @@ def test_run_zero_replicates():
     experiment = Experiment(datasource=datasource, pipeline=pipeline, replicates=0)
     experiment.validate()
     result = experiment.run()
-    assert len(result.metrics["baseline"]["metric"]) == 1
+    assert len(result.metrics.baseline.metrics["metric"]) == 1
 
 
 def test_validate_partial_config():
@@ -407,7 +401,7 @@ def test_parallel_high_replicate_count():
     exp = Experiment(datasource=ds, pipeline=pipeline, replicates=10, parallel=True)
     exp.validate()
     result = exp.run()
-    assert len(result.metrics["baseline"]["metric"]) == 10
+    assert len(result.metrics.baseline.metrics["metric"]) == 10
 
 
 class FibStep(PipelineStep):
@@ -484,9 +478,10 @@ def test_full_experiment_replicate_counts(replicates):
     )
     experiment.validate()
     result = experiment.run()
-    assert len(result.metrics["baseline"]["metric"]) == replicates
-    assert len(result.metrics["t"]["metric"]) == replicates
-    assert result.metrics["hypotheses"][hypothesis.name]["ranking"]["best"] == "t"
+    assert len(result.metrics.baseline.metrics["metric"]) == replicates
+    assert len(result.metrics.treatments["t"].metrics["metric"]) == replicates
+    hyp_res = result.get_hypothesis(hypothesis.name)
+    assert hyp_res is not None and hyp_res.ranking["best"] == "t"
 
 
 def test_apply_with_treatment_and_exit():
@@ -593,7 +588,7 @@ def test_ctx_mutation_error_parallel_and_serial(parallel):
     exp = Experiment(datasource=ds, pipeline=pipeline, replicates=2, parallel=parallel)
     exp.validate()
     result = exp.run()
-    assert result.metrics["baseline"] == {}
+    assert result.metrics.baseline.metrics == {}
     assert "baseline_rep_0" in result.errors and "baseline_rep_1" in result.errors
 
 
@@ -655,7 +650,7 @@ def test_zero_negative_replicates_clamped():
         exp = Experiment(datasource=ds, pipeline=pipeline, replicates=reps)
         exp.validate()
         result = exp.run()
-        assert len(result.metrics["baseline"]["metric"]) == 1
+        assert len(result.metrics.baseline.metrics["metric"]) == 1
 
 
 # Slow
@@ -671,4 +666,4 @@ def test_high_replicates_parallel_no_issues():
     )
     exp.validate()
     result = exp.run()
-    assert len(result.metrics["baseline"]["metric"]) == 50
+    assert len(result.metrics.baseline.metrics["metric"]) == 50

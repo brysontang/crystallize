@@ -658,7 +658,7 @@ def test_zero_negative_replicates_clamped():
         assert len(result.metrics["baseline"]["metric"]) == 1
 
 
-@pytest.mark.slow
+# Slow
 def test_high_replicates_parallel_no_issues():
     pipeline = Pipeline([PassStep()])
     ds = DummyDataSource()

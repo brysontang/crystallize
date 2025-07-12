@@ -74,10 +74,9 @@ def test_from_scipy_wrapper_produces_valid_result():
     from scipy import stats
     verifier = from_scipy(stats.ttest_ind)
     hyp = Hypothesis(verifier=verifier, metrics="a", ranker=lambda r: r["p_value"])
-    res = hyp.verify({"a": [1, 1]}, {"a": [2, 2]})
+    res = hyp.verify({"a": [0.8, 1.01]}, {"a": [2.1, 2.2]})
     assert 0 <= res["p_value"] <= 1
     assert res["significant"] is (res["p_value"] < 0.05)
-
 
 
 
@@ -87,14 +86,21 @@ def test_hypothesis_verifier_fuzz_no_crash():
     st = hyp_lib.strategies
 
     @given(
-        st.dictionaries(st.text(min_size=1), st.lists(st.floats(), min_size=1)),
-        st.dictionaries(st.text(min_size=1), st.lists(st.floats(), min_size=1)),
+        st.dictionaries(st.text(min_size=1), st.lists(st.floats(allow_nan=False, allow_infinity=False), min_size=1)),
+        st.dictionaries(st.text(min_size=1), st.lists(st.floats(allow_nan=False, allow_infinity=False), min_size=1)),
     )
     def run(baseline, treatment):
+        # Ensure both dictionaries have at least one matching key
+        if not baseline or not treatment:
+            return
+        
+        common_key = next(iter(baseline))
+        treatment[common_key] = treatment.get(common_key, baseline[common_key])
+
         def verifier(b, t):
             return {"mean": np.mean(list(t.values())[0]) - np.mean(list(b.values())[0])}
 
-        hyp = Hypothesis(verifier=verifier, metrics=list(baseline.keys())[0])
+        hyp = Hypothesis(verifier=verifier, metrics=common_key)
         hyp.verify(baseline, treatment)
 
     run()

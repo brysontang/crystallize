@@ -33,3 +33,25 @@ def test_get_missing_returns_default(default):
     assert result == default
     if isinstance(default, dict):
         assert result.get("foo") is None
+
+
+def test_metrics_accumulates_without_mutation():
+    ctx = FrozenContext({})
+    ctx.metrics.add("a", 1)
+    ctx.metrics.add("a", 2)
+    assert ctx.metrics["a"] == [1, 2]
+
+
+def test_context_handles_empty_and_nested_values():
+    source = {"nested": {"x": 1}}
+    ctx = FrozenContext(source)
+    source["nested"]["x"] = 2
+    # nested mutation of source propagates since deep copy is not performed
+    assert ctx.get("nested")["x"] == 2
+
+
+def test_context_as_dict_is_read_only():
+    ctx = FrozenContext({})
+    view = ctx.as_dict()
+    with pytest.raises(TypeError):
+        view["new"] = 1

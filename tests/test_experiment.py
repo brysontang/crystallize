@@ -426,7 +426,7 @@ class FibStep(PipelineStep):
 
 
 def test_process_executor_faster_for_cpu_bound_step():
-    pipeline = Pipeline([FibStep(32)])
+    pipeline = Pipeline([FibStep(35)])
     ds = DummyDataSource()
 
     exp_thread = Experiment(

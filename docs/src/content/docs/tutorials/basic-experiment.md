@@ -114,7 +114,6 @@ exp = (
     .datasource(titanic_source)                # Set source
     .pipeline([normalize_age, compute_metrics]) # Chain steps
     .replicates(3)                             # Multiple runs (though data same here)
-    .parallel(True)                            # Parallelize replicates
     .seed(42)                                  # Set seed for reproducibility
     .build()
 )
@@ -131,7 +130,6 @@ print("Baseline metrics:", result.metrics.baseline.metrics)
 **Inline Troubleshooting**:
 
 - _Validation error?_ Ensure `.validate()` or build succeeds—needs source/pipeline.
-- _Parallel issues?_ Set `executor_type="process"` for CPU tasks; limit `max_workers` if memory low.
 - _Metrics empty?_ Verify `ctx.metrics.add` and last step returns dict.
 - FAQ: Replicates with same data? Adds variability if steps random; prepares for stats.
 
@@ -185,7 +183,6 @@ if __name__ == "__main__":
         .datasource(titanic_source)
         .pipeline([normalize_age, compute_metrics])
         .replicates(3)
-        .parallel(True)
         .seed(42)
         .build()
     )

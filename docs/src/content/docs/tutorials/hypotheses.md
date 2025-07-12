@@ -108,7 +108,6 @@ exp = (
     .treatments([scale_ages])
     .hypotheses([rank_by_p_value])  # Add here
     .replicates(20)  # Increase for stats power
-    .parallel(True)
     .build()
 )
 
@@ -186,7 +185,6 @@ if __name__ == "__main__":
         .treatments([scale_ages])
         .hypotheses([rank_by_p_value])
         .replicates(20)
-        .parallel(True)
         .build()
     )
     result = exp.run()

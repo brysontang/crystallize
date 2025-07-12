@@ -98,7 +98,6 @@ exp = (
     .treatments([scale_ages])  # Add variations here
     .seed(42)
     .replicates(3)
-    .parallel(True)
     .build()
 )
 
@@ -114,7 +113,6 @@ print("Treatment metrics:", result.metrics.treatments["scale_ages_treatment"].me
 **Inline Troubleshooting**:
 
 - _No treatment results?_ Ensure `.treatments` list non-empty; baselines always run.
-- _Parallel errors?_ If treatments CPU-heavy, use `.executor_type("process")`.
 - _Metrics mismatch?_ Replicates sample randomly—set seed via context or env for consistency.
 - FAQ: Baselines vs. treatments? Baselines use default context; treatments add keys for variations.
 
@@ -172,7 +170,6 @@ if __name__ == "__main__":
         .treatments([scale_ages])
         .seed(42)
         .replicates(3)
-        .parallel(True)
         .build()
     )
     result = exp.run()

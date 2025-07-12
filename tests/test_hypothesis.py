@@ -135,7 +135,8 @@ def test_full_experiment_with_scipy_verifier():
     exp = Experiment(datasource=ds, pipeline=pipeline, treatments=[treatment], hypotheses=[hyp], replicates=3)
     exp.validate()
     result = exp.run()
-    assert "p_value" in result.metrics["hypotheses"][hyp.name]["results"]["shift"]
+    hyp_res = result.get_hypothesis(hyp.name)
+    assert hyp_res is not None and "p_value" in hyp_res.results["shift"]
 
 
 @verifier

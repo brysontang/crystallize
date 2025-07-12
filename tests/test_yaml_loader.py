@@ -63,8 +63,8 @@ def test_load_experiment_success(json_config: Path):
     exp = load_experiment_from_file(json_config)
     exp.validate()
     result = exp.run()
-    assert result.metrics["baseline"]["result"] == [2, 3]
-    assert result.metrics["inc"]["result"] == [2, 3]
+    assert result.metrics.baseline.metrics["result"] == [2, 3]
+    assert result.metrics.treatments["inc"].metrics["result"] == [2, 3]
 
 
 def test_load_experiment_invalid(tmp_path: Path):

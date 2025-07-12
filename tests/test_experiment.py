@@ -2,6 +2,7 @@ import time
 import random
 import numpy as np
 import pytest
+from typing import List
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
@@ -717,3 +718,24 @@ def test_auto_seed_reproducible_serial_vs_parallel():
     assert res_serial.provenance["seeds"] == res_parallel.provenance["seeds"]
     expected = [hash((123, rep, "baseline")) for rep in range(3)]
     assert res_serial.provenance["seeds"]["baseline"] == expected
+
+
+def test_custom_seed_function_called():
+    called: List[int] = []
+
+    def record_seed(val: int) -> None:
+        called.append(val)
+
+    pipeline = Pipeline([RandomStep()])
+    ds = RandomDataSource()
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=1,
+        seed=7,
+        seed_fn=record_seed,
+        auto_seed=True,
+    )
+    exp.validate()
+    exp.run()
+    assert called == [hash((7, 0, "baseline"))]

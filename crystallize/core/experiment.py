@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import importlib
 import os
-import random
-import numpy as np
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from typing import (
     Any,
+    Callable,
     DefaultDict,
     Dict,
     List,
@@ -31,6 +31,20 @@ from crystallize.core.treatment import Treatment
 VALID_EXECUTOR_TYPES = {"thread", "process"}
 
 
+def default_seed_function(seed: int) -> None:
+    """Set deterministic seeds for common libraries if available."""
+    try:
+        random_mod = importlib.import_module("random")
+        random_mod.seed(seed)
+    except ModuleNotFoundError:
+        pass
+    try:
+        numpy_mod = importlib.import_module("numpy")
+        numpy_mod.random.seed(seed % (2**32 - 1))
+    except ModuleNotFoundError:
+        pass
+
+
 class Experiment:
     """
     Orchestrates baseline + treatment pipelines across replicates, then verifies
@@ -48,6 +62,7 @@ class Experiment:
         parallel: bool = False,
         seed: Optional[int] = None,
         auto_seed: bool = True,
+        seed_fn: Optional[Callable[[int], None]] = None,
         max_workers: Optional[int] = None,
         executor_type: str = "thread",
     ) -> None:
@@ -59,6 +74,7 @@ class Experiment:
         self.parallel = parallel
         self.seed = seed
         self.auto_seed = auto_seed
+        self.seed_fn = seed_fn or default_seed_function
         self.max_workers = max_workers
         if executor_type not in VALID_EXECUTOR_TYPES:
             raise ValueError(
@@ -105,6 +121,10 @@ class Experiment:
         self.auto_seed = auto_seed
         return self
 
+    def with_seed_fn(self, seed_fn: Callable[[int], None]) -> "Experiment":
+        self.seed_fn = seed_fn
+        return self
+
     def with_executor_type(self, executor_type: str) -> "Experiment":
         if executor_type not in VALID_EXECUTOR_TYPES:
             raise ValueError(
@@ -141,8 +161,8 @@ class Experiment:
             local_seed = hash(
                 (self.seed or 0, run_ctx.get("replicate", 0), run_ctx.get("condition", "baseline"))
             )
-            random.seed(local_seed)
-            np.random.seed(local_seed % (2 ** 32 - 1))
+            if self.seed_fn is not None:
+                self.seed_fn(local_seed)
             run_ctx.add("seed_used", local_seed)
 
         data = self.datasource.fetch(run_ctx)

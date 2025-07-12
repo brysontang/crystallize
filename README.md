@@ -72,6 +72,8 @@ experiment = (
     .hypotheses([hypothesis])
     .replicates(3)
     .seed(42)
+    # optional custom seed function
+    # .seed_fn(my_seed_function)
     .parallel(True)
     .max_workers(4)
     .executor_type("thread")  # or "process" for CPU-bound steps

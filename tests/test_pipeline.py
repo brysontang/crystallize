@@ -45,13 +45,6 @@ def test_pipeline_runs_and_returns_metrics():
     assert result == {"result": 1}
 
 
-def test_invalid_pipeline_output_raises():
-    pipeline = Pipeline([AddStep(1)])
-    ctx = FrozenContext({})
-    with pytest.raises(InvalidPipelineOutput):
-        pipeline.run(0, ctx)
-
-
 def test_pipeline_signature():
     pipeline = Pipeline([AddStep(2), MetricsStep()])
     sig = pipeline.signature()

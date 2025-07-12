@@ -4,7 +4,7 @@
 *.egg-info
 
 # test artefacts
-.coverage
+.coverage*
 htmlcov/
 coverage.xml
 

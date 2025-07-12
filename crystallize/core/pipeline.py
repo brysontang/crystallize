@@ -27,7 +27,7 @@ class Pipeline:
 
     # ------------------------------------------------------------------ #
 
-    def run(self, data: Any, ctx: FrozenContext) -> Mapping[str, Any]:
+    def run(self, data: Any, ctx: FrozenContext) -> Any:
         """
         Execute the pipeline in order.
 
@@ -80,11 +80,7 @@ class Pipeline:
                     ctx.metrics.add(key, value)
 
         self._provenance = tuple(MappingProxyType(p) for p in provenance)
-        if not isinstance(data, Mapping):
-            raise InvalidPipelineOutput(
-                f"Last step `{self.steps[-1].__class__.__name__}` returned "
-                f"{type(data).__name__}, expected Mapping[str, Any]."
-            )
+
         return data
 
     # ------------------------------------------------------------------ #

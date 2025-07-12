@@ -409,6 +409,7 @@ def test_parallel_high_replicate_count():
 
 
 class FibStep(PipelineStep):
+    cacheable = False
     def __init__(self, n: int = 32) -> None:
         self.n = n
 

@@ -4,9 +4,8 @@ from scipy.stats import ttest_ind
 
 from crystallize import hypothesis, verifier, treatment
 from crystallize.core.builder import ExperimentBuilder
-from crystallize.core.context import FrozenContext
 
-from .datasource import csv_data_source, set_csv_path
+from .datasource import csv_data_source
 from .steps.metric import explained_variance
 from .steps.normalize import normalize
 from .steps.pca import pca
@@ -35,13 +34,11 @@ def hyp(result):
 def main() -> None:
     base_dir = Path(__file__).parent
 
-    treat = better_data
-
     experiment = (
         ExperimentBuilder()
         .datasource((csv_data_source, {"default_path": str(base_dir / "baseline.csv")}))
         .pipeline([normalize, pca, explained_variance])
-        .treatments([treat])
+        .treatments([better_data])
         .hypotheses([hyp])
         .replicates(10)
         .build()

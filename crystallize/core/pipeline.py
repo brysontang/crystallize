@@ -42,7 +42,7 @@ class Pipeline:
             InvalidPipelineOutput: if the last step does not return Mapping.
         """
         provenance = []
-        for step in self.steps:
+        for i, step in enumerate(self.steps):
             step_hash = step.step_hash
             input_hash = compute_hash(data)
             if step.cacheable:
@@ -74,6 +74,10 @@ class Pipeline:
                     "cache_hit": cache_hit,
                 }
             )
+
+            if cache_hit and i == len(self.steps) - 1 and isinstance(data, Mapping):
+                for key, value in data.items():
+                    ctx.metrics.add(key, value)
 
         self._provenance = tuple(MappingProxyType(p) for p in provenance)
         if not isinstance(data, Mapping):

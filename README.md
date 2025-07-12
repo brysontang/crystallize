@@ -54,7 +54,13 @@ from crystallize.core import (
 # Example setup (simple)
 pipeline = Pipeline([...])
 datasource = DataSource(...)
-hypothesis = Hypothesis(metric="accuracy", verifier=WelchTTest())
+t_test = WelchTTest()
+
+@hypothesis(verifier=t_test, metrics="accuracy")
+def rank_by_p(result):
+    return result["p_value"]
+
+hypothesis = rank_by_p()
 
 treatment = Treatment(name="experiment_variant", apply_fn=lambda ctx: ctx.update({"learning_rate": 0.001}))
 

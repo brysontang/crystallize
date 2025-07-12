@@ -16,7 +16,9 @@ class DummyDataSource(DataSource):
 
 
 class PassStep(PipelineStep):
+    cacheable = True
     def __call__(self, data, ctx):
+        ctx.metrics.add("metric", data)
         return {"metric": data}
 
     @property
@@ -33,8 +35,9 @@ def test_experiment_run_basic():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()
     hypothesis = Hypothesis(
-        metric="metric",
         verifier=always_significant,
+        metrics="metric",
+        ranker=lambda r: r["p_value"],
     )
     treatment = Treatment("treat", {"increment": 1})
 
@@ -49,7 +52,11 @@ def test_experiment_run_basic():
     result = experiment.run()
     assert result.metrics["baseline"]["metric"] == [0, 1]
     assert result.metrics["treat"]["metric"] == [1, 2]
-    assert result.metrics["hypotheses"][hypothesis.name]["treat"]["accepted"] is True
+    assert (
+        result.metrics["hypotheses"][hypothesis.name]["results"]["treat"]["accepted"]
+        is True
+    )
+    assert result.metrics["hypotheses"][hypothesis.name]["ranking"]["best"] == "treat"
     assert result.errors == {}
 
 
@@ -57,8 +64,9 @@ def test_experiment_run_multiple_treatments():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()
     hypothesis = Hypothesis(
-        metric="metric",
         verifier=always_significant,
+        metrics="metric",
+        ranker=lambda r: r["p_value"],
     )
     treatment1 = Treatment("treat1", {"increment": 1})
     treatment2 = Treatment("treat2", {"increment": 2})
@@ -74,8 +82,16 @@ def test_experiment_run_multiple_treatments():
     assert result.metrics["baseline"]["metric"] == [0, 1]
     assert result.metrics["treat1"]["metric"] == [1, 2]
     assert result.metrics["treat2"]["metric"] == [2, 3]
-    assert result.metrics["hypotheses"][hypothesis.name]["treat1"]["accepted"] is True
-    assert result.metrics["hypotheses"][hypothesis.name]["treat2"]["accepted"] is True
+    assert (
+        result.metrics["hypotheses"][hypothesis.name]["results"]["treat1"]["accepted"]
+        is True
+    )
+    assert (
+        result.metrics["hypotheses"][hypothesis.name]["results"]["treat2"]["accepted"]
+        is True
+    )
+    ranked = result.metrics["hypotheses"][hypothesis.name]["ranking"]["ranked"]
+    assert ranked[0][0] == "treat1"
 
 
 def test_experiment_run_baseline_only():
@@ -111,8 +127,9 @@ def test_experiment_run_hypothesis_without_treatments_raises():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()
     hypothesis = Hypothesis(
-        metric="metric",
         verifier=always_significant,
+        metrics="metric",
+        ranker=lambda r: r["p_value"],
     )
 
     experiment = Experiment(
@@ -161,8 +178,10 @@ def test_experiment_builder_chaining():
         .with_hypotheses(
             [
                 Hypothesis(
-                    metric="metric",
                     verifier=always_significant,
+                    metrics="metric",
+                    ranker=lambda r: r["p_value"],
+                    name="hypothesis",
                 )
             ]
         )
@@ -171,6 +190,7 @@ def test_experiment_builder_chaining():
     experiment.validate()
     result = experiment.run()
     assert result.metrics["t"]["metric"] == [1, 2]
+    assert result.metrics["hypotheses"]["hypothesis"]["ranking"]["best"] == "t"
 
 
 def test_run_zero_replicates():
@@ -224,7 +244,9 @@ def test_apply_multiple_exit_steps():
 
 
 class StringMetricsStep(PipelineStep):
+    cacheable = True
     def __call__(self, data, ctx):
+        ctx.metrics.add("metric", "a")
         return {"metric": "a"}
 
     @property
@@ -236,8 +258,9 @@ def test_run_with_non_numeric_metrics_raises():
     pipeline = Pipeline([StringMetricsStep()])
     datasource = DummyDataSource()
     hypothesis = Hypothesis(
-        metric="metric",
         verifier=always_significant,
+        metrics="metric",
+        ranker=lambda r: r["p_value"],
     )
     treatment = Treatment("t", {"increment": 0})
     experiment = Experiment(

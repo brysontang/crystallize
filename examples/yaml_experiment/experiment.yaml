@@ -1,28 +1,26 @@
-# pixi run python -m crystallize.cli.main run examples/yaml_experiment/experiment.yaml
-replicates: 10
-
-datasource:
-  target: examples.csv_pipeline_example.datasource.csv_data_source
-  params:
-    default_path: examples/csv_pipeline_example/baseline.csv
-
-pipeline:
-  - target: examples.csv_pipeline_example.steps.normalize.normalize
-    params: {}
-  - target: examples.csv_pipeline_example.steps.pca.pca
-    params: {}
-  - target: examples.csv_pipeline_example.steps.metric.explained_variance
-    params: {}
-
-hypothesis:
-  metric: explained_variance
-  verifier:
-    target: examples.csv_pipeline_example.main.welch_t_test
-    params: {}
-
-treatments:
-  - name: better_data
-    apply:
-      target: examples.csv_pipeline_example.datasource.set_csv_path
-      params:
-        path: examples/csv_pipeline_example/treatment.csv
+{
+  "replicates": 10,
+  "datasource": {
+    "target": "examples.csv_pipeline_example.datasource.csv_data_source",
+    "params": {"default_path": "examples/csv_pipeline_example/baseline.csv"}
+  },
+  "pipeline": [
+    {"target": "examples.csv_pipeline_example.steps.normalize.normalize", "params": {}},
+    {"target": "examples.csv_pipeline_example.steps.pca.pca", "params": {}},
+    {"target": "examples.csv_pipeline_example.steps.metric.explained_variance", "params": {}}
+  ],
+  "hypothesis": {
+    "metrics": "explained_variance",
+    "verifier": {"target": "examples.csv_pipeline_example.main.welch_t_test", "params": {}},
+    "ranker": "examples.csv_pipeline_example.main.rank_by_p"
+  },
+  "treatments": [
+    {
+      "name": "better_data",
+      "apply": {
+        "target": "examples.csv_pipeline_example.datasource.set_csv_path",
+        "params": {"path": "examples/csv_pipeline_example/treatment.csv"}
+      }
+    }
+  ]
+}

@@ -11,4 +11,5 @@ def explained_variance(data: Mapping[str, List[float]], ctx: FrozenContext) -> D
     eigvals = data.get("eigenvalues", [])
     total = sum(eigvals)
     ratio = eigvals[0] / total if total else 0.0
+    ctx.metrics.add("explained_variance", ratio)
     return {"explained_variance": ratio}

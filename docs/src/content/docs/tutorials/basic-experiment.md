@@ -115,6 +115,7 @@ exp = (
     .pipeline([normalize_age, compute_metrics]) # Chain steps
     .replicates(3)                             # Multiple runs (though data same here)
     .parallel(True)                            # Parallelize replicates
+    .seed(42)                                  # Set seed for reproducibility
     .build()
 )
 
@@ -164,7 +165,6 @@ def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
     print(data['Normalized_Age'])
     return data
 
-
 @pipeline_step()
 def compute_metrics(data: pd.DataFrame, ctx: FrozenContext):
     std_norm_age = data['Normalized_Age'].std()
@@ -186,11 +186,13 @@ if __name__ == "__main__":
         .pipeline([normalize_age, compute_metrics])
         .replicates(3)
         .parallel(True)
+        .seed(42)
         .build()
     )
     r = exp.run()
 
     print("Baseline metrics:", r.metrics.baseline.metrics)
+
 ```
 
 Run: `python basic_experiment.py`. Verify mean_norm_age is 0.0 (simple transformation check).

@@ -4,10 +4,12 @@ import pytest
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.experiment import Experiment
+import crystallize.core.experiment as experiment
 from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.pipeline_step import PipelineStep, exit_step
 from crystallize.core.treatment import Treatment
+from crystallize.core.builder import ExperimentBuilder
 
 
 class DummyDataSource(DataSource):
@@ -409,6 +411,7 @@ def test_parallel_high_replicate_count():
 
 
 class FibStep(PipelineStep):
+    cacheable = False
     def __init__(self, n: int = 32) -> None:
         self.n = n
 
@@ -459,3 +462,136 @@ def test_process_executor_faster_for_cpu_bound_step():
 def test_invalid_executor_type_raises():
     with pytest.raises(ValueError):
         Experiment(executor_type="bogus")
+
+
+@pytest.mark.parametrize("replicates", [1, 5, 10])
+def test_full_experiment_replicate_counts(replicates):
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+    treatment = Treatment("t", {"increment": 1})
+    hypothesis = Hypothesis(
+        verifier=always_significant,
+        metrics="metric",
+        ranker=lambda r: r["p_value"],
+    )
+
+    experiment = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+        treatments=[treatment],
+        hypotheses=[hypothesis],
+        replicates=replicates,
+    )
+    experiment.validate()
+    result = experiment.run()
+    assert len(result.metrics["baseline"]["metric"]) == replicates
+    assert len(result.metrics["t"]["metric"]) == replicates
+    assert result.metrics["hypotheses"][hypothesis.name]["ranking"]["best"] == "t"
+
+
+def test_apply_with_treatment_and_exit():
+    pipeline = Pipeline([exit_step(IdentityStep()), PassStep()])
+    datasource = DummyDataSource()
+    treatment = Treatment("inc", {"increment": 2})
+    experiment = Experiment(datasource=datasource, pipeline=pipeline, treatments=[treatment])
+    experiment.validate()
+    output = experiment.apply(treatment_name="inc", data=5)
+    assert output == 5
+
+
+def test_provenance_signature_and_cache(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    step = PassStep()
+    pipeline = Pipeline([step])
+    ds = DummyDataSource()
+    exp1 = Experiment(datasource=ds, pipeline=pipeline)
+    exp1.validate()
+    res1 = exp1.run()
+    assert res1.provenance["pipeline_signature"] == pipeline.signature()
+    assert res1.provenance["replicates"] == 1
+
+    pipeline2 = Pipeline([PassStep()])
+    exp2 = Experiment(datasource=ds, pipeline=pipeline2)
+    exp2.validate()
+    exp2.run()
+    assert pipeline2.get_provenance()[0]["cache_hit"] is True
+
+
+def test_multiple_hypotheses_partial_failure():
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+    good = Hypothesis(verifier=always_significant, metrics="metric", ranker=lambda r: r["p_value"], name="good")
+    bad = Hypothesis(verifier=always_significant, metrics="missing", ranker=lambda r: r["p_value"], name="bad")
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        treatments=[Treatment("t", {"increment": 1})],
+        hypotheses=[good, bad],
+    )
+    exp.validate()
+    with pytest.raises(Exception):
+        exp.run()
+
+
+def test_builder_missing_components():
+    builder = ExperimentBuilder().pipeline([PassStep()])
+    with pytest.raises(ValueError):
+        builder.build()
+
+
+def test_process_pool_respects_max_workers(monkeypatch):
+    recorded = {}
+
+    class DummyExecutor:
+        def __init__(self, max_workers=None):
+            recorded["max"] = max_workers
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def submit(self, fn, rep):
+            class F:
+                def result(self_inner):
+                    return fn(rep)
+
+            return F()
+
+    monkeypatch.setattr(experiment, "ProcessPoolExecutor", DummyExecutor)
+    monkeypatch.setattr(experiment.os, "cpu_count", lambda: 4)
+
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=5,
+        parallel=True,
+        executor_type="process",
+        max_workers=2,
+    )
+    exp.validate()
+    exp.run()
+
+    assert recorded["max"] == 2
+
+
+@pytest.mark.parametrize("parallel", [False, True])
+def test_ctx_mutation_error_parallel_and_serial(parallel):
+    class MutateStep(PipelineStep):
+        def __call__(self, data, ctx):
+            ctx["condition"] = "oops"
+
+        @property
+        def params(self):
+            return {}
+
+    pipeline = Pipeline([MutateStep()])
+    ds = DummyDataSource()
+    exp = Experiment(datasource=ds, pipeline=pipeline, replicates=2, parallel=parallel)
+    exp.validate()
+    result = exp.run()
+    assert result.metrics["baseline"] == {}
+    assert "baseline_rep_0" in result.errors and "baseline_rep_1" in result.errors

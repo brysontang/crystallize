@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Callable, Dict, Tuple, Union
 
 from crystallize.core.cache import compute_hash
 from crystallize.core.context import FrozenContext
@@ -40,3 +40,24 @@ class PipelineStep(ABC):
 
         payload = {"class": self.__class__.__name__, "params": self.params}
         return compute_hash(payload)
+
+
+def exit_step(item: Union[PipelineStep, Callable[..., PipelineStep], Tuple[Callable[..., PipelineStep], Dict[str, Any]]]) -> Union[PipelineStep, Callable[..., PipelineStep]]:
+    """Mark a :class:`PipelineStep` as an exit point. Handles instances, factories, or parameterized tuples."""
+    if isinstance(item, PipelineStep):
+        setattr(item, "is_exit_step", True)
+        return item
+    elif isinstance(item, tuple):  # From param
+        factory, fixed_kwargs = item
+        def wrapped_factory(**extra_kwargs: Any) -> PipelineStep:
+            inst = factory(**{**fixed_kwargs, **extra_kwargs})
+            setattr(inst, "is_exit_step", True)
+            return inst
+        return wrapped_factory
+    elif callable(item):  # Plain factory
+        def wrapped_factory(**kwargs: Any) -> PipelineStep:
+            inst = item(**kwargs)
+            setattr(inst, "is_exit_step", True)
+            return inst
+        return wrapped_factory
+    raise TypeError(f"Invalid item for exit_step: {type(item).__name__}")

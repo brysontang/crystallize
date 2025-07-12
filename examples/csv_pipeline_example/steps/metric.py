@@ -1,20 +1,15 @@
 from typing import Dict, List, Mapping
 
+from crystallize import pipeline_step
 from crystallize.core.context import FrozenContext
-from crystallize.core.pipeline_step import PipelineStep
 
 
-class ExplainedVarianceStep(PipelineStep):
+@pipeline_step()
+def explained_variance(data: Mapping[str, List[float]], ctx: FrozenContext) -> Dict[str, float]:
     """Compute explained variance ratio from eigenvalues."""
 
-    def __call__(
-        self, data: Mapping[str, List[float]], ctx: FrozenContext
-    ) -> Dict[str, float]:
-        eigvals = data.get("eigenvalues", [])
-        total = sum(eigvals)
-        ratio = eigvals[0] / total if total else 0.0
-        return {"explained_variance": ratio}
-
-    @property
-    def params(self) -> dict:
-        return {}
+    eigvals = data.get("eigenvalues", [])
+    total = sum(eigvals)
+    ratio = eigvals[0] / total if total else 0.0
+    ctx.metrics.add("explained_variance", ratio)
+    return {"explained_variance": ratio}

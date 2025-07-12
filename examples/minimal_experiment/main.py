@@ -1,43 +1,61 @@
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.stat_test import StatisticalTest
+from crystallize import (
+    data_source,
+    hypothesis,
+    pipeline_step,
+    verifier,
+    treatment,
+)
+from crystallize.core.builder import ExperimentBuilder
 from crystallize.core.context import FrozenContext
-from crystallize.core.datasource import DataSource
-from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.treatment import Treatment
-from crystallize.core.hypothesis import Hypothesis
+from crystallize.core.pipeline_step import exit_step
 
-class AlwaysSignificant(StatisticalTest):
-    def run(self, baseline, treatment, *, alpha: float = 0.05):
-        return {'p_value': 0.01, 'significant': True}
 
-class DummyDataSource(DataSource):
-    def fetch(self, ctx: FrozenContext):
-        return ctx.as_dict().get('increment', 0)
+@data_source
+def dummy_source(ctx: FrozenContext):
+    return ctx.get("delta", 0)
 
-class PassStep(PipelineStep):
-    def __call__(self, data, ctx):
-        return {'metric': data}
 
-    @property
-    def params(self):
-        return {}
+@pipeline_step(cacheable=False)
+def pass_step(data, ctx):
+    ctx.metrics.add("metric", data)
+    return data
+
+
+@pipeline_step(cacheable=False)
+def delta_step(data, ctx):
+    delta = ctx.get("delta", 0)
+    return data + delta 
+
+
+treat = treatment("treat", {"delta": 10})
+
+
+@verifier
+def always_significant(baseline, treatment, *, alpha: float = 0.05):
+    # Simplified: Use built-ins, check mean increase
+    treatment_mean = sum(treatment['metric']) / len(treatment)
+    baseline_mean = sum(baseline['metric']) / len(baseline)
+    return {"p_value": 0.01, "significant": treatment_mean > baseline_mean}
+
+
+@hypothesis(verifier=always_significant(), metrics="metric")
+def hyp(result):
+    return result["p_value"]
+
 
 if __name__ == "__main__":
-  pipeline = Pipeline([PassStep()])
-  datasource = DummyDataSource()
-  hypothesis = Hypothesis(
-      metric='metric', direction='increase', statistical_test=AlwaysSignificant()
-  )
-  treatment = Treatment('treat', lambda ctx: ctx.__setitem__('increment', 1))
+    experiment = (
+        ExperimentBuilder()
+        .datasource(dummy_source)
+        .pipeline([exit_step(delta_step), pass_step])
+        .treatments([treat])
+        .hypotheses([hyp])
+        .replicates(2)
+        .build()
+    )
 
-  experiment = Experiment(
-      datasource=datasource,
-      pipeline=pipeline,
-      treatments=[treatment],
-      hypothesis=hypothesis,
-      replicates=2,
-  )
-  result = experiment.run()
-  print(result.metrics)
-  print(result.errors)
+    result = experiment.run()
+    print(result.metrics)
+    print(result.errors)
+    print("apply baseline:", experiment.apply(data=5))
+    print("apply treatment:", experiment.apply(treatment_name="treat", data=5))

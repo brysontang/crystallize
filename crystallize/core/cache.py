@@ -4,6 +4,11 @@ import pickle
 from pathlib import Path
 from typing import Any
 
+try:
+    import fcntl
+except Exception:  # pragma: no cover - non-posix fallback
+    fcntl = None
+
 CACHE_DIR = Path(os.getenv("CRYSTALLIZE_CACHE_DIR", ".cache"))
 
 
@@ -32,8 +37,17 @@ def load_cache(step_hash: str, input_hash: str) -> Any:
 
 def store_cache(step_hash: str, input_hash: str, data: Any) -> None:
     path = cache_path(step_hash, input_hash)
+    lock_path = path.with_suffix(path.suffix + ".lock")
     try:
-        with path.open("wb") as f:
-            pickle.dump(data, f)
+        if fcntl is not None:
+            with lock_path.open("w") as lock_f:
+                fcntl.flock(lock_f, fcntl.LOCK_EX)
+                if not path.exists():
+                    with path.open("wb") as f:
+                        pickle.dump(data, f)
+        else:
+            if not path.exists():
+                with path.open("wb") as f:
+                    pickle.dump(data, f)
     except Exception as exc:  # pragma: no cover - disk issues
         raise IOError(f"Failed to store cache at {path}") from exc

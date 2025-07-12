@@ -20,14 +20,14 @@ class Pipeline:
     intermediate representation.
     """
 
-    def __init__(self, steps: List[PipelineStep]):
+    def __init__(self, steps: List[PipelineStep]) -> None:
         if not steps:
             raise ValueError("Pipeline must contain at least one step.")
         self.steps = steps
 
     # ------------------------------------------------------------------ #
 
-    def run(self, data: Any, ctx: FrozenContext) -> Mapping[str, Any]:
+    def run(self, data: Any, ctx: FrozenContext) -> Any:
         """
         Execute the pipeline in order.
 
@@ -42,7 +42,7 @@ class Pipeline:
             InvalidPipelineOutput: if the last step does not return Mapping.
         """
         provenance = []
-        for step in self.steps:
+        for i, step in enumerate(self.steps):
             step_hash = step.step_hash
             input_hash = compute_hash(data)
             if step.cacheable:
@@ -75,12 +75,12 @@ class Pipeline:
                 }
             )
 
+            if cache_hit and i == len(self.steps) - 1 and isinstance(data, Mapping):
+                for key, value in data.items():
+                    ctx.metrics.add(key, value)
+
         self._provenance = tuple(MappingProxyType(p) for p in provenance)
-        if not isinstance(data, Mapping):
-            raise InvalidPipelineOutput(
-                f"Last step `{self.steps[-1].__class__.__name__}` returned "
-                f"{type(data).__name__}, expected Mapping[str, Any]."
-            )
+
         return data
 
     # ------------------------------------------------------------------ #

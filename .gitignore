@@ -4,7 +4,7 @@
 *.egg-info
 
 # test artefacts
-.coverage
+.coverage*
 htmlcov/
 coverage.xml
 
@@ -17,3 +17,11 @@ __pycache__/
 .DS_Store
 
 .cache/
+
+.env
+
+dist/
+
+.pytest_cache/
+
+.hypothesis/

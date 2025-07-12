@@ -8,11 +8,14 @@ from typing import Any, Callable, List, Mapping
 try:  # Prefer PyYAML if available
     import yaml  # type: ignore
 
-    def _yaml_load(content: str):
+    def _yaml_load(content: str) -> Any:
         return yaml.safe_load(content)
+
 except Exception:  # pragma: no cover - fallback when PyYAML missing
-    def _yaml_load(content: str):
+
+    def _yaml_load(content: str) -> Any:
         return json.loads(content)
+
 
 from crystallize.core.experiment import Experiment
 from crystallize.core.hypothesis import Hypothesis
@@ -52,13 +55,23 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
     ]
     pipeline = Pipeline(steps)
 
-    hyp_spec = config["hypothesis"]
-    stat_test = _instantiate(hyp_spec["statistical_test"])
-    hypothesis = Hypothesis(
-        metric=hyp_spec["metric"],
-        statistical_test=stat_test,
-        direction=hyp_spec.get("direction"),
-    )
+    hypotheses: List[Hypothesis] = []
+    if "hypotheses" in config:
+        hyp_specs = config["hypotheses"]
+    else:
+        hyp_specs = [config["hypothesis"]]
+
+    for spec in hyp_specs:
+        verifier_fn = _instantiate(spec["verifier"])
+        ranker_fn = _load_attr(spec["ranker"])
+        hypotheses.append(
+            Hypothesis(
+                verifier=verifier_fn,
+                metrics=spec.get("metrics", spec.get("metric")),
+                ranker=ranker_fn,
+                name=spec.get("name"),
+            )
+        )
 
     treatments = []
     for t_spec in config.get("treatments", []):
@@ -66,12 +79,20 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
         treatments.append(Treatment(t_spec["name"], apply_fn))
 
     replicates = int(config.get("replicates", 1))
+    parallel = bool(config.get("parallel", False))
+    max_workers = config.get("max_workers")
+    if max_workers is not None:
+        max_workers = int(max_workers)
+    executor_type = config.get("executor_type", "thread")
     return Experiment(
         datasource=datasource,
         pipeline=pipeline,
         treatments=treatments,
-        hypothesis=hypothesis,
+        hypotheses=hypotheses,
         replicates=replicates,
+        parallel=parallel,
+        max_workers=max_workers,
+        executor_type=executor_type,
     )
 
 

@@ -1,51 +1,50 @@
 from pathlib import Path
+
 from scipy.stats import ttest_ind
 
-from .datasource import CSVDataSource
-from .steps.metric import ExplainedVarianceStep
-from .steps.normalize import NormalizeStep
-from .steps.pca import PCAStep
+from crystallize import hypothesis, verifier, treatment
+from crystallize.core.builder import ExperimentBuilder
 
-from crystallize.core.experiment import Experiment
-from crystallize.core.hypothesis import Hypothesis
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.stat_test import StatisticalTest
-from crystallize.core.treatment import Treatment
+from .datasource import csv_data_source
+from .steps.metric import explained_variance
+from .steps.normalize import normalize
+from .steps.pca import pca
 
 
-class WelchTTest(StatisticalTest):
-    def run(self, baseline, treatment, *, alpha=0.05):
-        t_stat, p_value = ttest_ind(baseline, treatment, equal_var=False)
-        return {
-            "p_value": p_value,
-            "significant": p_value < alpha
-        }
+@verifier
+def welch_t_test(baseline, treatment, *, alpha: float = 0.05):
+    t_stat, p_value = ttest_ind(baseline['explained_variance'], treatment['explained_variance'], equal_var=False)
+    return {"p_value": p_value, "significant": p_value < alpha}
 
+
+better_data = treatment(
+    "better_data",
+    {"csv_path": str(Path(__file__).parent / "treatment.csv")},
+)
+
+
+def rank_by_p(result: dict) -> float:
+    return result["p_value"]
+
+
+@hypothesis(verifier=welch_t_test(), metrics="explained_variance")
+def hyp(result):
+    return result["p_value"]
 
 def main() -> None:
     base_dir = Path(__file__).parent
-    datasource = CSVDataSource(default_path=str(base_dir / "baseline.csv"))
-    pipeline = Pipeline([NormalizeStep(), PCAStep(), ExplainedVarianceStep()])
-    hypothesis = Hypothesis(
-        metric="explained_variance",
-        statistical_test=WelchTTest(),
-        direction="increase",
-    )
-    treatment = Treatment(
-        "better_data",
-        lambda ctx: ctx.__setitem__("csv_path", str(base_dir / "treatment.csv")),
-    )
 
-    experiment = Experiment(
-        datasource=datasource,
-        pipeline=pipeline,
-        treatments=[treatment],
-        hypothesis=hypothesis,
-        replicates=10,
+    experiment = (
+        ExperimentBuilder()
+        .datasource((csv_data_source, {"default_path": str(base_dir / "baseline.csv")}))
+        .pipeline([normalize, pca, explained_variance])
+        .treatments([better_data])
+        .hypotheses([hyp])
+        .replicates(10)
+        .build()
     )
-
     result = experiment.run()
-    print(result.metrics['hypothesis'])
+    print(result.metrics["hypotheses"])
     print(result.provenance)
 
 

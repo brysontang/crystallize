@@ -43,23 +43,39 @@ pixi install <not-yet-published-package>
 ### Quick Example
 
 ```python
-from crystallize.core import Experiment, Pipeline, DataSource
+from crystallize.core import (
+    DataSource,
+    ExperimentBuilder,
+    Hypothesis,
+    Pipeline,
+    Treatment,
+)
 
 # Example setup (simple)
 pipeline = Pipeline([...])
 datasource = DataSource(...)
-hypothesis = Hypothesis(metric="accuracy", direction="increase", statistical_test=WelchTTest())
+t_test = WelchTTest()
+
+@hypothesis(verifier=t_test, metrics="accuracy")
+def rank_by_p(result):
+    return result["p_value"]
+
+hypothesis = rank_by_p()
 
 treatment = Treatment(name="experiment_variant", apply_fn=lambda ctx: ctx.update({"learning_rate": 0.001}))
 
-experiment = Experiment(
-    pipeline=pipeline,
-    datasource=datasource,
-    treatments=[treatment],
-    hypothesis=hypothesis,
-    replicates=3,
+experiment = (
+    ExperimentBuilder()
+    .datasource(datasource)
+    .pipeline(pipeline.steps)
+    .treatments([treatment])
+    .hypotheses([hypothesis])
+    .replicates(3)
+    .parallel(True)
+    .max_workers(4)
+    .executor_type("thread")  # or "process" for CPU-bound steps
+    .build()
 )
-
 result = experiment.run()
 print(result.metrics)
 print(result.hypothesis_result)

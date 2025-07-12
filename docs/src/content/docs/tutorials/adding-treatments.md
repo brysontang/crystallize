@@ -67,7 +67,7 @@ def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
     """
     Scale 'Age' if treatment active, then normalize.
     """
-    scale = ctx.get("scale_factor", 1.0)  # Default 1.0 (baseline no-op)
+    scale = ctx.get("scale_factor", 1.0) + random.random()  # Default 1.0 (baseline no-op) + random noise for tutorial
     data['Age'] = data['Age'] * scale  # Apply variation
     mean_age = data['Age'].mean()
     std_age = data['Age'].std()
@@ -96,6 +96,7 @@ exp = (
     .datasource(titanic_source)
     .pipeline([normalize_age, compute_metrics])
     .treatments([scale_ages])  # Add variations here
+    .seed(42)
     .replicates(3)
     .parallel(True)
     .build()
@@ -141,7 +142,7 @@ def titanic_source(ctx: FrozenContext):
 
 @pipeline_step()
 def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
-    scale = ctx.get("scale_factor", 1.0)  # Treatment injects this
+    scale = ctx.get("scale_factor", 1.0) + random.random()  # Treatment injects this
     data['Age'] = data['Age'] * scale
     mean_age = data['Age'].mean()
     std_age = data['Age'].std()
@@ -169,6 +170,7 @@ if __name__ == "__main__":
         .datasource(titanic_source)
         .pipeline([normalize_age, compute_metrics])
         .treatments([scale_ages])
+        .seed(42)
         .replicates(3)
         .parallel(True)
         .build()

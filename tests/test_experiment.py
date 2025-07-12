@@ -595,3 +595,54 @@ def test_ctx_mutation_error_parallel_and_serial(parallel):
     result = exp.run()
     assert result.metrics["baseline"] == {}
     assert "baseline_rep_0" in result.errors and "baseline_rep_1" in result.errors
+
+
+class FailingSource(DataSource):
+    def fetch(self, ctx: FrozenContext):
+        raise RuntimeError("source fail")
+
+
+def test_datasource_failure_recorded():
+    pipeline = Pipeline([PassStep()])
+    ds = FailingSource()
+    exp = Experiment(datasource=ds, pipeline=pipeline, replicates=2)
+    exp.validate()
+    result = exp.run()
+    assert "baseline_rep_0" in result.errors
+    assert "baseline_rep_1" in result.errors
+
+
+def test_treatment_failure_recorded():
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+    failing = Treatment("boom", lambda ctx: (_ for _ in ()).throw(RuntimeError("bad")))
+    exp = Experiment(datasource=ds, pipeline=pipeline, treatments=[failing], replicates=2)
+    exp.validate()
+    result = exp.run()
+    assert "boom_rep_0" in result.errors
+    assert "boom_rep_1" in result.errors
+
+
+def test_ranker_error_bubbles():
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+
+    def bad_ranker(res):
+        return 1 / 0
+
+    hyp = Hypothesis(verifier=always_significant, metrics="metric", ranker=bad_ranker)
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        treatments=[Treatment("t", {"increment": 1})],
+        hypotheses=[hyp],
+    )
+    exp.validate()
+    with pytest.raises(ZeroDivisionError):
+        exp.run()
+
+
+def test_builder_invalid_replicates_type():
+    builder = ExperimentBuilder().datasource(DummyDataSource()).pipeline([PassStep()])
+    with pytest.raises(TypeError):
+        builder.replicates("three")

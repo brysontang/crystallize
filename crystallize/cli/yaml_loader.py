@@ -8,12 +8,12 @@ from typing import Any, Callable, List, Mapping
 try:  # Prefer PyYAML if available
     import yaml  # type: ignore
 
-    def _yaml_load(content: str):
+    def _yaml_load(content: str) -> Any:
         return yaml.safe_load(content)
 
 except Exception:  # pragma: no cover - fallback when PyYAML missing
 
-    def _yaml_load(content: str):
+    def _yaml_load(content: str) -> Any:
         return json.loads(content)
 
 

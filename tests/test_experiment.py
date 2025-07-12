@@ -1,5 +1,8 @@
 import time
+import random
+import numpy as np
 import pytest
+from typing import List
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
@@ -667,3 +670,72 @@ def test_high_replicates_parallel_no_issues():
     exp.validate()
     result = exp.run()
     assert len(result.metrics.baseline.metrics["metric"]) == 50
+
+
+class RandomDataSource(DataSource):
+    def fetch(self, ctx: FrozenContext):
+        return np.random.random()
+
+
+class RandomStep(PipelineStep):
+    cacheable = False
+
+    def __call__(self, data, ctx):
+        val = data + random.random()
+        ctx.metrics.add("rand", val)
+        return {"rand": val}
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_auto_seed_reproducible_serial_vs_parallel():
+    pipeline = Pipeline([RandomStep()])
+    ds = RandomDataSource()
+    serial = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=3,
+        seed=123,
+        auto_seed=True,
+    )
+    serial.validate()
+    res_serial = serial.run()
+
+    parallel = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=3,
+        seed=123,
+        auto_seed=True,
+        parallel=True,
+    )
+    parallel.validate()
+    res_parallel = parallel.run()
+
+    assert res_serial.metrics == res_parallel.metrics
+    assert res_serial.provenance["seeds"] == res_parallel.provenance["seeds"]
+    expected = [hash((123, rep, "baseline")) for rep in range(3)]
+    assert res_serial.provenance["seeds"]["baseline"] == expected
+
+
+def test_custom_seed_function_called():
+    called: List[int] = []
+
+    def record_seed(val: int) -> None:
+        called.append(val)
+
+    pipeline = Pipeline([RandomStep()])
+    ds = RandomDataSource()
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=1,
+        seed=7,
+        seed_fn=record_seed,
+        auto_seed=True,
+    )
+    exp.validate()
+    exp.run()
+    assert called == [hash((7, 0, "baseline"))]

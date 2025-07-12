@@ -52,6 +52,9 @@ exp = (
     .treatments([treatment_example])
     .hypotheses([ranker()])
     .replicates(5)
+    .seed(42)
+    # optionally customize seeding
+    # .seed_fn(my_seed_function)
     .parallel(True)  # run replicates concurrently
     .max_workers(4)
     .executor_type("thread")  # use "process" for CPU heavy steps

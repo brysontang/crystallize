@@ -113,3 +113,14 @@ def test_experiment_builder_integration():
         .build_and_run()
     )
     assert result.metrics["baseline"]["result"] == [5]
+
+
+def test_builder_negative_replicates_clamped():
+    exp = (
+        ExperimentBuilder()
+        .datasource((dummy_source, {"value": 1}))
+        .pipeline([add(value=1)])
+        .replicates(-3)
+        .build()
+    )
+    assert exp.replicates == 1

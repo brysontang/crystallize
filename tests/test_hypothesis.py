@@ -1,7 +1,15 @@
 import pytest
+import numpy as np
+from crystallize.core.context import FrozenContext
+from crystallize.core.datasource import DataSource
+from crystallize.core.pipeline_step import PipelineStep
+from crystallize.core.pipeline import Pipeline
+from crystallize.core.treatment import Treatment
+from crystallize.core.experiment import Experiment
 
 from crystallize.core.exceptions import MissingMetricError
 from crystallize.core.hypothesis import Hypothesis
+from crystallize.core import from_scipy, verifier
 
 
 def make_verifier(accepted: bool):
@@ -43,4 +51,97 @@ def test_multi_metric():
     hyp = Hypothesis(verifier=verifier, metrics=["a", "b"], ranker=lambda r: 0.0)
     res = hyp.verify({"a": [1], "b": [2]}, {"a": [3], "b": [4]})
     assert res["sum_baseline"] == 3 and res["sum_treatment"] == 7
+
+
+def test_grouped_metrics_return_list():
+    def verifier(baseline, treatment):
+        key = next(iter(baseline))
+        return {"diff": sum(treatment[key]) - sum(baseline[key])}
+
+    hyp = Hypothesis(verifier=verifier, metrics=[["x"], ["y"]], ranker=lambda r: r.get("diff", 0))
+    out = hyp.verify({"x": [1], "y": [10]}, {"x": [2], "y": [20]})
+    assert isinstance(out, list) and len(out) == 2
+
+
+def test_rank_treatments_with_custom_ranker():
+    hyp = Hypothesis(verifier=make_verifier(True), metrics="m", ranker=lambda r: r["score"])
+    results = {"t1": {"score": 3}, "t2": {"score": 1}}
+    ranking = hyp.rank_treatments(results)
+    assert ranking["best"] == "t2"
+
+
+def test_from_scipy_wrapper_produces_valid_result():
+    from scipy import stats
+    verifier = from_scipy(stats.ttest_ind)
+    hyp = Hypothesis(verifier=verifier, metrics="a", ranker=lambda r: r["p_value"])
+    res = hyp.verify({"a": [1, 1]}, {"a": [2, 2]})
+    assert 0 <= res["p_value"] <= 1
+    assert res["significant"] is (res["p_value"] < 0.05)
+
+
+
+
+def test_hypothesis_verifier_fuzz_no_crash():
+    hyp_lib = pytest.importorskip("hypothesis")
+    given = hyp_lib.given
+    st = hyp_lib.strategies
+
+    @given(
+        st.dictionaries(st.text(min_size=1), st.lists(st.floats(), min_size=1)),
+        st.dictionaries(st.text(min_size=1), st.lists(st.floats(), min_size=1)),
+    )
+    def run(baseline, treatment):
+        def verifier(b, t):
+            return {"mean": np.mean(list(t.values())[0]) - np.mean(list(b.values())[0])}
+
+        hyp = Hypothesis(verifier=verifier, metrics=list(baseline.keys())[0])
+        hyp.verify(baseline, treatment)
+
+    run()
+
+
+class RandomDataSource(DataSource):
+    def fetch(self, ctx: FrozenContext):
+        if ctx["condition"] == "baseline":
+            return np.random.normal(0, 1, 10)
+        return np.random.normal(1, 1, 10)
+
+
+def test_full_experiment_with_scipy_verifier():
+    pytest.importorskip("scipy")
+    from scipy import stats
+
+    verifier = from_scipy(stats.ttest_ind)
+    hyp = Hypothesis(verifier=verifier, metrics="data", ranker=lambda r: r["p_value"])
+
+    class CollectStep(PipelineStep):
+        def __call__(self, data, ctx):
+            ctx.metrics.add("data", data)
+            return {"data": data}
+
+        @property
+        def params(self):
+            return {}
+
+    pipeline = Pipeline([CollectStep()])
+    ds = RandomDataSource()
+    treatment = Treatment("shift", {})
+    exp = Experiment(datasource=ds, pipeline=pipeline, treatments=[treatment], hypotheses=[hyp], replicates=3)
+    exp.validate()
+    result = exp.run()
+    assert "p_value" in result.metrics["hypotheses"][hyp.name]["results"]["shift"]
+
+
+@verifier
+def param_verifier(baseline_samples, treatment_samples, threshold: int = 5):
+    return {"above": sum(treatment_samples["a"]) > threshold}
+
+
+def test_verifier_factory_params_and_missing():
+    v1 = param_verifier()
+    assert v1({"a": [1]}, {"a": [6]})["above"] is True
+    v2 = param_verifier(threshold=10)
+    assert v2({"a": [1]}, {"a": [6]})["above"] is False
+    with pytest.raises(TypeError):
+        param_verifier(missing=1)
 

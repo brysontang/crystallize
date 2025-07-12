@@ -1,5 +1,6 @@
 from crystallize.core.cache import compute_hash
 from typing import Any
+from concurrent.futures import ThreadPoolExecutor
 from crystallize.core.context import FrozenContext
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.pipeline_step import PipelineStep
@@ -143,3 +144,40 @@ def test_cache_dir_permission_error(tmp_path, monkeypatch):
 
     with pytest.raises(IOError):
         pipeline.run(0, ctx)
+
+
+class ParamStep(PipelineStep):
+    def __init__(self, value: int) -> None:
+        self.value = value
+
+    def __call__(self, data, ctx):
+        return data + self.value
+
+    @property
+    def params(self):
+        return {"value": self.value}
+
+
+def test_step_and_input_hash_uniqueness():
+    step1 = ParamStep(1)
+    step2 = ParamStep(2)
+    assert step1.step_hash != step2.step_hash
+    assert compute_hash({"x": 1}) != compute_hash({"x": 2})
+
+
+def test_concurrent_cache_writes(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    def run(pipe: Pipeline) -> None:
+        ctx = FrozenContext({})
+        pipe.run(0, ctx)
+
+    pipes = [Pipeline([CountingStep(), MetricsStep()]) for _ in range(5)]
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        list(ex.map(run, pipes))
+
+    step = CountingStep()
+    pipeline = Pipeline([step, MetricsStep()])
+    ctx = FrozenContext({})
+    pipeline.run(0, ctx)
+    assert step.calls == 0

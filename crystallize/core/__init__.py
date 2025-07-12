@@ -146,6 +146,9 @@ def verifier(
     }
 
     def factory(**overrides: Any) -> Callable[[Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]]:
+        unknown = set(overrides) - set(param_names)
+        if unknown:
+            raise TypeError(f"Unknown parameters: {', '.join(sorted(unknown))}")
         params = {**defaults, **overrides}
         missing = [n for n in param_names if n not in params]
         if missing:

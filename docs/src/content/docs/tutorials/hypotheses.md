@@ -32,7 +32,7 @@ Use your `adding_treatments.py` from the previous tutorial. It includes:
 Add imports for hypotheses:
 
 ```python
-from crystallize import hypothesis, verifier, from_scipy  # For assertions and stats wrappers
+from crystallize import hypothesis, verifier  # For assertions and stats wrappers
 from scipy.stats import ttest_ind  # SciPy t-test
 ```
 
@@ -60,14 +60,13 @@ def age_std_t_test(baseline_samples, treatment_samples, alpha: float = 0.05):
 ```
 
 - **How it works**: `@verifier` creates a factory. Instantiate with params: `v = age_std_t_test(alpha=0.01)`.
-- **SciPy Wrapper**: Simpler: `t_test_verifier = from_scipy(ttest_ind, alternative="two-sided", alpha=0.05)`.
 - **Test it**: `print(age_std_t_test({"std_norm_age": [1,1]}, {"std_norm_age": [1.1,1.2]}))` → Dict with p_value.
 
 **Inline Troubleshooting**:
 
-- _ValueError: Single metric only?_ If using `from_scipy`, ensure one metric; custom verifiers handle multiples.
+- _ValueError: Single metric only?_ Check that your metrics specification selects exactly one entry when required.
 - _NaN/Inf in samples?_ Clean data in pipeline (e.g., `data.dropna()`).
-- FAQ: Custom vs. SciPy? Use `from_scipy` for quick stats; custom for multi-metric or domain-specific tests.
+- FAQ: Wrap SciPy functions with `@verifier` for convenience, or implement domain-specific tests manually.
 
 ## Step 3: Define the Hypothesis
 
@@ -133,7 +132,7 @@ print("Ranking:", hyp_result.ranking)  # Best treatment (likely none significant
 `verifying_hypotheses.py` (extend from adding_treatments):
 
 ```python
-from crystallize import ExperimentBuilder, data_source, pipeline_step, treatment, hypothesis, verifier, from_scipy
+from crystallize import ExperimentBuilder, data_source, pipeline_step, treatment, hypothesis, verifier
 from crystallize.core.context import FrozenContext
 import pandas as pd
 import random

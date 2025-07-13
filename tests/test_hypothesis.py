@@ -9,7 +9,7 @@ from crystallize.core.experiment import Experiment
 
 from crystallize.core.exceptions import MissingMetricError
 from crystallize.core.hypothesis import Hypothesis
-from crystallize.core import from_scipy, verifier
+from crystallize.core import verifier
 
 
 def make_verifier(accepted: bool):
@@ -70,14 +70,6 @@ def test_rank_treatments_with_custom_ranker():
     assert ranking["best"] == "t2"
 
 
-def test_from_scipy_wrapper_produces_valid_result():
-    from scipy import stats
-    verifier = from_scipy(stats.ttest_ind)
-    hyp = Hypothesis(verifier=verifier, metrics="a", ranker=lambda r: r["p_value"])
-    res = hyp.verify({"a": [0.8, 1.01]}, {"a": [2.1, 2.2]})
-    assert 0 <= res["p_value"] <= 1
-    assert res["significant"] is (res["p_value"] < 0.05)
-
 
 
 def test_hypothesis_verifier_fuzz_no_crash():
@@ -117,8 +109,14 @@ def test_full_experiment_with_scipy_verifier():
     pytest.importorskip("scipy")
     from scipy import stats
 
-    verifier = from_scipy(stats.ttest_ind)
-    hyp = Hypothesis(verifier=verifier, metrics="data", ranker=lambda r: r["p_value"])
+    @verifier
+    def welch_t_test(baseline, treatment, alpha: float = 0.05):
+        t_stat, p_value = stats.ttest_ind(
+            treatment["data"], baseline["data"], equal_var=False
+        )
+        return {"p_value": p_value, "significant": p_value < alpha}
+
+    hyp = Hypothesis(verifier=welch_t_test(), metrics="data", ranker=lambda r: r["p_value"])
 
     class CollectStep(PipelineStep):
         def __call__(self, data, ctx):

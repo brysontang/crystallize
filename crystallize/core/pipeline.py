@@ -7,18 +7,8 @@ from crystallize.core.exceptions import PipelineExecutionError
 from crystallize.core.pipeline_step import PipelineStep
 
 
-class InvalidPipelineOutput(Exception):
-    """Raised when the final step does not yield a metrics‐dict."""
-
-
 class Pipeline:
-    """
-    Linear sequence of PipelineStep objects.
-
-    Guarantee: the **last** step must return a Mapping[str, Any] that represents
-    the _metrics_ produced by the pipeline.  All preceding steps may return any
-    intermediate representation.
-    """
+    """Linear sequence of :class:`PipelineStep` objects."""
 
     def __init__(self, steps: List[PipelineStep]) -> None:
         if not steps:
@@ -36,10 +26,7 @@ class Pipeline:
             ctx:  Immutable execution context.
 
         Returns:
-            Mapping[str, Any]: metrics dict emitted by final step.
-
-        Raises:
-            InvalidPipelineOutput: if the last step does not return Mapping.
+            Any: Output from the last step in the pipeline.
         """
         provenance = []
         for i, step in enumerate(self.steps):

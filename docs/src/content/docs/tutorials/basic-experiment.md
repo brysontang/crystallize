@@ -87,7 +87,7 @@ def compute_metrics(data: pd.DataFrame, ctx: FrozenContext):
     # ctx.metrics.add("age_skewness", age_skewness)
     # ctx.metrics.add("age_kurtosis", age_kurtosis)
 
-    return data
+    return {"std_norm_age": std_norm_age}
 ```
 
 - **Assembly**: `pipeline_steps = [normalize_age, compute_metrics]`.
@@ -175,7 +175,7 @@ def compute_metrics(data: pd.DataFrame, ctx: FrozenContext):
     # ctx.metrics.add("age_skewness", age_skewness)
     # ctx.metrics.add("age_kurtosis", age_kurtosis)
 
-    return data
+    return {"std_norm_age": std_norm_age}
 
 if __name__ == "__main__":
     exp = (

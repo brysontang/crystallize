@@ -5,6 +5,7 @@ import os
 import time
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+import logging
 from typing import (
     Any,
     Callable,
@@ -190,8 +191,6 @@ class Experiment:
     def run(self) -> Result:
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
-
-        import logging
 
         logging.basicConfig(
             level=getattr(logging, self.log_level.upper(), logging.INFO)

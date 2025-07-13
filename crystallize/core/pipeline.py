@@ -1,6 +1,6 @@
 import logging
 from types import MappingProxyType
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from crystallize.core.cache import compute_hash, load_cache, store_cache
 from crystallize.core.context import FrozenContext, LoggingContext

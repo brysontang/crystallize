@@ -1,8 +1,9 @@
+import logging
 from types import MappingProxyType
-from typing import Any, List, Mapping
+from typing import Any, Dict, List, Mapping, Optional
 
 from crystallize.core.cache import compute_hash, load_cache, store_cache
-from crystallize.core.context import FrozenContext
+from crystallize.core.context import FrozenContext, LoggingContext
 from crystallize.core.exceptions import PipelineExecutionError
 from crystallize.core.pipeline_step import PipelineStep
 
@@ -17,7 +18,17 @@ class Pipeline:
 
     # ------------------------------------------------------------------ #
 
-    def run(self, data: Any, ctx: FrozenContext, *, verbose: bool = False) -> Any:
+    def run(
+        self,
+        data: Any,
+        ctx: FrozenContext,
+        *,
+        verbose: bool = False,
+        progress: bool = False,
+        rep: Optional[int] = None,
+        condition: Optional[str] = None,
+        logger: Optional[logging.Logger] = None,
+    ) -> Any:
         """
         Execute the pipeline in order.
 
@@ -28,8 +39,22 @@ class Pipeline:
         Returns:
             Any: Output from the last step in the pipeline.
         """
-        provenance = []
-        for i, step in enumerate(self.steps):
+        logger = logger or logging.getLogger("crystallize")
+
+        target_ctx: FrozenContext | LoggingContext
+        target_ctx = LoggingContext(ctx, logger) if verbose else ctx
+
+        provenance: List[Dict[str, Any]] = []
+        step_iter = enumerate(self.steps)
+        if progress and len(self.steps) > 1:
+            from tqdm import tqdm  # type: ignore
+
+            step_iter = tqdm(step_iter, total=len(self.steps), desc="Steps")
+
+        for i, step in step_iter:
+            if verbose and isinstance(target_ctx, LoggingContext):
+                target_ctx.reads.clear()
+
             pre_ctx = dict(ctx.as_dict())
             pre_metrics = {k: tuple(v) for k, v in ctx.metrics.as_dict().items()}
             step_hash = step.step_hash
@@ -40,7 +65,7 @@ class Pipeline:
                     cache_hit = True
                 except (FileNotFoundError, IOError):
                     try:
-                        data = step(data, ctx)
+                        data = step(data, target_ctx)
                     except Exception as exc:
                         raise PipelineExecutionError(
                             step.__class__.__name__, exc
@@ -49,7 +74,7 @@ class Pipeline:
                     cache_hit = False
             else:
                 try:
-                    data = step(data, ctx)
+                    data = step(data, target_ctx)
                 except Exception as exc:
                     raise PipelineExecutionError(step.__class__.__name__, exc) from exc
                 cache_hit = False
@@ -60,15 +85,19 @@ class Pipeline:
             post_ctx_items = ctx.as_dict()
             post_metrics_items = ctx.metrics.as_dict()
             wrote = {
-                k: v
+                k: {"before": pre_ctx.get(k), "after": v}
                 for k, v in post_ctx_items.items()
                 if k not in pre_ctx or pre_ctx[k] != v
             }
-            metrics_diff = {}
+            metrics_diff: Dict[str, Dict[str, Tuple[Any, ...]]] = {}
             for k, vals in post_metrics_items.items():
                 prev = pre_metrics.get(k, ())
-                if len(vals) > len(prev):
-                    metrics_diff[k] = vals[len(prev) :]
+                if vals != prev:
+                    metrics_diff[k] = {"before": prev, "after": vals}
+
+            reads = {}
+            if verbose and isinstance(target_ctx, LoggingContext):
+                reads = target_ctx.reads.copy()
 
             provenance.append(
                 {
@@ -78,30 +107,55 @@ class Pipeline:
                     "input_hash": input_hash,
                     "output_hash": compute_hash(data),
                     "cache_hit": cache_hit,
-                    "ctx_changes": {"wrote": wrote, "metrics": metrics_diff},
+                    "ctx_changes": {
+                        "reads": reads,
+                        "wrote": wrote,
+                        "metrics": metrics_diff,
+                    },
                 }
             )
 
         self._provenance = tuple(MappingProxyType(p) for p in provenance)
 
+        hit_count = sum(1 for p in provenance if p["cache_hit"])
+        logger.info(
+            "Cache hit rate: %.0f%% (%d/%d steps)",
+            (hit_count / len(self.steps)) * 100,
+            hit_count,
+            len(self.steps),
+        )
+
         if verbose:
+            header = (
+                f"Replicate {rep} Condition '{condition}'" if rep is not None else "Run"
+            )
+            logger.debug(header)
             for record in self.get_provenance():
-                print(f"Step: {record['step']}")
                 wrote = record.get("ctx_changes", {}).get("wrote", {})
+                reads = record.get("ctx_changes", {}).get("reads", {})
                 metrics = record.get("ctx_changes", {}).get("metrics", {})
-                if wrote or metrics:
-                    print("+----------+--------+----------+")
-                    print("| Action   | Key    | Value    |")
-                    print("+----------+--------+----------+")
-                    for k, v in wrote.items():
-                        val = str(v)
-                        val = val[:10] + "..." if len(val) > 10 else val
-                        print(f"| {'Wrote':<8} | {k:<6} | {val:<8} |")
-                    for k, vals in metrics.items():
-                        val = str(list(vals))
-                        val = val[:10] + "..." if len(val) > 10 else val
-                        print(f"| {'Metric':<8} | {k:<6} | {val:<8} |")
-                    print("+----------+--------+----------+")
+                if not (reads or wrote or metrics):
+                    continue
+
+                table_lines = [
+                    "+----------+--------+----------+----------+",
+                    "| Action   | Key    | Before   | After    |",
+                    "+----------+--------+----------+----------+",
+                ]
+                for k, v in reads.items():
+                    table_lines.append(
+                        f"| {'Read':<8} | {k:<6} | {str(v)[:8]:<8} | {'':<8} |"
+                    )
+                for k, change in wrote.items():
+                    table_lines.append(
+                        f"| {'Write':<8} | {k:<6} | {str(change['before'])[:8]:<8} | {str(change['after'])[:8]:<8} |"
+                    )
+                for k, change in metrics.items():
+                    table_lines.append(
+                        f"| {'Metric':<8} | {k:<6} | {str(change['before'])[:8]:<8} | {str(change['after'])[:8]:<8} |"
+                    )
+                table_lines.append("+----------+--------+----------+----------+")
+                logger.debug("Step: %s\n%s", record["step"], "\n".join(table_lines))
 
         return data
 

@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from collections import defaultdict
 import importlib
 import os
-from concurrent.futures import (
-    ProcessPoolExecutor,
-    ThreadPoolExecutor,
-    as_completed,
-)
+import time
+from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from typing import (
     Any,
     Callable,
@@ -164,15 +161,28 @@ class Experiment:
 
         local_seed: Optional[int] = None
         if self.auto_seed:
-            local_seed = hash(
-                (self.seed or 0) + run_ctx.get("replicate", 0)
-            )
+            local_seed = hash((self.seed or 0) + run_ctx.get("replicate", 0))
             if self.seed_fn is not None:
                 self.seed_fn(local_seed)
             run_ctx.add("seed_used", local_seed)
 
         data = self.datasource.fetch(run_ctx)
-        self.pipeline.run(data, run_ctx, verbose=self.verbose)
+        logger = logging.getLogger("crystallize")
+        logger.info(
+            "Starting replicate %d/%d, condition '%s'...",
+            run_ctx.get("replicate"),
+            self.replicates,
+            run_ctx.get("condition"),
+        )
+        self.pipeline.run(
+            data,
+            run_ctx,
+            verbose=self.verbose,
+            progress=self.progress,
+            rep=run_ctx.get("replicate"),
+            condition=run_ctx.get("condition"),
+            logger=logger,
+        )
         return run_ctx.metrics.as_dict(), local_seed
 
     # ------------------------------------------------------------------ #
@@ -182,22 +192,34 @@ class Experiment:
             raise RuntimeError("Experiment must be validated before execution")
 
         import logging
-        logging.basicConfig(level=getattr(logging, self.log_level.upper(), logging.INFO))
-        logger = logging.getLogger(__name__)
+
+        logging.basicConfig(
+            level=getattr(logging, self.log_level.upper(), logging.INFO)
+        )
+        logger = logging.getLogger("crystallize")
         logger.info(
-            "Starting experiment with %d replicates and %d treatments",
+            "Experiment: %d replicates, %d treatments, %d hypotheses (seed=%s, parallel=%s/%s workers)",
             self.replicates,
             len(self.treatments),
+            len(self.hypotheses),
+            self.seed,
+            self.executor_type,
+            self.max_workers or "auto",
         )
+        if self.auto_seed and self.seed_fn is None:
+            logger.warning("No seed_fn provided—randomness may not be reproducible")
 
         baseline_samples: List[Mapping[str, Any]] = []
         treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
             t.name: [] for t in self.treatments
         }
         baseline_seeds: List[int] = []
-        treatment_seeds_agg: Dict[str, List[int]] = {t.name: [] for t in self.treatments}
+        treatment_seeds_agg: Dict[str, List[int]] = {
+            t.name: [] for t in self.treatments
+        }
 
         errors: Dict[str, Exception] = {}
+        start_time = time.perf_counter()
 
         # ---------- replicate execution -------------------------------- #
         def _execute_replicate(rep: int) -> Tuple[
@@ -217,7 +239,13 @@ class Experiment:
                 baseline_result, baseline_seed = self._run_condition(base_ctx)
             except Exception as exc:  # pragma: no cover
                 rep_errors[f"baseline_rep_{rep}"] = exc
-                return baseline_result, baseline_seed, treatment_result, treatment_seeds, rep_errors
+                return (
+                    baseline_result,
+                    baseline_seed,
+                    treatment_result,
+                    treatment_seeds,
+                    rep_errors,
+                )
 
             for t in self.treatments:
                 ctx = FrozenContext({"replicate": rep, "condition": t.name})
@@ -229,7 +257,13 @@ class Experiment:
                 except Exception as exc:  # pragma: no cover
                     rep_errors[f"{t.name}_rep_{rep}"] = exc
 
-            return baseline_result, baseline_seed, treatment_result, treatment_seeds, rep_errors
+            return (
+                baseline_result,
+                baseline_seed,
+                treatment_result,
+                treatment_seeds,
+                rep_errors,
+            )
 
         if self.parallel and self.replicates > 1:
             results: List[
@@ -256,6 +290,7 @@ class Experiment:
                 futures = as_completed(future_map)
                 if self.progress:
                     from tqdm import tqdm
+
                     futures = tqdm(futures, total=len(future_map), desc="Replicates")
                 for future in futures:
                     rep = future_map[future]
@@ -279,6 +314,7 @@ class Experiment:
             rep_iter = range(self.replicates)
             if self.progress:
                 from tqdm import tqdm
+
                 rep_iter = tqdm(rep_iter, desc="Replicates")
             for rep in rep_iter:
                 base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
@@ -291,7 +327,15 @@ class Experiment:
                     errors[f"baseline_rep_{rep}"] = exc
                     continue
 
-                for t in self.treatments:
+                treat_iter = self.treatments
+                if self.progress and self.treatments:
+                    from tqdm import tqdm
+
+                    treat_iter = tqdm(
+                        self.treatments,
+                        desc=f"Treatments rep {rep}",
+                    )
+                for t in treat_iter:
                     ctx = FrozenContext({"replicate": rep, "condition": t.name})
                     try:
                         res, sd = self._run_condition(ctx, t)
@@ -302,7 +346,9 @@ class Experiment:
                         errors[f"{t.name}_rep_{rep}"] = exc
 
         # ---------- aggregation: preserve full sample arrays ------------ #
-        def collect_all_samples(samples: List[Mapping[str, Sequence[Any]]]) -> Dict[str, List[Any]]:
+        def collect_all_samples(
+            samples: List[Mapping[str, Sequence[Any]]],
+        ) -> Dict[str, List[Any]]:
             metrics: DefaultDict[str, List[Any]] = defaultdict(list)
             for sample in samples:
                 for metric, values in sample.items():
@@ -344,7 +390,19 @@ class Experiment:
             "seeds": {"baseline": baseline_seeds, **treatment_seeds_agg},
         }
 
-        logger.info("Experiment completed")
+        duration = time.perf_counter() - start_time
+        bests = [
+            f"{h.name}: '{h.ranking.get('best')}'"
+            for h in hypothesis_results
+            if h.ranking.get("best") is not None
+        ]
+        best_summary = "; Best " + ", ".join(bests) if bests else ""
+        logger.info(
+            "Completed in %.1fs%s; %d errors",
+            duration,
+            best_summary,
+            len(errors),
+        )
 
         return Result(metrics=metrics, errors=errors, provenance=provenance)
 
@@ -380,7 +438,9 @@ class Experiment:
         if data is None:
             data = self.datasource.fetch(ctx)
 
-        if not any(getattr(step, "is_exit_step", False) for step in self.pipeline.steps):
+        if not any(
+            getattr(step, "is_exit_step", False) for step in self.pipeline.steps
+        ):
             raise ValueError("Pipeline must contain an exit_step for apply()")
 
         for step in self.pipeline.steps:

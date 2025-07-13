@@ -213,8 +213,8 @@ def test_apply_without_exit_step():
     datasource = DummyDataSource()
     experiment = Experiment(datasource=datasource, pipeline=pipeline)
     experiment.validate()
-    output = experiment.apply(data=7)
-    assert output == {"metric": 7}
+    with pytest.raises(ValueError):
+        experiment.apply(data=7)
 
 
 class TrackStep(PipelineStep):
@@ -693,12 +693,18 @@ class RandomStep(PipelineStep):
 def test_auto_seed_reproducible_serial_vs_parallel():
     pipeline = Pipeline([RandomStep()])
     ds = RandomDataSource()
+
+    def numpy_seed_fn(seed: int) -> None:
+        random.seed(seed)
+        np.random.seed(seed % (2**32 - 1))
+
     serial = Experiment(
         datasource=ds,
         pipeline=pipeline,
         replicates=3,
         seed=123,
         auto_seed=True,
+        seed_fn=numpy_seed_fn,
     )
     serial.validate()
     res_serial = serial.run()
@@ -709,6 +715,7 @@ def test_auto_seed_reproducible_serial_vs_parallel():
         replicates=3,
         seed=123,
         auto_seed=True,
+        seed_fn=numpy_seed_fn,
         parallel=True,
     )
     parallel.validate()
@@ -739,3 +746,17 @@ def test_custom_seed_function_called():
     exp.validate()
     exp.run()
     assert called == [hash(7)]
+
+
+def test_apply_seed_function_called():
+    called: List[int] = []
+
+    def record_seed(val: int) -> None:
+        called.append(val)
+
+    pipeline = Pipeline([exit_step(IdentityStep())])
+    ds = DummyDataSource()
+    exp = Experiment(datasource=ds, pipeline=pipeline, seed_fn=record_seed)
+    exp.validate()
+    exp.apply(data=1, seed=5)
+    assert called == [5]

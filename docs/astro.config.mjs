@@ -20,6 +20,19 @@ export default defineConfig({
       ],
       sidebar: [
         {
+          label: 'How-to Guides',
+          items: [
+            {
+              label: 'Creating Custom Pipeline Steps',
+              slug: 'how-to/custom-steps',
+            },
+            {
+              label: 'Customizing Experiments',
+              slug: 'how-to/customizing-experiments',
+            },
+          ],
+        },
+        {
           label: 'Tutorials',
           items: [
             {

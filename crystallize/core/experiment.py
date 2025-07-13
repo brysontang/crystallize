@@ -148,7 +148,7 @@ class Experiment:
 
     def _run_condition(
         self, ctx: FrozenContext, treatment: Optional[Treatment] = None
-    ) -> Tuple[Mapping[str, Any], Optional[int]]:
+    ) -> Tuple[Mapping[str, Any], Optional[int], List[Mapping[str, Any]]]:
         """
         Execute one pipeline run for either the baseline (treatment is None)
         or a specific treatment.
@@ -184,7 +184,7 @@ class Experiment:
             condition=run_ctx.get("condition"),
             logger=logger,
         )
-        return run_ctx.metrics.as_dict(), local_seed
+        return run_ctx.metrics.as_dict(), local_seed, self.pipeline.get_provenance()
 
     # ------------------------------------------------------------------ #
 
@@ -216,6 +216,7 @@ class Experiment:
         treatment_seeds_agg: Dict[str, List[int]] = {
             t.name: [] for t in self.treatments
         }
+        provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = defaultdict(dict)
 
         errors: Dict[str, Exception] = {}
         start_time = time.perf_counter()
@@ -227,15 +228,18 @@ class Experiment:
             Dict[str, Mapping[str, Any]],
             Dict[str, int],
             Dict[str, Exception],
+            Dict[str, List[Mapping[str, Any]]],
         ]:
             baseline_result: Optional[Mapping[str, Any]] = None
             baseline_seed: Optional[int] = None
             treatment_result: Dict[str, Mapping[str, Any]] = {}
             treatment_seeds: Dict[str, int] = {}
             rep_errors: Dict[str, Exception] = {}
+            provenance: Dict[str, List[Mapping[str, Any]]] = {}
             base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
             try:
-                baseline_result, baseline_seed = self._run_condition(base_ctx)
+                baseline_result, baseline_seed, base_prov = self._run_condition(base_ctx)
+                provenance["baseline"] = base_prov
             except Exception as exc:  # pragma: no cover
                 rep_errors[f"baseline_rep_{rep}"] = exc
                 return (
@@ -244,15 +248,17 @@ class Experiment:
                     treatment_result,
                     treatment_seeds,
                     rep_errors,
+                    provenance,
                 )
 
             for t in self.treatments:
                 ctx = FrozenContext({"replicate": rep, "condition": t.name})
                 try:
-                    result, seed = self._run_condition(ctx, t)
+                    result, seed, prov = self._run_condition(ctx, t)
                     treatment_result[t.name] = result
                     if seed is not None:
                         treatment_seeds[t.name] = seed
+                    provenance[t.name] = prov
                 except Exception as exc:  # pragma: no cover
                     rep_errors[f"{t.name}_rep_{rep}"] = exc
 
@@ -262,6 +268,7 @@ class Experiment:
                 treatment_result,
                 treatment_seeds,
                 rep_errors,
+                provenance,
             )
 
         if self.parallel and self.replicates > 1:
@@ -272,8 +279,9 @@ class Experiment:
                     Dict[str, Mapping[str, Any]],
                     Dict[str, int],
                     Dict[str, Exception],
+                    Dict[str, List[Mapping[str, Any]]],
                 ]
-            ] = [(None, None, {}, {}, {})] * self.replicates
+            ] = [(None, None, {}, {}, {}, {})] * self.replicates
             if self.executor_type == "process":
                 default_workers = max(1, (os.cpu_count() or 2) - 1)
                 exec_cls = ProcessPoolExecutor
@@ -286,20 +294,24 @@ class Experiment:
                     executor.submit(_execute_replicate, rep): rep
                     for rep in range(self.replicates)
                 }
-                futures = as_completed(future_map)
+                sample_future = next(iter(future_map))
+                if hasattr(sample_future, "_condition"):
+                    futures_iter = as_completed(future_map)
+                else:  # Fallback for dummy executors in tests
+                    futures_iter = future_map.keys()
                 if self.progress:
                     from tqdm import tqdm
 
-                    futures = tqdm(futures, total=len(future_map), desc="Replicates")
-                for future in futures:
+                    futures_iter = tqdm(futures_iter, total=len(future_map), desc="Replicates")
+                for future in futures_iter:
                     rep = future_map[future]
                     try:
                         results[rep] = future.result()
                     except Exception as exc:  # pragma: no cover
                         errors[f"replicate_{rep}_execution_error"] = exc
-                        results[rep] = (None, None, {}, {}, {})
+                        results[rep] = (None, None, {}, {}, {}, {})
 
-            for rep, (base, seed, treats, seeds, errs) in enumerate(results):
+            for rep, (base, seed, treats, seeds, errs, prov) in enumerate(results):
                 if base is not None:
                     baseline_samples.append(base)
                 if seed is not None:
@@ -308,6 +320,8 @@ class Experiment:
                     treatment_samples[name].append(sample)
                 for name, sd in seeds.items():
                     treatment_seeds_agg[name].append(sd)
+                for name, p in prov.items():
+                    provenance_runs[name][rep] = p
                 errors.update(errs)
         else:
             rep_iter = range(self.replicates)
@@ -318,10 +332,11 @@ class Experiment:
             for rep in rep_iter:
                 base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
                 try:
-                    base_res, base_seed = self._run_condition(base_ctx)
+                    base_res, base_seed, base_prov = self._run_condition(base_ctx)
                     baseline_samples.append(base_res)
                     if base_seed is not None:
                         baseline_seeds.append(base_seed)
+                    provenance_runs["baseline"][rep] = base_prov
                 except Exception as exc:  # pragma: no cover
                     errors[f"baseline_rep_{rep}"] = exc
                     continue
@@ -337,10 +352,11 @@ class Experiment:
                 for t in treat_iter:
                     ctx = FrozenContext({"replicate": rep, "condition": t.name})
                     try:
-                        res, sd = self._run_condition(ctx, t)
+                        res, sd, prov = self._run_condition(ctx, t)
                         treatment_samples[t.name].append(res)
                         if sd is not None:
                             treatment_seeds_agg[t.name].append(sd)
+                        provenance_runs[t.name][rep] = prov
                     except Exception as exc:  # pragma: no cover
                         errors[f"{t.name}_rep_{rep}"] = exc
 
@@ -387,6 +403,7 @@ class Experiment:
             "pipeline_signature": self.pipeline.signature(),
             "replicates": self.replicates,
             "seeds": {"baseline": baseline_seeds, **treatment_seeds_agg},
+            "ctx_changes": {k: v for k, v in provenance_runs.items()},
         }
 
         duration = time.perf_counter() - start_time

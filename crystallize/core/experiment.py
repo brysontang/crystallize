@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import os
 import time
+import logging
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from typing import (
@@ -190,8 +191,6 @@ class Experiment:
     def run(self) -> Result:
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
-
-        import logging
 
         logging.basicConfig(
             level=getattr(logging, self.log_level.upper(), logging.INFO)

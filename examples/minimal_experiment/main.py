@@ -64,6 +64,8 @@ if __name__ == "__main__":
         .hypotheses([check_for_improvement])
         .replicates(20) # Run the experiment 20 times for statistical power
         .parallel(True) # Run replicates in parallel
+        .verbose(True)
+        .log_level("DEBUG")
         .build()
     )
 

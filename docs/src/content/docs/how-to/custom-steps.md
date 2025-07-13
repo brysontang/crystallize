@@ -19,17 +19,23 @@ def scale_data(data, ctx: FrozenContext, factor: float = 1.0):
     return [x * factor for x in data]
 ```
 
-Calling `scale_data()` returns a `PipelineStep` instance. Pass arguments when creating the instance:
+Calling `scale_data()` returns a `PipelineStep` instance. You can create one
+directly or pass parameters with `functools.partial` when adding it to a
+pipeline:
 
 ```python
-scaler = scale_data(factor=2.0)  # step.params == {"factor": 2.0}
+from functools import partial
+
+scaler = scale_data(factor=2.0)  # explicit instantiation
+# or later:
+steps = [partial(scale_data, factor=2.0), normalize]
 ```
 
-Include the step in a `Pipeline` or via `ExperimentBuilder.pipeline([scaler, ...])`.
+Either form works with `ExperimentBuilder.pipeline(steps)`.
 
 ## 2. Using the Immutable `ctx`
 
-`ctx` is a [`FrozenContext`](../glossary.md#frozencontext) shared across the pipeline. Treatments add keys to it, and steps read them without mutation. Retrieve values with `ctx.get("key", default)` to provide a baseline value when the key is absent.
+`ctx` is a [`FrozenContext`](../glossary.md#frozencontext) shared across the pipeline. Treatments typically add keys to it, and steps read or write additional keys. Use `ctx.get("key", default)` to supply fallback values. Attempting to overwrite an existing key raises `ContextMutationError`.
 
 ```python
 @pipeline_step()
@@ -68,21 +74,28 @@ When the same input data and parameters are seen again, Crystallize loads the re
 
 Caching is useful for deterministic or long-running operations. Avoid it for highly stochastic steps where reuse would give misleading results.
 
+If your step generates random numbers, configure a reproducible seed on the
+`ExperimentBuilder` using `.seed(value)` or provide a custom `.seed_fn` to set
+library-specific RNGs. See
+[Tutorial: Basic Experiment](../tutorials/basic-experiment.md#step-4-assemble-and-run)
+for examples of seeding experiments.
+
 ## Example: Putting It Together
 
 ```python
+from functools import partial
 from crystallize import ExperimentBuilder
 from crystallize.core.context import FrozenContext
 
 # Step definitions from above
-scaler = scale_data(factor=1.5)
-normalizer = normalize()
-collector = compute_sum()
-
 exp = (
     ExperimentBuilder()
-    .datasource(lambda: [1, 2, 3])
-    .pipeline([scaler, normalizer, collector])
+    .datasource(lambda ctx: [1, 2, 3])
+    .pipeline([
+        partial(scale_data, factor=1.5),  # parameters via functools.partial
+        normalize,
+        compute_sum,
+    ])
     .replicates(3)
     .build()
 )

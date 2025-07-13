@@ -42,14 +42,14 @@ If a treatment sets `{"scale_factor": 2.0}`, this step automatically uses that v
 
 ## 3. Recording Metrics
 
-Each context has a `metrics` object used to accumulate results. The **final** pipeline step must return a dictionary of metrics and usually adds them to `ctx.metrics` so that hypotheses can access them later.
+Each context has a `metrics` object used to accumulate results. Use `ctx.metrics.add(name, value)` to record values in any step. Metrics are aggregated across replicates and passed to hypotheses for verification. The last step may return any data type—returning metrics is optional.
 
 ```python
 @pipeline_step()
 def compute_sum(data, ctx: FrozenContext):
     total = sum(data)
     ctx.metrics.add("sum", total)
-    return {"sum": total}
+    return data
 ```
 
 Intermediate steps may also write metrics if useful. All metrics collected across replicates are provided to verifiers.
@@ -96,7 +96,7 @@ This small experiment scales and normalizes data, then records the sum metric fo
 ## Troubleshooting & FAQs
 
 - **Why can't my step modify `ctx` directly?** `FrozenContext` is immutable to avoid side effects. Use `ctx.add()` only to add new keys (usually inside treatments).
-- **Metrics missing in the result?** Ensure the final step returns a `dict` and that metrics are added via `ctx.metrics.add`.
+- **Metrics missing in the result?** Verify each step calls `ctx.metrics.add` for values you want to analyze.
 - **Caching not taking effect?** Verify `cacheable=True`, parameters are hashable, and that the input data is identical between runs.
 
 ## Next Steps

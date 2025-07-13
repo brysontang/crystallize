@@ -30,10 +30,9 @@ def add_random(data, ctx: FrozenContext):
 
 @pipeline_step()
 def compute_metrics(data, ctx: FrozenContext):
-    # The last step must return a dict of named metrics
-    # and add them to the context for the hypothesis.
+    # Record a simple metric for later verification
     ctx.metrics.add("result", sum(data))
-    return {"result": sum(data)}
+    return data
 
 # 3. Define the treatment (the change we are testing)
 add_ten = treatment(

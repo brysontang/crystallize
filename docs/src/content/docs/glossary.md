@@ -51,7 +51,7 @@ See _FrozenContext_.
 
 ## Metrics
 
-Key-value pairs collected during pipeline execution, stored in `FrozenContext.metrics`. The final pipeline step must return a `Mapping[str, Any]` of metrics. Hypotheses verify differences in aggregated metrics across replicates.
+Key-value pairs collected during pipeline execution, stored in `FrozenContext.metrics`. Steps call `ctx.metrics.add()` to record values that hypotheses later verify. The last step may return any data type.
 
 ## Parallelism
 
@@ -59,7 +59,7 @@ Optional concurrent execution of replicates using thread or process pools. Set `
 
 ## Pipeline
 
-A sequence of `PipelineStep` objects for deterministic data transformations. The last step must return metrics as `Mapping[str, Any]`. Use `pipeline(*steps)` factory.
+A sequence of `PipelineStep` objects for deterministic data transformations. Use `pipeline(*steps)` to build them. Metrics are added to the context during execution; returning them is optional.
 
 ## PipelineStep
 
@@ -88,7 +88,7 @@ A function in `Hypothesis` that compares baseline and treatment metrics, returni
 ## FAQ/Troubleshooting
 
 - **Why ContextMutationError?** Attempted to overwrite an existing key in `FrozenContext`. Use new keys for variations.
-- **MissingMetricError?** Hypothesis metrics not found in pipeline outputs. Ensure final step emits required keys.
+- **MissingMetricError?** Hypothesis metrics not found in pipeline outputs. Ensure steps call `ctx.metrics.add` with the required names.
 - **Caching not working?** Check `cacheable=True` and consistent hashes (params, inputs).
 
 ## Next Steps

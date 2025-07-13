@@ -74,7 +74,13 @@ class Result:
                 self.children.append(child)
                 return child
 
-        root = Node("Experiment Summary", "bold yellow")
+        root = Node("Experiment Summary", "bold")
+
+        level_styles: Dict[str, str] = {
+            "treatment": "bold yellow",
+            "replicate": "green",
+            "step": "cyan",
+        }
 
         def add_actions(parent: Node, acts: Dict[str, Any]) -> None:
             mapping = {
@@ -101,7 +107,9 @@ class Result:
                 for row in subset:
                     step_node = node
                     if "step" not in tokens:
-                        step_node = node.add(f"Step {row['step']}", "bold yellow")
+                        step_node = node.add(
+                            f"Step {row['step']}", level_styles.get("step")
+                        )
                     add_actions(step_node, row["actions"])
                 return
 
@@ -109,8 +117,10 @@ class Result:
             if token == "action":
                 for row in subset:
                     step_node = node
-                    if "step" not in tokens[: level]:
-                        step_node = node.add(f"Step {row['step']}", "bold yellow")
+                    if "step" not in tokens[:level]:
+                        step_node = node.add(
+                            f"Step {row['step']}", level_styles.get("step")
+                        )
                     add_actions(step_node, row["actions"])
                 return
 
@@ -125,7 +135,8 @@ class Result:
                     label = f"Replicate {key}"
                 else:  # step
                     label = f"Step {key}"
-                child = node.add(label, "bold yellow")
+                style = level_styles.get(token)
+                child = node.add(label, style)
                 build(child, groups[key], level + 1)
 
         build(root, rows, 0)
@@ -135,7 +146,9 @@ class Result:
 
             def to_rich(rnode: Node) -> Tree:
                 label = (
-                    f"[{rnode.style}]" + rnode.label + "[/]" if rnode.style else rnode.label
+                    f"[{rnode.style}]" + rnode.label + "[/]"
+                    if rnode.style
+                    else rnode.label
                 )
                 r_tree = Tree(label)
                 for c in rnode.children:
@@ -144,6 +157,7 @@ class Result:
 
             console.print(to_rich(root))
         else:  # pragma: no cover - fallback
+
             def print_plain(pnode: Node, depth: int = 0) -> None:
                 indent = "  " * depth
                 print(f"{indent}{pnode.label}")

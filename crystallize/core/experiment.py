@@ -3,7 +3,11 @@ from __future__ import annotations
 from collections import defaultdict
 import importlib
 import os
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import (
+    ProcessPoolExecutor,
+    ThreadPoolExecutor,
+    as_completed,
+)
 from typing import (
     Any,
     Callable,
@@ -58,6 +62,9 @@ class Experiment:
         parallel: bool = False,
         seed: Optional[int] = None,
         auto_seed: bool = True,
+        progress: bool = False,
+        verbose: bool = False,
+        log_level: str = "INFO",
         seed_fn: Optional[Callable[[int], None]] = None,
         max_workers: Optional[int] = None,
         executor_type: str = "thread",
@@ -70,6 +77,9 @@ class Experiment:
         self.parallel = parallel
         self.seed = seed
         self.auto_seed = auto_seed
+        self.progress = progress
+        self.verbose = verbose
+        self.log_level = log_level
         self.seed_fn = seed_fn or default_seed_function
         self.max_workers = max_workers
         if executor_type not in VALID_EXECUTOR_TYPES:
@@ -162,7 +172,7 @@ class Experiment:
             run_ctx.add("seed_used", local_seed)
 
         data = self.datasource.fetch(run_ctx)
-        self.pipeline.run(data, run_ctx)
+        self.pipeline.run(data, run_ctx, verbose=self.verbose)
         return run_ctx.metrics.as_dict(), local_seed
 
     # ------------------------------------------------------------------ #
@@ -170,6 +180,15 @@ class Experiment:
     def run(self) -> Result:
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
+
+        import logging
+        logging.basicConfig(level=getattr(logging, self.log_level.upper(), logging.INFO))
+        logger = logging.getLogger(__name__)
+        logger.info(
+            "Starting experiment with %d replicates and %d treatments",
+            self.replicates,
+            len(self.treatments),
+        )
 
         baseline_samples: List[Mapping[str, Any]] = []
         treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
@@ -234,7 +253,11 @@ class Experiment:
                     executor.submit(_execute_replicate, rep): rep
                     for rep in range(self.replicates)
                 }
-                for future in future_map:
+                futures = as_completed(future_map)
+                if self.progress:
+                    from tqdm import tqdm
+                    futures = tqdm(futures, total=len(future_map), desc="Replicates")
+                for future in futures:
                     rep = future_map[future]
                     try:
                         results[rep] = future.result()
@@ -253,7 +276,11 @@ class Experiment:
                     treatment_seeds_agg[name].append(sd)
                 errors.update(errs)
         else:
-            for rep in range(self.replicates):
+            rep_iter = range(self.replicates)
+            if self.progress:
+                from tqdm import tqdm
+                rep_iter = tqdm(rep_iter, desc="Replicates")
+            for rep in rep_iter:
                 base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
                 try:
                     base_res, base_seed = self._run_condition(base_ctx)
@@ -316,6 +343,8 @@ class Experiment:
             "replicates": self.replicates,
             "seeds": {"baseline": baseline_seeds, **treatment_seeds_agg},
         }
+
+        logger.info("Experiment completed")
 
         return Result(metrics=metrics, errors=errors, provenance=provenance)
 

@@ -30,6 +30,10 @@ export default defineConfig({
               label: 'Customizing Experiments',
               slug: 'how-to/customizing-experiments',
             },
+            {
+              label: 'Integrating Statistical Tests',
+              slug: 'how-to/integrate-stats',
+            },
           ],
         },
         {

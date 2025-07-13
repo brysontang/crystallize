@@ -1,26 +1,37 @@
 name: Bump Version
+
 on:
   workflow_dispatch:
     inputs:
       bump-type:
-        description: Release type
+        description: 'Select semantic bump'
         type: choice
         default: patch
         options: [major, minor, patch]
 
+permissions:
+  contents: write
+
 jobs:
   bump:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
-      - uses: callowayproject/bump-my-version@1.2.0
+      - name: Bump version
         id: bump
+        uses: callowayproject/bump-my-version@1.2.0
         env:
           BUMPVERSION_TAG: 'true'
         with:
           args: ${{ inputs.bump-type }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - if: steps.bump.outputs.bumped == 'true'
-        run: echo "Bumped ${{ steps.bump.outputs.previous-version }} → ${{ steps.bump.outputs.current-version }}"
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main

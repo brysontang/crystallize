@@ -32,6 +32,9 @@ class ExperimentBuilder:
         self._seed_fn: Optional[Callable[[int], None]] = None
         self._max_workers: Optional[int] = None
         self._executor_type: str = "thread"
+        self._progress: bool = False
+        self._verbose: bool = False
+        self._log_level: str = "INFO"
 
     # ------------------------------------------------------------------ #
     def datasource(
@@ -89,6 +92,18 @@ class ExperimentBuilder:
         self._executor_type = executor_type
         return self
 
+    def progress(self, progress: bool) -> "ExperimentBuilder":
+        self._progress = progress
+        return self
+
+    def verbose(self, verbose: bool) -> "ExperimentBuilder":
+        self._verbose = verbose
+        return self
+
+    def log_level(self, log_level: str) -> "ExperimentBuilder":
+        self._log_level = log_level
+        return self
+
     # ------------------------------------------------------------------ #
     def _instantiate(self, item: Any) -> Any:
         if isinstance(item, PipelineStep):
@@ -113,6 +128,9 @@ class ExperimentBuilder:
             parallel=self._parallel,
             seed=self._seed,
             auto_seed=self._auto_seed,
+            progress=self._progress,
+            verbose=self._verbose,
+            log_level=self._log_level,
             seed_fn=self._seed_fn,
             max_workers=self._max_workers,
             executor_type=self._executor_type,

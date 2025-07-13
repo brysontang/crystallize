@@ -62,7 +62,7 @@ For CSV loading examples, see `examples/csv_pipeline_example/datasource.py`.
 
 ## Step 3: Build the Pipeline
 
-Pipeline steps transform the DF. Last step returns metrics dict.
+Pipeline steps transform the DataFrame. Record metrics with `ctx.metrics.add` so hypotheses can verify them later.
 
 ```python
 from scipy.stats import skew, kurtosis
@@ -99,7 +99,7 @@ def compute_metrics(data: pd.DataFrame, ctx: FrozenContext):
 - _KeyError: Column missing?_ Check prior steps add required columns; use `if 'col' not in data`.
 - _Caching fails?_ Ensure params/input hashable; avoid non-deterministic code unless `cacheable=False`.
 - _Mutation error?_ Don't modify ctx existing keys—use `ctx.add`.
-- FAQ: Why metrics in last step? For hypotheses to test (next tutorial); enables aggregation over replicates.
+- FAQ: Where do metrics come from? Steps add values to `ctx.metrics`; hypotheses aggregate them across replicates.
 
 For advanced steps like PCA, see `examples/csv_pipeline_example/steps/pca.py`.
 
@@ -130,7 +130,7 @@ print("Baseline metrics:", result.metrics.baseline.metrics)
 **Inline Troubleshooting**:
 
 - _Validation error?_ Ensure `.validate()` or build succeeds—needs source/pipeline.
-- _Metrics empty?_ Verify `ctx.metrics.add` and last step returns dict.
+- _Metrics empty?_ Verify `ctx.metrics.add` is called in your steps.
 - FAQ: Replicates with same data? Adds variability if steps random; prepares for stats.
 
 ## Full Script

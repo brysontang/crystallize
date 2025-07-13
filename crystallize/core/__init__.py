@@ -171,18 +171,6 @@ def pipeline(*steps: PipelineStep) -> Pipeline:
 
     return Pipeline(list(steps))
 
-def from_scipy(test_func, alternative="two-sided", alpha=0.05):
-    def verifier(baseline, treatment):
-        if len(baseline) != 1:
-            raise ValueError("Single metric only")
-        stat, p = test_func(
-            treatment[list(treatment)[0]],
-            baseline[list(baseline)[0]],
-            alternative=alternative,
-        )
-        return {"p_value": p, "significant": p < alpha}
-    return verifier
-
 __all__ = [
     "pipeline_step",
     "exit_step",
@@ -193,5 +181,4 @@ __all__ = [
     "pipeline",
     "ExperimentBuilder",
     "StepInput",
-    "from_scipy",
 ]

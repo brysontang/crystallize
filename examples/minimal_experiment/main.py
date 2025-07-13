@@ -5,7 +5,7 @@ from crystallize import (
     hypothesis,
     pipeline_step,
     treatment,
-    from_scipy,
+    verifier,
 )
 from crystallize.core.context import FrozenContext
 from scipy.stats import ttest_ind
@@ -30,10 +30,9 @@ def add_random(data, ctx: FrozenContext):
 
 @pipeline_step()
 def compute_metrics(data, ctx: FrozenContext):
-    # The last step must return a dict of named metrics
-    # and add them to the context for the hypothesis.
+    # Record a simple metric for later verification
     ctx.metrics.add("result", sum(data))
-    return {"result": sum(data)}
+    return data
 
 # 3. Define the treatment (the change we are testing)
 add_ten = treatment(
@@ -42,10 +41,14 @@ add_ten = treatment(
 )
 
 # 4. Define the hypothesis to verify
-# Here, we use a helper to wrap a t-test from SciPy.
-t_test_verifier = from_scipy(ttest_ind, alpha=0.05)
+@verifier
+def welch_t_test(baseline, treatment, alpha: float = 0.05):
+    t_stat, p_value = ttest_ind(
+        treatment["result"], baseline["result"], equal_var=False
+    )
+    return {"p_value": p_value, "significant": p_value < alpha}
 
-@hypothesis(verifier=t_test_verifier, metrics="result")
+@hypothesis(verifier=welch_t_test(), metrics="result")
 def check_for_improvement(res):
     # The ranker function determines the "best" treatment.
     # Lower p-value is better.

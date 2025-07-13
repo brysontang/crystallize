@@ -45,7 +45,7 @@ from crystallize import (
     hypothesis,
     pipeline_step,
     treatment,
-    from_scipy,
+    verifier,
 )
 from crystallize.core.context import FrozenContext
 from scipy.stats import ttest_ind
@@ -81,10 +81,14 @@ add_ten = treatment(
 )
 
 # 4. Define the hypothesis to verify
-# Here, we use a helper to wrap a t-test from SciPy.
-t_test_verifier = from_scipy(ttest_ind, alpha=0.05)
+@verifier
+def welch_t_test(baseline, treatment, alpha: float = 0.05):
+    t_stat, p_value = ttest_ind(
+        treatment["result"], baseline["result"], equal_var=False
+    )
+    return {"p_value": p_value, "significant": p_value < alpha}
 
-@hypothesis(verifier=t_test_verifier, metrics="result")
+@hypothesis(verifier=welch_t_test(), metrics="result")
 def check_for_improvement(res):
     # The ranker function determines the "best" treatment.
     # Lower p-value is better.
@@ -171,9 +175,14 @@ This sets `delta` to 10 in the context for treatment runs.
 Hypotheses verify assertions with statistical tests.
 
 ```python
-t_test_verifier = from_scipy(ttest_ind, alpha=0.05)
+@verifier
+def welch_t_test(baseline, treatment, alpha: float = 0.05):
+    t_stat, p_value = ttest_ind(
+        treatment["result"], baseline["result"], equal_var=False
+    )
+    return {"p_value": p_value, "significant": p_value < alpha}
 
-@hypothesis(verifier=t_test_verifier, metrics="result")
+@hypothesis(verifier=welch_t_test(), metrics="result")
 def check_for_improvement(res):
     return res.get("p_value", 1.0)
 ```

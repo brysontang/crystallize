@@ -38,11 +38,6 @@ def default_seed_function(seed: int) -> None:
         random_mod.seed(seed)
     except ModuleNotFoundError:
         pass
-    try:
-        numpy_mod = importlib.import_module("numpy")
-        numpy_mod.random.seed(seed % (2**32 - 1))
-    except ModuleNotFoundError:
-        pass
 
 
 class Experiment:
@@ -330,6 +325,7 @@ class Experiment:
         treatment_name: Optional[str] = None,
         *,
         data: Any | None = None,
+        seed: Optional[int] = None,
     ) -> Any:
         """Run the pipeline once with optional treatment and return outputs."""
         if not self._validated:
@@ -348,8 +344,15 @@ class Experiment:
         if treatment:
             treatment.apply(ctx)
 
+        if seed is not None and self.seed_fn is not None:
+            self.seed_fn(seed)
+            ctx.add("seed_used", seed)
+
         if data is None:
             data = self.datasource.fetch(ctx)
+
+        if not any(getattr(step, "is_exit_step", False) for step in self.pipeline.steps):
+            raise ValueError("Pipeline must contain an exit_step for apply()")
 
         for step in self.pipeline.steps:
             data = step(data, ctx)

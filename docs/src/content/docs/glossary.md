@@ -94,5 +94,5 @@ A function in `Hypothesis` that compares baseline and treatment metrics, returni
 ## Next Steps
 
 - For hands-on setup, see [Tutorials: Getting Started](getting_started.md).
-- To customize steps, refer to [How-to Guides: Add a Custom Step](how-to-add-custom-step.md).
+- To customize steps, refer to [How-to Guides: Add a Custom Step](how-to/custom-steps/).
 - Detailed API: [Reference: PipelineStep](reference-pipelinestep.md).

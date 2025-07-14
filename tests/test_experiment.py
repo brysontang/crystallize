@@ -1,18 +1,19 @@
-import time
 import random
-import numpy as np
-import pytest
+import time
 from typing import List
 
+import numpy as np
+import pytest
+
+import crystallize.core.experiment as experiment
+from crystallize.core.config import ExecutionConfig, SeedConfig
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.experiment import Experiment
-import crystallize.core.experiment as experiment
 from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.pipeline_step import PipelineStep, exit_step
 from crystallize.core.treatment import Treatment
-from crystallize.core.builder import ExperimentBuilder
 
 
 class DummyDataSource(DataSource):
@@ -23,6 +24,7 @@ class DummyDataSource(DataSource):
 
 class PassStep(PipelineStep):
     cacheable = True
+
     def __call__(self, data, ctx):
         ctx.metrics.add("metric", data)
         return {"metric": data}
@@ -30,7 +32,6 @@ class PassStep(PipelineStep):
     @property
     def params(self):
         return {}
-
 
 
 def always_significant(baseline, treatment):
@@ -245,6 +246,7 @@ def test_apply_multiple_exit_steps():
 
 class StringMetricsStep(PipelineStep):
     cacheable = True
+
     def __call__(self, data, ctx):
         ctx.metrics.add("metric", "a")
         return {"metric": "a"}
@@ -315,7 +317,7 @@ def test_parallel_execution_matches_serial():
         treatments=[treatment],
         hypotheses=[hypothesis],
         replicates=2,
-        parallel=True,
+        execution_config=ExecutionConfig(parallel=True),
     )
     parallel_exp.validate()
     parallel_result = parallel_exp.run()
@@ -354,7 +356,7 @@ def test_parallel_execution_handles_errors():
         pipeline=pipeline,
         treatments=[treatment],
         replicates=2,
-        parallel=True,
+        execution_config=ExecutionConfig(parallel=True),
     )
     parallel.validate()
     parallel_res = parallel.run()
@@ -365,6 +367,7 @@ def test_parallel_execution_handles_errors():
 
 class SleepStep(PipelineStep):
     cacheable = False
+
     def __call__(self, data, ctx):
         time.sleep(0.1)
         ctx.metrics.add("metric", data)
@@ -388,7 +391,7 @@ def test_parallel_is_faster_for_sleep_step():
         datasource=ds,
         pipeline=pipeline,
         replicates=5,
-        parallel=True,
+        execution_config=ExecutionConfig(parallel=True),
     )
     exp_parallel.validate()
     start = time.time()
@@ -401,7 +404,12 @@ def test_parallel_is_faster_for_sleep_step():
 def test_parallel_high_replicate_count():
     pipeline = Pipeline([PassStep()])
     ds = DummyDataSource()
-    exp = Experiment(datasource=ds, pipeline=pipeline, replicates=10, parallel=True)
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=10,
+        execution_config=ExecutionConfig(parallel=True),
+    )
     exp.validate()
     result = exp.run()
     assert len(result.metrics.baseline.metrics["metric"]) == 10
@@ -409,6 +417,7 @@ def test_parallel_high_replicate_count():
 
 class FibStep(PipelineStep):
     cacheable = False
+
     def __init__(self, n: int = 32) -> None:
         self.n = n
 
@@ -433,8 +442,7 @@ def test_process_executor_faster_for_cpu_bound_step():
         datasource=ds,
         pipeline=pipeline,
         replicates=4,
-        parallel=True,
-        executor_type="thread",
+        execution_config=ExecutionConfig(parallel=True, executor_type="thread"),
     )
     exp_thread.validate()
     start = time.time()
@@ -445,8 +453,7 @@ def test_process_executor_faster_for_cpu_bound_step():
         datasource=ds,
         pipeline=pipeline,
         replicates=4,
-        parallel=True,
-        executor_type="process",
+        execution_config=ExecutionConfig(parallel=True, executor_type="process"),
     )
     exp_process.validate()
     start = time.time()
@@ -458,7 +465,7 @@ def test_process_executor_faster_for_cpu_bound_step():
 
 def test_invalid_executor_type_raises():
     with pytest.raises(ValueError):
-        Experiment(executor_type="bogus")
+        Experiment(execution_config=ExecutionConfig(executor_type="bogus"))
 
 
 @pytest.mark.parametrize("replicates", [1, 5, 10])
@@ -491,7 +498,9 @@ def test_apply_with_treatment_and_exit():
     pipeline = Pipeline([exit_step(IdentityStep()), PassStep()])
     datasource = DummyDataSource()
     treatment = Treatment("inc", {"increment": 2})
-    experiment = Experiment(datasource=datasource, pipeline=pipeline, treatments=[treatment])
+    experiment = Experiment(
+        datasource=datasource, pipeline=pipeline, treatments=[treatment]
+    )
     experiment.validate()
     output = experiment.apply(treatment_name="inc", data=5)
     assert output == 5
@@ -518,8 +527,18 @@ def test_provenance_signature_and_cache(tmp_path, monkeypatch):
 def test_multiple_hypotheses_partial_failure():
     pipeline = Pipeline([PassStep()])
     ds = DummyDataSource()
-    good = Hypothesis(verifier=always_significant, metrics="metric", ranker=lambda r: r["p_value"], name="good")
-    bad = Hypothesis(verifier=always_significant, metrics="missing", ranker=lambda r: r["p_value"], name="bad")
+    good = Hypothesis(
+        verifier=always_significant,
+        metrics="metric",
+        ranker=lambda r: r["p_value"],
+        name="good",
+    )
+    bad = Hypothesis(
+        verifier=always_significant,
+        metrics="missing",
+        ranker=lambda r: r["p_value"],
+        name="bad",
+    )
     exp = Experiment(
         datasource=ds,
         pipeline=pipeline,
@@ -530,11 +549,6 @@ def test_multiple_hypotheses_partial_failure():
     with pytest.raises(Exception):
         exp.run()
 
-
-def test_builder_missing_components():
-    builder = ExperimentBuilder().pipeline([PassStep()])
-    with pytest.raises(ValueError):
-        builder.build()
 
 
 def test_process_pool_respects_max_workers(monkeypatch):
@@ -566,9 +580,11 @@ def test_process_pool_respects_max_workers(monkeypatch):
         datasource=ds,
         pipeline=pipeline,
         replicates=5,
-        parallel=True,
-        executor_type="process",
-        max_workers=2,
+        execution_config=ExecutionConfig(
+            parallel=True,
+            executor_type="process",
+            max_workers=2,
+        ),
     )
     exp.validate()
     exp.run()
@@ -588,7 +604,12 @@ def test_ctx_mutation_error_parallel_and_serial(parallel):
 
     pipeline = Pipeline([MutateStep()])
     ds = DummyDataSource()
-    exp = Experiment(datasource=ds, pipeline=pipeline, replicates=2, parallel=parallel)
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        replicates=2,
+        execution_config=ExecutionConfig(parallel=parallel),
+    )
     exp.validate()
     result = exp.run()
     assert result.metrics.baseline.metrics == {}
@@ -614,7 +635,9 @@ def test_treatment_failure_recorded():
     pipeline = Pipeline([PassStep()])
     ds = DummyDataSource()
     failing = Treatment("boom", lambda ctx: (_ for _ in ()).throw(RuntimeError("bad")))
-    exp = Experiment(datasource=ds, pipeline=pipeline, treatments=[failing], replicates=2)
+    exp = Experiment(
+        datasource=ds, pipeline=pipeline, treatments=[failing], replicates=2
+    )
     exp.validate()
     result = exp.run()
     assert "boom_rep_0" in result.errors
@@ -640,10 +663,13 @@ def test_ranker_error_bubbles():
         exp.run()
 
 
-def test_builder_invalid_replicates_type():
-    builder = ExperimentBuilder().datasource(DummyDataSource()).pipeline([PassStep()])
+def test_invalid_replicates_type():
     with pytest.raises(TypeError):
-        builder.replicates("three")
+        Experiment(
+            datasource=DummyDataSource(),
+            pipeline=Pipeline([PassStep()]),
+            replicates="three",
+        )
 
 
 def test_zero_negative_replicates_clamped():
@@ -664,8 +690,10 @@ def test_high_replicates_parallel_no_issues():
         datasource=ds,
         pipeline=pipeline,
         replicates=50,
-        parallel=True,
-        executor_type="thread",
+        execution_config=ExecutionConfig(
+            parallel=True,
+            executor_type="thread",
+        ),
     )
     exp.validate()
     result = exp.run()
@@ -702,9 +730,7 @@ def test_auto_seed_reproducible_serial_vs_parallel():
         datasource=ds,
         pipeline=pipeline,
         replicates=3,
-        seed=123,
-        auto_seed=True,
-        seed_fn=numpy_seed_fn,
+        seed_config=SeedConfig(seed=123, auto_seed=True, seed_fn=numpy_seed_fn),
     )
     serial.validate()
     res_serial = serial.run()
@@ -713,10 +739,8 @@ def test_auto_seed_reproducible_serial_vs_parallel():
         datasource=ds,
         pipeline=pipeline,
         replicates=3,
-        seed=123,
-        auto_seed=True,
-        seed_fn=numpy_seed_fn,
-        parallel=True,
+        seed_config=SeedConfig(seed=123, auto_seed=True, seed_fn=numpy_seed_fn),
+        execution_config=ExecutionConfig(parallel=True),
     )
     parallel.validate()
     res_parallel = parallel.run()
@@ -739,9 +763,7 @@ def test_custom_seed_function_called():
         datasource=ds,
         pipeline=pipeline,
         replicates=1,
-        seed=7,
-        seed_fn=record_seed,
-        auto_seed=True,
+        seed_config=SeedConfig(seed=7, seed_fn=record_seed, auto_seed=True),
     )
     exp.validate()
     exp.run()
@@ -756,7 +778,11 @@ def test_apply_seed_function_called():
 
     pipeline = Pipeline([exit_step(IdentityStep())])
     ds = DummyDataSource()
-    exp = Experiment(datasource=ds, pipeline=pipeline, seed_fn=record_seed)
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        seed_config=SeedConfig(seed_fn=record_seed),
+    )
     exp.validate()
     exp.apply(data=1, seed=5)
     assert called == [5]

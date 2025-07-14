@@ -45,11 +45,12 @@ pixi install <not-yet-published-package>
 ```python
 from crystallize.core import (
     DataSource,
-    ExperimentBuilder,
     Hypothesis,
     Pipeline,
     Treatment,
 )
+from crystallize.core.experiment import Experiment
+from crystallize.core.config import ExecutionConfig, SeedConfig
 
 # Example setup (simple)
 pipeline = Pipeline([...])
@@ -64,21 +65,16 @@ hypothesis = rank_by_p()
 
 treatment = Treatment(name="experiment_variant", apply_fn=lambda ctx: ctx.update({"learning_rate": 0.001}))
 
-experiment = (
-    ExperimentBuilder()
-    .datasource(datasource)
-    .pipeline(pipeline.steps)
-    .treatments([treatment])
-    .hypotheses([hypothesis])
-    .replicates(3)
-    .seed(42)
-    # optional custom seed function
-    # .seed_fn(my_seed_function)
-    .parallel(True)
-    .max_workers(4)
-    .executor_type("thread")  # or "process" for CPU-bound steps
-    .build()
+experiment = Experiment(
+    datasource=datasource,
+    pipeline=pipeline,
+    treatments=[treatment],
+    hypotheses=[hypothesis],
+    replicates=3,
+    seed_config=SeedConfig(seed=42),
+    execution_config=ExecutionConfig(parallel=True, max_workers=4, executor_type="thread"),
 )
+experiment.validate()
 result = experiment.run()
 print(result.metrics)
 print(result.hypothesis_result)

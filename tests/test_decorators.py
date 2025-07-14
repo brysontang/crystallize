@@ -8,8 +8,9 @@ from crystallize import (
     verifier,
     treatment,
 )
-from crystallize.core.builder import ExperimentBuilder
 from crystallize.core.context import ContextMutationError, FrozenContext
+from crystallize.core.experiment import Experiment
+from crystallize.core.pipeline import Pipeline
 
 
 @pipeline_step()
@@ -102,25 +103,25 @@ def test_factories_missing_params():
         dummy_test()
 
 
-def test_experiment_builder_integration():
-    result = (
-        ExperimentBuilder()
-        .datasource((dummy_source, {"value": 3}))
-        .pipeline([(add, {"value": 2}), metrics])
-        .treatments([inc_treatment()])
-        .hypotheses([h])
-        .replicates(1)
-        .build_and_run()
+def test_experiment_integration():
+    datasource_obj = dummy_source(value=3)
+    pipeline_obj = Pipeline([add(value=2), metrics()])
+    exp = Experiment(
+        datasource=datasource_obj,
+        pipeline=pipeline_obj,
+        treatments=[inc_treatment()],
+        hypotheses=[h],
+        replicates=1,
     )
+    exp.validate()
+    result = exp.run()
     assert result.metrics.baseline.metrics["result"] == [5]
 
 
-def test_builder_negative_replicates_clamped():
-    exp = (
-        ExperimentBuilder()
-        .datasource((dummy_source, {"value": 1}))
-        .pipeline([add(value=1)])
-        .replicates(-3)
-        .build()
+def test_negative_replicates_clamped():
+    exp = Experiment(
+        datasource=dummy_source(value=1),
+        pipeline=Pipeline([add(value=1)]),
+        replicates=-3,
     )
     assert exp.replicates == 1

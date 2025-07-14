@@ -41,27 +41,21 @@ def rank_by_p(result):
 
 ## 3. Run the Experiment
 
-Add the hypothesis to your `ExperimentBuilder` and run as usual:
+Add the hypothesis to your `Experiment` and run as usual:
 
 ```python
-exp = (
-    ExperimentBuilder()
-    .datasource(my_source)
-    .pipeline(my_pipeline)
-    .treatments([my_treatment])
-    .hypotheses([rank_by_p])
-    .replicates(10)
-    .build()
-)
 
+exp = Experiment(
+    datasource=my_source(),
+    pipeline=my_pipeline,
+    treatments=[my_treatment()],
+    hypotheses=[rank_by_p],
+    replicates=10,
+)
+exp.validate()
 result = exp.run()
 print(result.get_hypothesis("rank_by_p").results)
 ```
-
-The `results` attribute contains the verifier output per treatment, and `ranking` orders treatments using the ranker.
-
-## Troubleshooting & FAQs
-
 - **MissingMetricError** – Ensure all metric keys specified in `metrics` exist in `ctx.metrics`.
 - **Multiple metrics** – When using metric groups, the verifier runs separately for each group and returns a list of results.
 - **Custom statistics** – Your verifier can call any library (SciPy, PyTorch, etc.) as long as it returns a dictionary.
@@ -69,4 +63,4 @@ The `results` attribute contains the verifier output per treatment, and `ranking
 ## Next Steps
 
 - Review [Custom Pipeline Steps](custom-steps.md) to compute the metrics you need.
-- See [Customizing Experiments](customizing-experiements.md) for seeding and parallel options.
+- See [Customizing Experiments](customizing-experiments.md) for seeding and parallel options.

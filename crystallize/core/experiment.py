@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 import time
-import logging
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from typing import (
@@ -18,6 +18,7 @@ from typing import (
     Tuple,
 )
 
+from crystallize.core.config import ExecutionConfig, LoggingConfig, SeedConfig
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.hypothesis import Hypothesis
@@ -57,34 +58,32 @@ class Experiment:
         hypotheses: Optional[List[Hypothesis]] = None,
         replicates: int = 1,
         *,
-        parallel: bool = False,
-        seed: Optional[int] = None,
-        auto_seed: bool = True,
         progress: bool = False,
-        verbose: bool = False,
-        log_level: str = "INFO",
-        seed_fn: Optional[Callable[[int], None]] = None,
-        max_workers: Optional[int] = None,
-        executor_type: str = "thread",
+        seed_config: Optional[SeedConfig] = None,
+        execution_config: Optional[ExecutionConfig] = None,
+        logging_config: Optional[LoggingConfig] = None,
     ) -> None:
         self.datasource = datasource
         self.pipeline = pipeline
         self.treatments = treatments or []
         self.hypotheses = hypotheses or []
         self.replicates = max(1, replicates)
-        self.parallel = parallel
-        self.seed = seed
-        self.auto_seed = auto_seed
+        seed_cfg = seed_config or SeedConfig()
+        exec_cfg = execution_config or ExecutionConfig()
+        log_cfg = logging_config or LoggingConfig()
         self.progress = progress
-        self.verbose = verbose
-        self.log_level = log_level
-        self.seed_fn = seed_fn or default_seed_function
-        self.max_workers = max_workers
-        if executor_type not in VALID_EXECUTOR_TYPES:
+        self.parallel = exec_cfg.parallel
+        self.seed = seed_cfg.seed
+        self.auto_seed = seed_cfg.auto_seed
+        self.verbose = log_cfg.verbose
+        self.log_level = log_cfg.log_level
+        self.seed_fn = seed_cfg.seed_fn or default_seed_function
+        self.max_workers = exec_cfg.max_workers
+        if exec_cfg.executor_type not in VALID_EXECUTOR_TYPES:
             raise ValueError(
-                f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{executor_type}'"
+                f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{exec_cfg.executor_type}'"
             )
-        self.executor_type = executor_type
+        self.executor_type = exec_cfg.executor_type
         self._validated = False
 
     # ------------------------------------------------------------------ #
@@ -217,7 +216,9 @@ class Experiment:
         treatment_seeds_agg: Dict[str, List[int]] = {
             t.name: [] for t in self.treatments
         }
-        provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = defaultdict(dict)
+        provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = (
+            defaultdict(dict)
+        )
 
         errors: Dict[str, Exception] = {}
         start_time = time.perf_counter()
@@ -239,7 +240,9 @@ class Experiment:
             provenance: Dict[str, List[Mapping[str, Any]]] = {}
             base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
             try:
-                baseline_result, baseline_seed, base_prov = self._run_condition(base_ctx)
+                baseline_result, baseline_seed, base_prov = self._run_condition(
+                    base_ctx
+                )
                 provenance["baseline"] = base_prov
             except Exception as exc:  # pragma: no cover
                 rep_errors[f"baseline_rep_{rep}"] = exc
@@ -303,7 +306,9 @@ class Experiment:
                 if self.progress:
                     from tqdm import tqdm
 
-                    futures_iter = tqdm(futures_iter, total=len(future_map), desc="Replicates")
+                    futures_iter = tqdm(
+                        futures_iter, total=len(future_map), desc="Replicates"
+                    )
                 for future in futures_iter:
                     rep = future_map[future]
                     try:

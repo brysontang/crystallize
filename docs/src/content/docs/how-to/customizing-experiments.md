@@ -1,70 +1,64 @@
 ---
 title: Customizing Experiments
-description: Configure seeds, parallelism, and validation using ExperimentBuilder and the apply method.
+description: Configure seeds, parallelism, and validation using SeedConfig, ExecutionConfig, and the apply method.
 ---
 
-Crystallize's `ExperimentBuilder` simplifies assembling an `Experiment` with sensible defaults. This page shows how to tweak important settings—random seeds, parallel execution, and validation—plus how to reuse a built experiment with `.apply()`.
+Crystallize's `Experiment` class is instantiated directly. Use `SeedConfig` and `ExecutionConfig` to tweak randomness, parallel execution, and other options. This page shows how to customize these settings and how to reuse an experiment with `.apply()`.
 
-## 1. Build with `ExperimentBuilder`
+## 1. Build an Experiment
 
-`ExperimentBuilder` is a fluent factory. Chain methods to define the data source, pipeline, treatments, hypotheses, and other options:
-
+Instantiate your components and pass configuration objects:
 ```python
-from crystallize import ExperimentBuilder
+from crystallize.core.config import ExecutionConfig, SeedConfig
+from crystallize.core.experiment import Experiment
+from crystallize.core.pipeline import Pipeline
 
-exp = (
-    ExperimentBuilder()
-    .datasource(my_source)
-    .pipeline([step1, step2])
-    .treatments([treatment_a])
-    .hypotheses([my_hyp])
-    .replicates(3)
-    .parallel(True)          # optional
-    .seed(42)                # optional
-    .build()
+exp = Experiment(
+    datasource=my_source(),
+    pipeline=Pipeline([step1(), step2()]),
+    treatments=[treatment_a()],
+    hypotheses=[my_hyp],
+    replicates=3,
+    seed_config=SeedConfig(seed=42),
+    execution_config=ExecutionConfig(parallel=True),
 )
+exp.validate()
 ```
-
-`build()` creates and validates the `Experiment`. You can also call `validate()` manually if constructing an `Experiment` directly.
 
 ## 2. Seeding for Reproducibility
 
-Experiments may involve randomness. Control it with three builder methods:
+The `SeedConfig` dataclass controls how randomness is managed:
 
-- `.seed(value)`: base seed used for all replicates.
-- `.auto_seed(True)`: if enabled (default), each replicate uses `hash(seed + replicate)`.
-- `.seed_fn(func)`: custom function run with the computed seed.
+- `seed`: base seed used for all replicates.
+- `auto_seed`: when `True` (default), each replicate uses `hash(seed + replicate)`.
+- `seed_fn`: custom function run with the computed seed.
 
-The default `seed_fn` only seeds Python's `random` module. Provide your own if you need to seed other libraries:
-
+Example custom seed function:
 ```python
-def custom_seed_function(seed: int) -> None:
-    import random
-    import numpy as np
-    random.seed(seed)
-    np.random.seed(seed % (2**32 - 1))
-
-exp = ExperimentBuilder().seed_fn(custom_seed_function)
+$(cat /tmp/custom_seed_snippet.txt)
 ```
 
 ## 3. Parallel Execution
 
-Set `.parallel(True)` to run replicates concurrently. Choose the executor type:
+Use `ExecutionConfig` to run replicates concurrently. Choose the executor type:
 
 - `executor_type="thread"` (default) for IO-bound steps.
-- `executor_type="process"` for CPU-heavy steps that bypass the GIL.
-- `.max_workers(n)` limits the number of threads/processes.
+- `executor_type="process"` for CPU-heavy work that bypasses the GIL.
+- `max_workers` limits the number of threads/processes.
+
+```python
+$(cat /tmp/parallel_snippet.txt)
+```
 
 Parallelism uses Python's `concurrent.futures`; results match serial execution.
 
 ## 4. Validation Rules
 
-An experiment must have a data source and pipeline. If hypotheses are defined, at least one treatment is required. `build()` calls `validate()` automatically and raises `ValueError` if these conditions are not met.
+An experiment must have a data source and pipeline. If hypotheses are defined, at least one treatment is required. Call `validate()` to enforce these conditions.
 
 ## 5. Reusing Pipelines with `.apply()`
 
 After choosing a treatment, you can pass new data through the pipeline:
-
 ```python
 result = exp.apply(treatment_name="treatment_a", data=my_data, seed=123)
 ```
@@ -74,7 +68,7 @@ result = exp.apply(treatment_name="treatment_a", data=my_data, seed=123)
 ## Troubleshooting & FAQs
 
 - **`ValueError: Pipeline must contain an exit_step`** – `.apply()` requires at least one `exit_step` to know where to stop.
-- **`Unknown treatment`** – The name passed to `treatment_name` must match a treatment from the builder.
+- **`Unknown treatment`** – The name passed to `treatment_name` must match a treatment in the experiment.
 - **Parallelism slower?** – Use `process` executors for CPU-bound work and ensure steps release the GIL for threads.
 
 ## Next Steps

@@ -1,0 +1,19 @@
+# apidocs/mkdocs.yml
+
+site_name: 'Crystallize API Reference'
+docs_dir: source
+site_dir: ../docs/src/content/docs/reference
+
+theme:
+  name: material
+
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          # Add this line to tell mkdocstrings where your source code is.
+          # The '..' points to the parent directory (your project root).
+          paths: [..]
+          options:
+            show_root_heading: true
+            group_by_category: true

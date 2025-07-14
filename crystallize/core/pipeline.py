@@ -118,7 +118,8 @@ class Pipeline:
                 }
             )
 
-        self._provenance = tuple(MappingProxyType(p) for p in provenance)
+        final_provenance = tuple(MappingProxyType(p) for p in provenance)
+        self._provenance = final_provenance
 
         hit_count = sum(1 for p in provenance if p["cache_hit"])
         logger.info(
@@ -129,7 +130,7 @@ class Pipeline:
         )
 
         if return_provenance:
-            return data, list(self._provenance)
+            return data, list(final_provenance)
         return data
 
 

@@ -74,3 +74,4 @@ if __name__ == "__main__":
     # Print the results for our hypothesis
     hyp_result = result.get_hypothesis("check_for_improvement")
     print(hyp_result.results)
+    print(result.print_tree())

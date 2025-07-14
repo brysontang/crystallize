@@ -9,11 +9,11 @@ from .core import (
     hypothesis,
     pipeline,
     pipeline_step,
-    verifier,
     treatment,
+    verifier,
 )
-from .core.plugins import BasePlugin, LoggingPlugin, SeedPlugin
-from .core.execution import SerialExecution, ParallelExecution
+from .core.execution import ParallelExecution, SerialExecution
+from .core.plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 
 __all__ = [
     "pipeline_step",
@@ -29,4 +29,5 @@ __all__ = [
     "ParallelExecution",
     "SeedPlugin",
     "LoggingPlugin",
+    "ArtifactPlugin",
 ]

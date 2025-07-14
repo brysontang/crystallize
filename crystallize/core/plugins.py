@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import importlib
+import os
 from abc import ABC
 from dataclasses import dataclass
-import importlib
-from typing import Any, Callable, Optional, TYPE_CHECKING, List
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
 if TYPE_CHECKING:
-    from crystallize.core.experiment import Experiment
     from crystallize.core.context import FrozenContext
+    from crystallize.core.experiment import Experiment
     from crystallize.core.pipeline_step import PipelineStep
     from crystallize.core.result import Result
 
@@ -93,7 +95,9 @@ class LoggingPlugin(BasePlugin):
         import logging
         import time
 
-        logging.basicConfig(level=getattr(logging, self.log_level.upper(), logging.INFO))
+        logging.basicConfig(
+            level=getattr(logging, self.log_level.upper(), logging.INFO)
+        )
         logger = logging.getLogger("crystallize")
         seed_plugin = experiment.get_plugin(SeedPlugin)
         seed_val = seed_plugin.seed if seed_plugin else None
@@ -135,7 +139,9 @@ class LoggingPlugin(BasePlugin):
         logger = logging.getLogger("crystallize")
         duration = time.perf_counter() - getattr(experiment, "_start_time", 0)
         bests = [
-            f"{h.name}: '{h.ranking.get('best')}'" for h in result.metrics.hypotheses if h.ranking.get("best") is not None
+            f"{h.name}: '{h.ranking.get('best')}'"
+            for h in result.metrics.hypotheses
+            if h.ranking.get("best") is not None
         ]
         best_summary = "; Best " + ", ".join(bests) if bests else ""
         logger.info(
@@ -144,3 +150,53 @@ class LoggingPlugin(BasePlugin):
             best_summary,
             len(result.errors),
         )
+
+
+@dataclass
+class ArtifactPlugin(BasePlugin):
+    """Plugin that saves artifacts logged during pipeline execution."""
+
+    root_dir: str = "./crystallize_artifacts"
+    versioned: bool = False
+
+    def before_run(self, experiment: Experiment) -> None:
+        from .cache import compute_hash
+
+        self.experiment_id = compute_hash(experiment.pipeline.signature())
+        base = Path(self.root_dir) / self.experiment_id
+        base.mkdir(parents=True, exist_ok=True)
+        if self.versioned:
+            versions = [
+                int(p.name[1:])
+                for p in base.glob("v*")
+                if p.name.startswith("v") and p.name[1:].isdigit()
+            ]
+            self.version = max(versions, default=-1) + 1
+        else:
+            self.version = 0
+
+    def after_step(
+        self,
+        experiment: Experiment,
+        step: PipelineStep,
+        data: Any,
+        ctx: FrozenContext,
+    ) -> None:
+        if len(ctx.artifacts) == 0:
+            return
+        rep = ctx.get("replicate", 0)
+        condition = ctx.get("condition", "baseline")
+        for artifact in ctx.artifacts:
+            artifact.step_name = step.__class__.__name__
+            dest = (
+                Path(self.root_dir)
+                / self.experiment_id
+                / f"v{self.version}"
+                / f"replicate_{rep}"
+                / condition
+                / artifact.step_name
+            )
+            os.makedirs(dest, exist_ok=True)
+            with open(dest / artifact.name, "wb") as f:
+                f.write(artifact.data)
+        ctx.artifacts.clear()

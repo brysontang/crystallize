@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
+import importlib
 from typing import Any, Callable, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -9,6 +10,15 @@ if TYPE_CHECKING:
     from crystallize.core.context import FrozenContext
     from crystallize.core.pipeline_step import PipelineStep
     from crystallize.core.result import Result
+
+
+def default_seed_function(seed: int) -> None:
+    """Set deterministic seeds for common libraries if available."""
+    try:
+        random_mod = importlib.import_module("random")
+        random_mod.seed(seed)
+    except ModuleNotFoundError:  # pragma: no cover - stdlib always there in tests
+        pass
 
 
 class BasePlugin(ABC):
@@ -68,17 +78,14 @@ class SeedPlugin(BasePlugin):
     seed_fn: Optional[Callable[[int], None]] = None
 
     def init_hook(self, experiment: Experiment) -> None:  # pragma: no cover - simple
-        experiment.seed = self.seed
-        experiment.auto_seed = self.auto_seed
-        if self.seed_fn is not None:
-            experiment.seed_fn = self.seed_fn
+        pass
 
     def before_replicate(self, experiment: Experiment, ctx: FrozenContext) -> None:
-        if not experiment.auto_seed:
+        if not self.auto_seed:
             return
-        local_seed = hash((experiment.seed or 0) + ctx.get("replicate", 0))
-        if experiment.seed_fn is not None:
-            experiment.seed_fn(local_seed)
+        local_seed = hash((self.seed or 0) + ctx.get("replicate", 0))
+        seed_fn = self.seed_fn or default_seed_function
+        seed_fn(local_seed)
         ctx.add("seed_used", local_seed)
 
 
@@ -90,27 +97,26 @@ class LoggingPlugin(BasePlugin):
     log_level: str = "INFO"
 
     def init_hook(self, experiment: Experiment) -> None:  # pragma: no cover - simple
-        experiment.verbose = self.verbose
-        experiment.log_level = self.log_level
+        pass
 
     def before_run(self, experiment: Experiment) -> None:
         import logging
         import time
 
-        logging.basicConfig(
-            level=getattr(logging, experiment.log_level.upper(), logging.INFO)
-        )
+        logging.basicConfig(level=getattr(logging, self.log_level.upper(), logging.INFO))
         logger = logging.getLogger("crystallize")
+        seed_plugin = experiment.get_plugin(SeedPlugin)
+        seed_val = seed_plugin.seed if seed_plugin else None
         logger.info(
             "Experiment: %d replicates, %d treatments, %d hypotheses (seed=%s, parallel=%s/%s workers)",
             experiment.replicates,
             len(experiment.treatments),
             len(experiment.hypotheses),
-            experiment.seed,
+            seed_val,
             experiment.executor_type,
             experiment.max_workers or "auto",
         )
-        if experiment.auto_seed and experiment.seed_fn is None:
+        if seed_plugin and seed_plugin.auto_seed and seed_plugin.seed_fn is None:
             logger.warning("No seed_fn provided—randomness may not be reproducible")
         experiment._start_time = time.perf_counter()
 
@@ -121,7 +127,7 @@ class LoggingPlugin(BasePlugin):
         data: Any,
         ctx: FrozenContext,
     ) -> None:
-        if not experiment.verbose:
+        if not self.verbose:
             return
         import logging
 

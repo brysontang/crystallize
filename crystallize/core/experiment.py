@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import importlib
-import logging
 import warnings
 import os
 from collections import defaultdict
@@ -18,7 +16,12 @@ from typing import (
     Tuple,
 )
 
-from crystallize.core.plugins import BasePlugin
+from crystallize.core.plugins import (
+    BasePlugin,
+    LoggingPlugin,
+    SeedPlugin,
+    default_seed_function,
+)
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.hypothesis import Hypothesis
@@ -32,15 +35,6 @@ from crystallize.core.result_structs import (
 from crystallize.core.treatment import Treatment
 
 VALID_EXECUTOR_TYPES = {"thread", "process"}
-
-
-def default_seed_function(seed: int) -> None:
-    """Set deterministic seeds for common libraries if available."""
-    try:
-        random_mod = importlib.import_module("random")
-        random_mod.seed(seed)
-    except ModuleNotFoundError:
-        pass
 
 
 class Experiment:
@@ -67,15 +61,9 @@ class Experiment:
         self.replicates = max(1, replicates)
 
         # Default attributes overridden by plugins
-        self.progress = False
         self.parallel = False
         self.max_workers: Optional[int] = None
         self.executor_type = "thread"
-        self.seed: Optional[int] = None
-        self.auto_seed = True
-        self.seed_fn: Callable[[int], None] | None = default_seed_function
-        self.verbose = False
-        self.log_level = "INFO"
 
         self.plugins = plugins or []
         for plugin in self.plugins:
@@ -159,7 +147,6 @@ class Experiment:
             DeprecationWarning,
             stacklevel=2,
         )
-        self.seed = seed
         return self
 
     def with_auto_seed(self, auto_seed: bool) -> "Experiment":
@@ -168,7 +155,6 @@ class Experiment:
             DeprecationWarning,
             stacklevel=2,
         )
-        self.auto_seed = auto_seed
         return self
 
     def with_seed_fn(self, seed_fn: Callable[[int], None]) -> "Experiment":
@@ -177,7 +163,6 @@ class Experiment:
             DeprecationWarning,
             stacklevel=2,
         )
-        self.seed_fn = seed_fn
         return self
 
     def with_executor_type(self, executor_type: str) -> "Experiment":
@@ -202,6 +187,15 @@ class Experiment:
 
     # ------------------------------------------------------------------ #
 
+    def get_plugin(self, plugin_class: type) -> Optional[BasePlugin]:
+        """Return the first plugin instance matching ``plugin_class``."""
+        for plugin in self.plugins:
+            if isinstance(plugin, plugin_class):
+                return plugin
+        return None
+
+    # ------------------------------------------------------------------ #
+
     def _run_condition(
         self, ctx: FrozenContext, treatment: Optional[Treatment] = None
     ) -> Tuple[Mapping[str, Any], Optional[int], List[Mapping[str, Any]]]:
@@ -222,21 +216,15 @@ class Experiment:
         local_seed: Optional[int] = run_ctx.get("seed_used")
 
         data = self.datasource.fetch(run_ctx)
-        logger = logging.getLogger("crystallize")
-        logger.info(
-            "Starting replicate %d/%d, condition '%s'...",
-            run_ctx.get("replicate"),
-            self.replicates,
-            run_ctx.get("condition"),
-        )
+        log_plugin = self.get_plugin(LoggingPlugin)
+        verbose = log_plugin.verbose if log_plugin else False
         _, prov = self.pipeline.run(
             data,
             run_ctx,
-            verbose=self.verbose,
-            progress=self.progress,
+            verbose=verbose,
+            progress=False,
             rep=run_ctx.get("replicate"),
             condition=run_ctx.get("condition"),
-            logger=logger,
             return_provenance=True,
             experiment=self,
         )
@@ -345,12 +333,6 @@ class Experiment:
                     futures_iter = as_completed(future_map)
                 else:  # Fallback for dummy executors in tests
                     futures_iter = future_map.keys()
-                if self.progress:
-                    from tqdm import tqdm
-
-                    futures_iter = tqdm(
-                        futures_iter, total=len(future_map), desc="Replicates"
-                    )
                 for future in futures_iter:
                     rep = future_map[future]
                     try:
@@ -372,12 +354,7 @@ class Experiment:
                     provenance_runs[name][rep] = p
                 errors.update(errs)
         else:
-            rep_iter = range(self.replicates)
-            if self.progress:
-                from tqdm import tqdm
-
-                rep_iter = tqdm(rep_iter, desc="Replicates")
-            for rep in rep_iter:
+            for rep in range(self.replicates):
                 base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
                 try:
                     base_res, base_seed, base_prov = self._run_condition(base_ctx)
@@ -389,15 +366,7 @@ class Experiment:
                     errors[f"baseline_rep_{rep}"] = exc
                     continue
 
-                treat_iter = self.treatments
-                if self.progress and self.treatments:
-                    from tqdm import tqdm
-
-                    treat_iter = tqdm(
-                        self.treatments,
-                        desc=f"Treatments rep {rep}",
-                    )
-                for t in treat_iter:
+                for t in self.treatments:
                     ctx = FrozenContext({"replicate": rep, "condition": t.name})
                     try:
                         res, sd, prov = self._run_condition(ctx, t)
@@ -486,9 +455,12 @@ class Experiment:
         if treatment:
             treatment.apply(ctx)
 
-        if seed is not None and self.seed_fn is not None:
-            self.seed_fn(seed)
-            ctx.add("seed_used", seed)
+        if seed is not None:
+            seed_plugin = self.get_plugin(SeedPlugin)
+            if seed_plugin is not None:
+                fn = seed_plugin.seed_fn or default_seed_function
+                fn(seed)
+                ctx.add("seed_used", seed)
 
         if data is None:
             data = self.datasource.fetch(ctx)

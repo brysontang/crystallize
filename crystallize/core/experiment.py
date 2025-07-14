@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import warnings
-import os
 from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from typing import (
     Any,
     Callable,
@@ -22,6 +20,7 @@ from crystallize.core.plugins import (
     SeedPlugin,
     default_seed_function,
 )
+from crystallize.core.execution import SerialExecution, VALID_EXECUTOR_TYPES
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.hypothesis import Hypothesis
@@ -34,7 +33,6 @@ from crystallize.core.result_structs import (
 )
 from crystallize.core.treatment import Treatment
 
-VALID_EXECUTOR_TYPES = {"thread", "process"}
 
 
 class Experiment:
@@ -60,19 +58,10 @@ class Experiment:
         self.hypotheses = hypotheses or []
         self.replicates = max(1, replicates)
 
-        # Default attributes overridden by plugins
-        self.parallel = False
-        self.max_workers: Optional[int] = None
-        self.executor_type = "thread"
-
         self.plugins = plugins or []
         for plugin in self.plugins:
             plugin.init_hook(self)
 
-        if self.executor_type not in VALID_EXECUTOR_TYPES:
-            raise ValueError(
-                f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{self.executor_type}'"
-            )
 
         self._validated = False
 
@@ -305,77 +294,38 @@ class Experiment:
                 provenance,
             )
 
-        if self.parallel and self.replicates > 1:
-            results: List[
-                Tuple[
-                    Optional[Mapping[str, Any]],
-                    Optional[int],
-                    Dict[str, Mapping[str, Any]],
-                    Dict[str, int],
-                    Dict[str, Exception],
-                    Dict[str, List[Mapping[str, Any]]],
-                ]
-            ] = [(None, None, {}, {}, {}, {})] * self.replicates
-            if self.executor_type == "process":
-                default_workers = max(1, (os.cpu_count() or 2) - 1)
-                exec_cls = ProcessPoolExecutor
-            else:
-                default_workers = os.cpu_count() or 8
-                exec_cls = ThreadPoolExecutor
-            worker_count = self.max_workers or min(self.replicates, default_workers)
-            with exec_cls(max_workers=worker_count) as executor:
-                future_map = {
-                    executor.submit(_execute_replicate, rep): rep
-                    for rep in range(self.replicates)
-                }
-                sample_future = next(iter(future_map))
-                if hasattr(sample_future, "_condition"):
-                    futures_iter = as_completed(future_map)
-                else:  # Fallback for dummy executors in tests
-                    futures_iter = future_map.keys()
-                for future in futures_iter:
-                    rep = future_map[future]
-                    try:
-                        results[rep] = future.result()
-                    except Exception as exc:  # pragma: no cover
-                        errors[f"replicate_{rep}_execution_error"] = exc
-                        results[rep] = (None, None, {}, {}, {}, {})
-
-            for rep, (base, seed, treats, seeds, errs, prov) in enumerate(results):
-                if base is not None:
-                    baseline_samples.append(base)
-                if seed is not None:
-                    baseline_seeds.append(seed)
-                for name, sample in treats.items():
-                    treatment_samples[name].append(sample)
-                for name, sd in seeds.items():
-                    treatment_seeds_agg[name].append(sd)
-                for name, p in prov.items():
-                    provenance_runs[name][rep] = p
-                errors.update(errs)
+        exec_plugin = SerialExecution()
+        results_list: List[
+            Tuple[
+                Optional[Mapping[str, Any]],
+                Optional[int],
+                Dict[str, Mapping[str, Any]],
+                Dict[str, int],
+                Dict[str, Exception],
+                Dict[str, List[Mapping[str, Any]]],
+            ]
+        ]
+        for plugin in reversed(self.plugins):
+            res = plugin.run_experiment_loop(self, _execute_replicate)
+            if res is not NotImplemented:
+                exec_plugin = plugin
+                results_list = res
+                break
         else:
-            for rep in range(self.replicates):
-                base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
-                try:
-                    base_res, base_seed, base_prov = self._run_condition(base_ctx)
-                    baseline_samples.append(base_res)
-                    if base_seed is not None:
-                        baseline_seeds.append(base_seed)
-                    provenance_runs["baseline"][rep] = base_prov
-                except Exception as exc:  # pragma: no cover
-                    errors[f"baseline_rep_{rep}"] = exc
-                    continue
+            results_list = exec_plugin.run_experiment_loop(self, _execute_replicate)
 
-                for t in self.treatments:
-                    ctx = FrozenContext({"replicate": rep, "condition": t.name})
-                    try:
-                        res, sd, prov = self._run_condition(ctx, t)
-                        treatment_samples[t.name].append(res)
-                        if sd is not None:
-                            treatment_seeds_agg[t.name].append(sd)
-                        provenance_runs[t.name][rep] = prov
-                    except Exception as exc:  # pragma: no cover
-                        errors[f"{t.name}_rep_{rep}"] = exc
+        for rep, (base, seed, treats, seeds, errs, prov) in enumerate(results_list):
+            if base is not None:
+                baseline_samples.append(base)
+            if seed is not None:
+                baseline_seeds.append(seed)
+            for name, sample in treats.items():
+                treatment_samples[name].append(sample)
+            for name, sd in seeds.items():
+                treatment_seeds_agg[name].append(sd)
+            for name, p in prov.items():
+                provenance_runs[name][rep] = p
+            errors.update(errs)
 
         # ---------- aggregation: preserve full sample arrays ------------ #
         def collect_all_samples(

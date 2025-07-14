@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass
 import importlib
-from typing import Any, Callable, Optional, TYPE_CHECKING
+from typing import Any, Callable, Optional, TYPE_CHECKING, List
 
 if TYPE_CHECKING:
     from crystallize.core.experiment import Experiment
@@ -50,23 +50,13 @@ class BasePlugin(ABC):
         """Called at the end of ``Experiment.run()`` after the ``Result`` object is created."""
         pass
 
-
-@dataclass
-class ExecutionPlugin(BasePlugin):
-    """Plugin controlling parallel execution settings."""
-
-    parallel: bool = False
-    max_workers: Optional[int] = None
-    executor_type: str = "thread"
-
-    def init_hook(self, experiment: Experiment) -> None:  # pragma: no cover - simple
-        if self.executor_type not in experiment.VALID_EXECUTOR_TYPES:
-            raise ValueError(
-                f"executor_type must be one of {experiment.VALID_EXECUTOR_TYPES}, got '{self.executor_type}'"
-            )
-        experiment.parallel = self.parallel
-        experiment.max_workers = self.max_workers
-        experiment.executor_type = self.executor_type
+    def run_experiment_loop(
+        self,
+        experiment: "Experiment",
+        replicate_fn: Callable[[int], Any],
+    ) -> List[Any]:
+        """Run replicates and return results or ``NotImplemented``."""
+        return NotImplemented
 
 
 @dataclass
@@ -108,13 +98,11 @@ class LoggingPlugin(BasePlugin):
         seed_plugin = experiment.get_plugin(SeedPlugin)
         seed_val = seed_plugin.seed if seed_plugin else None
         logger.info(
-            "Experiment: %d replicates, %d treatments, %d hypotheses (seed=%s, parallel=%s/%s workers)",
+            "Experiment: %d replicates, %d treatments, %d hypotheses (seed=%s)",
             experiment.replicates,
             len(experiment.treatments),
             len(experiment.hypotheses),
             seed_val,
-            experiment.executor_type,
-            experiment.max_workers or "auto",
         )
         if seed_plugin and seed_plugin.auto_seed and seed_plugin.seed_fn is None:
             logger.warning("No seed_fn provided—randomness may not be reproducible")

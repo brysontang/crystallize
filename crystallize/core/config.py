@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from .plugins import ExecutionPlugin as ExecutionConfig, LoggingPlugin as LoggingConfig, SeedPlugin as SeedConfig
+from .execution import ParallelExecution as ExecutionConfig
+from .plugins import LoggingPlugin as LoggingConfig, SeedPlugin as SeedConfig
 
 __all__ = [
     "ExecutionConfig",

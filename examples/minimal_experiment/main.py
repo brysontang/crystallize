@@ -1,12 +1,14 @@
 # main.py
 from crystallize import (
-    ExperimentBuilder,
     data_source,
     hypothesis,
     pipeline_step,
     treatment,
     verifier,
 )
+from crystallize.core.config import ExecutionConfig, LoggingConfig
+from crystallize.core.experiment import Experiment
+from crystallize.core.pipeline import Pipeline
 from crystallize.core.context import FrozenContext
 from scipy.stats import ttest_ind
 import random
@@ -58,19 +60,16 @@ def check_for_improvement(res):
 
 # 5. Build and run the experiment
 if __name__ == "__main__":
-    experiment = (
-        ExperimentBuilder()
-        .datasource(initial_data)
-        .pipeline([add_delta, add_random, compute_metrics])
-        .treatments([add_ten])
-        .hypotheses([check_for_improvement])
-        .replicates(20) # Run the experiment 20 times for statistical power
-        .parallel(True) # Run replicates in parallel
-        .verbose(True)
-        .log_level("DEBUG")
-        .build()
+    experiment = Experiment(
+        datasource=initial_data(),
+        pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
+        treatments=[add_ten()],
+        hypotheses=[check_for_improvement],
+        replicates=20,
+        execution_config=ExecutionConfig(parallel=True),
+        logging_config=LoggingConfig(verbose=True, log_level="DEBUG"),
     )
-
+    experiment.validate()
     result = experiment.run()
 
     # Print the results for our hypothesis

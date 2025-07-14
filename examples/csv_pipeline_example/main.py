@@ -3,7 +3,9 @@ from pathlib import Path
 from scipy.stats import ttest_ind
 
 from crystallize import hypothesis, verifier, treatment
-from crystallize.core.builder import ExperimentBuilder
+from crystallize.core.config import ExecutionConfig
+from crystallize.core.experiment import Experiment
+from crystallize.core.pipeline import Pipeline
 
 from .datasource import csv_data_source
 from .steps.metric import explained_variance
@@ -33,16 +35,17 @@ def hyp(result):
 
 def main() -> None:
     base_dir = Path(__file__).parent
-
-    experiment = (
-        ExperimentBuilder()
-        .datasource((csv_data_source, {"default_path": str(base_dir / "baseline.csv")}))
-        .pipeline([normalize, pca, explained_variance])
-        .treatments([better_data])
-        .hypotheses([hyp])
-        .replicates(10)
-        .build()
+    datasource = csv_data_source(default_path=str(base_dir / "baseline.csv"))
+    pipeline_obj = Pipeline([normalize(), pca(), explained_variance()])
+    experiment = Experiment(
+        datasource=datasource,
+        pipeline=pipeline_obj,
+        treatments=[better_data()],
+        hypotheses=[hyp],
+        replicates=10,
+        execution_config=ExecutionConfig(),
     )
+    experiment.validate()
     result = experiment.run()
     print(result.metrics["hypotheses"])
     print(result.provenance)

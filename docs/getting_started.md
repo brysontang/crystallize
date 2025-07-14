@@ -12,25 +12,27 @@ pip install crystallize-ml
 
 ```python
 from crystallize import (
-    ExperimentBuilder,
     data_source,
     hypothesis,
     pipeline_step,
-    verifier,
     treatment,
+    verifier,
 )
+from crystallize.core.config import ExecutionConfig, SeedConfig
 from crystallize.core.context import FrozenContext
+from crystallize.core.experiment import Experiment
+from crystallize.core.pipeline import Pipeline
 
 @data_source
-def dummy_data(ctx):
+def dummy_data(ctx: FrozenContext):
     return ctx.get('value', 0)
 
 @pipeline_step()
-def process(data, ctx):
+def process(data, ctx: FrozenContext):
     return data + 1
 
 @pipeline_step()
-def metrics(data, ctx):
+def metrics(data, ctx: FrozenContext):
     ctx.metrics.add("result", data)
     return {"result": data}
 
@@ -45,21 +47,18 @@ def ranker(res):
 
 treatment_example = treatment("add_one", {"value": 1})
 
-exp = (
-    ExperimentBuilder()
-    .datasource(dummy_data)
-    .pipeline([process, metrics])
-    .treatments([treatment_example])
-    .hypotheses([ranker()])
-    .replicates(5)
-    .seed(42)
-    # optionally customize seeding
-    # .seed_fn(my_seed_function)
-    .parallel(True)  # run replicates concurrently
-    .max_workers(4)
-    .executor_type("thread")  # use "process" for CPU heavy steps
-    .build()
+datasource = dummy_data()
+pipe = Pipeline([process(), metrics()])
+exp = Experiment(
+    datasource=datasource,
+    pipeline=pipe,
+    treatments=[treatment_example()],
+    hypotheses=[ranker],
+    replicates=5,
+    seed_config=SeedConfig(seed=42),
+    execution_config=ExecutionConfig(parallel=True, max_workers=4, executor_type="thread"),
 )
+exp.validate()
 result = exp.run()
 print(result.metrics)
 

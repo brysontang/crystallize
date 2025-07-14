@@ -40,14 +40,16 @@ Get a feel for Crystallize by defining a simple A/B test. In this example, we te
 ```python
 # main.py
 from crystallize import (
-    ExperimentBuilder,
     data_source,
     hypothesis,
     pipeline_step,
     treatment,
     verifier,
 )
+from crystallize.core.config import ExecutionConfig, SeedConfig
 from crystallize.core.context import FrozenContext
+from crystallize.core.experiment import Experiment
+from crystallize.core.pipeline import Pipeline
 from scipy.stats import ttest_ind
 import random
 
@@ -77,7 +79,7 @@ def compute_metrics(data, ctx: FrozenContext):
 # 3. Define the treatment (the change we are testing)
 add_ten = treatment(
     name="add_ten_treatment",
-    apply={"delta": 10.0} # This dict is added to the context
+    apply={"delta": 10.0}  # This dict is added to the context
 )
 
 # 4. Define the hypothesis to verify
@@ -96,17 +98,16 @@ def check_for_improvement(res):
 
 # 5. Build and run the experiment
 if __name__ == "__main__":
-    experiment = (
-        ExperimentBuilder()
-        .datasource(initial_data)
-        .pipeline([add_delta, add_random, compute_metrics])
-        .treatments([add_ten])
-        .hypotheses([check_for_improvement])
-        .replicates(20) # Run the experiment 20 times for statistical power
-        .parallel(True) # Run replicates in parallel
-        .build()
+    experiment = Experiment(
+        datasource=initial_data(),
+        pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
+        treatments=[add_ten()],
+        hypotheses=[check_for_improvement],
+        replicates=20,  # Run the experiment 20 times for statistical power
+        seed_config=SeedConfig(),
+        execution_config=ExecutionConfig(parallel=True),
     )
-
+    experiment.validate()
     result = experiment.run()
 
     # Print the results for our hypothesis
@@ -143,5 +144,5 @@ Crystallize is currently in a pre-alpha stage, as noted in the README.md. The co
 ## Next Steps
 
 Ready to dive in? Head over to the [Getting Started Tutorial](/tutorials/getting-started/) to build your first experiment.
-- Want to tweak configuration? See [How-to: Customizing Experiments](how-to/customizing-experiements/).
+- Want to tweak configuration? See [How-to: Customizing Experiments](how-to/customizing-experiments/).
 - Need to add statistical tests? See [How-to: Integrating Statistical Tests](how-to/integrate-stats/).

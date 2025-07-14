@@ -31,7 +31,7 @@ scaler = scale_data(factor=2.0)  # explicit instantiation
 steps = [partial(scale_data, factor=2.0), normalize]
 ```
 
-Either form works with `ExperimentBuilder.pipeline(steps)`.
+Either form works with `a Pipeline`.
 
 ## 2. Using the Immutable `ctx`
 
@@ -75,7 +75,7 @@ When the same input data and parameters are seen again, Crystallize loads the re
 Caching is useful for deterministic or long-running operations. Avoid it for highly stochastic steps where reuse would give misleading results.
 
 If your step generates random numbers, configure a reproducible seed on the
-`ExperimentBuilder` using `.seed(value)` or provide a custom `.seed_fn` to set
+`SeedConfig(seed=value) or provide a custom `seed_fn`
 library-specific RNGs. See
 [Tutorial: Basic Experiment](../tutorials/basic-experiment.md#step-4-assemble-and-run)
 for examples of seeding experiments.
@@ -84,26 +84,27 @@ for examples of seeding experiments.
 
 ```python
 from functools import partial
-from crystallize import ExperimentBuilder
+from crystallize.core.config import ExecutionConfig
+from crystallize.core.experiment import Experiment
+from crystallize.core.pipeline import Pipeline
 from crystallize.core.context import FrozenContext
 
 # Step definitions from above
-exp = (
-    ExperimentBuilder()
-    .datasource(lambda ctx: [1, 2, 3])
-    .pipeline([
-        partial(scale_data, factor=1.5),  # parameters via functools.partial
-        normalize,
-        compute_sum,
-    ])
-    .replicates(3)
-    .build()
+exp = Experiment(
+    datasource=lambda ctx: [1, 2, 3],
+    pipeline=Pipeline([
+        partial(scale_data, factor=1.5),
+        normalize(),
+        compute_sum(),
+    ]),
+    replicates=3,
+    execution_config=ExecutionConfig(),
 )
-
+exp.validate()
 result = exp.run()
 print(result.metrics.baseline.metrics)
-```
 
+```
 This small experiment scales and normalizes data, then records the sum metric for each replicate.
 
 ## Troubleshooting & FAQs

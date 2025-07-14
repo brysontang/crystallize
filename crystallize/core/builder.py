@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+from .config import ExecutionConfig, LoggingConfig, SeedConfig
 from .datasource import DataSource
 from .experiment import Experiment
 from .hypothesis import Hypothesis
@@ -18,7 +19,11 @@ StepInput = Union[
 
 
 class ExperimentBuilder:
-    """Fluent helper for constructing :class:`Experiment` instances."""
+    """Deprecated helper for constructing :class:`Experiment` instances.
+
+    Users should instantiate :class:`Experiment` directly. This builder will be
+    removed in a future version.
+    """
 
     def __init__(self) -> None:
         self._datasource: Optional[DataSource] = None
@@ -119,21 +124,27 @@ class ExperimentBuilder:
     def build(self) -> Experiment:
         normalized_steps = [self._instantiate(step) for step in self._pipeline_steps]
         pipeline_obj = Pipeline(normalized_steps)
+        exec_cfg = ExecutionConfig(
+            parallel=self._parallel,
+            max_workers=self._max_workers,
+            executor_type=self._executor_type,
+        )
+        seed_cfg = SeedConfig(
+            seed=self._seed,
+            auto_seed=self._auto_seed,
+            seed_fn=self._seed_fn,
+        )
+        log_cfg = LoggingConfig(verbose=self._verbose, log_level=self._log_level)
         exp = Experiment(
             datasource=self._datasource,
             pipeline=pipeline_obj,
             treatments=self._treatments,
             hypotheses=self._hypotheses,
             replicates=self._replicates,
-            parallel=self._parallel,
-            seed=self._seed,
-            auto_seed=self._auto_seed,
             progress=self._progress,
-            verbose=self._verbose,
-            log_level=self._log_level,
-            seed_fn=self._seed_fn,
-            max_workers=self._max_workers,
-            executor_type=self._executor_type,
+            seed_config=seed_cfg,
+            execution_config=exec_cfg,
+            logging_config=log_cfg,
         )
         exp.validate()
         return exp

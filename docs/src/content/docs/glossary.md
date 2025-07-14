@@ -27,11 +27,8 @@ def csv_source(ctx: FrozenContext, path: str) -> list:
 
 ## Experiment
 
-The core class orchestrating baseline and treatment runs across replicates, followed by hypothesis verification. Configurable via `ExperimentBuilder` for datasource, pipeline, treatments, hypotheses, replicates, and parallelism. Use `run()` for full execution or `apply()` for single-condition inference.
+The core class orchestrates baseline and treatment runs across replicates, followed by hypothesis verification. Configure it directly with your datasource, pipeline, treatments, hypotheses, replicates, and optional SeedConfig and ExecutionConfig objects. Use `run()` for full execution or `apply()` for single-condition inference.
 
-## ExperimentBuilder
-
-A fluent builder for constructing `Experiment` instances. Chain methods like `.datasource()`, `.pipeline()`, `.treatments()`, `.hypotheses()`, `.replicates()`, `.parallel()`, `.max_workers()`, and `.executor_type()`. Call `.build()` to create and validate the experiment.
 
 ## Exit Step
 
@@ -54,11 +51,9 @@ See _FrozenContext_.
 Key-value pairs collected during pipeline execution, stored in `FrozenContext.metrics`. Steps call `ctx.metrics.add()` to record values that hypotheses later verify. The last step may return any data type.
 
 ## Parallelism
-
-Optional concurrent execution of replicates using thread or process pools. Set `parallel=True`, `max_workers` (default: CPU count), and `executor_type` ("thread" for I/O-bound, "process" for CPU-bound). Configurable in `Experiment` or `ExperimentBuilder`.
+Optional concurrent execution of replicates using thread or process pools. Configure via `ExecutionConfig` with `parallel`, `max_workers` (default: CPU count), and `executor_type` ("thread" for I/O-bound, "process" for CPU-bound).
 
 ## Pipeline
-
 A sequence of `PipelineStep` objects for deterministic data transformations. Use `pipeline(*steps)` to build them. Metrics are added to the context during execution; returning them is optional.
 
 ## PipelineStep
@@ -95,5 +90,5 @@ A function in `Hypothesis` that compares baseline and treatment metrics, returni
 
 - For hands-on setup, see [Tutorials: Getting Started](getting_started.md).
 - To customize steps, refer to [How-to Guides: Add a Custom Step](how-to/custom-steps/).
-- For experiment configuration, see [How-to Guides: Customizing Experiments](how-to/customizing-experiements/).
+- For experiment configuration, see [How-to Guides: Customizing Experiments](how-to/customizing-experiments/).
 - Detailed API: [Reference: PipelineStep](reference-pipelinestep.md).

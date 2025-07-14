@@ -4,6 +4,7 @@ channels = ["conda-forge"]
 name = "crystallize-ml"
 platforms = ["osx-arm64", "linux-64"]
 version = "0.3.1"
+members = [".", "extras/crystallize-extras"]
 
 [tasks]
 test = "pytest -q"

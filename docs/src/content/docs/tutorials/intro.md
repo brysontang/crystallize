@@ -40,13 +40,13 @@ Here's a minimal experiment: Start with simple data, apply transformations with 
 
 ```python
 from crystallize import (
-    ExperimentBuilder,
     data_source,
     hypothesis,
     pipeline_step,
     treatment,
     verifier,
 )
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.context import FrozenContext
 from scipy.stats import ttest_ind
 import random
@@ -96,17 +96,15 @@ def check_for_improvement(res):
 
 # 5. Build and run the experiment
 if __name__ == "__main__":
-    experiment = (
-        ExperimentBuilder()
-        .datasource(initial_data)
-        .pipeline([add_delta, add_random, compute_metrics])
-        .treatments([add_ten])
-        .hypotheses([check_for_improvement])
-        .replicates(20) # Run the experiment 20 times for statistical power
-        .parallel(True) # Run replicates in parallel
-        .build()
+    experiment = Experiment(
+        datasource=initial_data(),
+        pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
+        treatments=[add_ten()],
+        hypotheses=[check_for_improvement],
+        replicates=20,  # Run 20 replicates for statistical power
+        plugins=[ParallelExecution()],
     )
-
+    experiment.validate()
     result = experiment.run()
 
     # Print the results for our hypothesis
@@ -191,19 +189,18 @@ Uses SciPy's t-test to check significance, ranking by p-value.
 
 ### Step 5: Build and Run
 
-Assemble with the builder.
+Assemble the experiment directly.
 
 ```python
-experiment = (
-    ExperimentBuilder()
-    .datasource(initial_data)
-    .pipeline([add_delta, add_random, compute_metrics])
-    .treatments([add_ten])
-    .hypotheses([check_for_improvement])
-    .replicates(20)
-    .parallel(True)
-    .build()
+experiment = Experiment(
+    datasource=initial_data(),
+    pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
+    treatments=[add_ten()],
+    hypotheses=[check_for_improvement],
+    replicates=20,
+    plugins=[ParallelExecution()],
 )
+experiment.validate()
 result = experiment.run()
 hyp_result = result.get_hypothesis("check_for_improvement")
 print(hyp_result.results)

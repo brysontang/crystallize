@@ -12,6 +12,8 @@ from .core import (
     verifier,
     treatment,
 )
+from .core.plugins import BasePlugin, LoggingPlugin, SeedPlugin
+from .core.execution import SerialExecution, ParallelExecution
 
 __all__ = [
     "pipeline_step",
@@ -22,4 +24,9 @@ __all__ = [
     "pipeline",
     "ExperimentBuilder",
     "StepInput",
+    "BasePlugin",
+    "SerialExecution",
+    "ParallelExecution",
+    "SeedPlugin",
+    "LoggingPlugin",
 ]

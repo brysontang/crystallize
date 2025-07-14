@@ -18,7 +18,8 @@ from crystallize import (
     treatment,
     verifier,
 )
-from crystallize.core.config import ExecutionConfig, SeedConfig
+from crystallize.core.plugins import SeedPlugin
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.context import FrozenContext
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
@@ -55,8 +56,7 @@ exp = Experiment(
     treatments=[treatment_example()],
     hypotheses=[ranker],
     replicates=5,
-    seed_config=SeedConfig(seed=42),
-    execution_config=ExecutionConfig(parallel=True, max_workers=4, executor_type="thread"),
+    plugins=[SeedPlugin(seed=42), ParallelExecution(max_workers=4)],
 )
 exp.validate()
 result = exp.run()

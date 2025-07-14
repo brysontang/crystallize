@@ -1,12 +1,13 @@
 import random
 import time
+import threading
 from typing import List
 
 import numpy as np
 import pytest
 
-import crystallize.core.experiment as experiment
-from crystallize.core.config import ExecutionConfig, SeedConfig
+from crystallize.core.execution import ParallelExecution
+from crystallize.core.plugins import SeedPlugin
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.experiment import Experiment
@@ -317,7 +318,7 @@ def test_parallel_execution_matches_serial():
         treatments=[treatment],
         hypotheses=[hypothesis],
         replicates=2,
-        execution_config=ExecutionConfig(parallel=True),
+        plugins=[ParallelExecution()],
     )
     parallel_exp.validate()
     parallel_result = parallel_exp.run()
@@ -356,7 +357,7 @@ def test_parallel_execution_handles_errors():
         pipeline=pipeline,
         treatments=[treatment],
         replicates=2,
-        execution_config=ExecutionConfig(parallel=True),
+        plugins=[ParallelExecution()],
     )
     parallel.validate()
     parallel_res = parallel.run()
@@ -391,7 +392,7 @@ def test_parallel_is_faster_for_sleep_step():
         datasource=ds,
         pipeline=pipeline,
         replicates=5,
-        execution_config=ExecutionConfig(parallel=True),
+        plugins=[ParallelExecution()],
     )
     exp_parallel.validate()
     start = time.time()
@@ -408,7 +409,7 @@ def test_parallel_high_replicate_count():
         datasource=ds,
         pipeline=pipeline,
         replicates=10,
-        execution_config=ExecutionConfig(parallel=True),
+        plugins=[ParallelExecution()],
     )
     exp.validate()
     result = exp.run()
@@ -442,7 +443,7 @@ def test_process_executor_faster_for_cpu_bound_step():
         datasource=ds,
         pipeline=pipeline,
         replicates=4,
-        execution_config=ExecutionConfig(parallel=True, executor_type="thread"),
+        plugins=[ParallelExecution(executor_type="thread")],
     )
     exp_thread.validate()
     start = time.time()
@@ -453,7 +454,7 @@ def test_process_executor_faster_for_cpu_bound_step():
         datasource=ds,
         pipeline=pipeline,
         replicates=4,
-        execution_config=ExecutionConfig(parallel=True, executor_type="process"),
+        plugins=[ParallelExecution(executor_type="process")],
     )
     exp_process.validate()
     start = time.time()
@@ -464,8 +465,16 @@ def test_process_executor_faster_for_cpu_bound_step():
 
 
 def test_invalid_executor_type_raises():
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        plugins=[ParallelExecution(executor_type="bogus")],
+    )
+    exp.validate()
     with pytest.raises(ValueError):
-        Experiment(execution_config=ExecutionConfig(executor_type="bogus"))
+        exp.run()
 
 
 @pytest.mark.parametrize("replicates", [1, 5, 10])
@@ -566,13 +575,23 @@ def test_process_pool_respects_max_workers(monkeypatch):
 
         def submit(self, fn, rep):
             class F:
+                def __init__(self_inner) -> None:
+                    self_inner._condition = threading.Condition()
+                    self_inner._state = "FINISHED"
+                    self_inner._waiters = []
+
                 def result(self_inner):
                     return fn(rep)
 
+                def done(self_inner):  # pragma: no cover - minimal future API
+                    return True
+
             return F()
 
-    monkeypatch.setattr(experiment, "ProcessPoolExecutor", DummyExecutor)
-    monkeypatch.setattr(experiment.os, "cpu_count", lambda: 4)
+    from crystallize.core import execution
+
+    monkeypatch.setattr(execution, "ProcessPoolExecutor", DummyExecutor)
+    monkeypatch.setattr(execution.os, "cpu_count", lambda: 4)
 
     pipeline = Pipeline([PassStep()])
     ds = DummyDataSource()
@@ -580,11 +599,7 @@ def test_process_pool_respects_max_workers(monkeypatch):
         datasource=ds,
         pipeline=pipeline,
         replicates=5,
-        execution_config=ExecutionConfig(
-            parallel=True,
-            executor_type="process",
-            max_workers=2,
-        ),
+        plugins=[ParallelExecution(executor_type="process", max_workers=2)],
     )
     exp.validate()
     exp.run()
@@ -604,11 +619,12 @@ def test_ctx_mutation_error_parallel_and_serial(parallel):
 
     pipeline = Pipeline([MutateStep()])
     ds = DummyDataSource()
+    plugins = [ParallelExecution()] if parallel else []
     exp = Experiment(
         datasource=ds,
         pipeline=pipeline,
         replicates=2,
-        execution_config=ExecutionConfig(parallel=parallel),
+        plugins=plugins,
     )
     exp.validate()
     result = exp.run()
@@ -690,10 +706,7 @@ def test_high_replicates_parallel_no_issues():
         datasource=ds,
         pipeline=pipeline,
         replicates=50,
-        execution_config=ExecutionConfig(
-            parallel=True,
-            executor_type="thread",
-        ),
+        plugins=[ParallelExecution(executor_type="thread")],
     )
     exp.validate()
     result = exp.run()
@@ -730,7 +743,7 @@ def test_auto_seed_reproducible_serial_vs_parallel():
         datasource=ds,
         pipeline=pipeline,
         replicates=3,
-        seed_config=SeedConfig(seed=123, auto_seed=True, seed_fn=numpy_seed_fn),
+        plugins=[SeedPlugin(seed=123, auto_seed=True, seed_fn=numpy_seed_fn)],
     )
     serial.validate()
     res_serial = serial.run()
@@ -739,8 +752,10 @@ def test_auto_seed_reproducible_serial_vs_parallel():
         datasource=ds,
         pipeline=pipeline,
         replicates=3,
-        seed_config=SeedConfig(seed=123, auto_seed=True, seed_fn=numpy_seed_fn),
-        execution_config=ExecutionConfig(parallel=True),
+        plugins=[
+            SeedPlugin(seed=123, auto_seed=True, seed_fn=numpy_seed_fn),
+            ParallelExecution(),
+        ],
     )
     parallel.validate()
     res_parallel = parallel.run()
@@ -763,7 +778,7 @@ def test_custom_seed_function_called():
         datasource=ds,
         pipeline=pipeline,
         replicates=1,
-        seed_config=SeedConfig(seed=7, seed_fn=record_seed, auto_seed=True),
+        plugins=[SeedPlugin(seed=7, seed_fn=record_seed, auto_seed=True)],
     )
     exp.validate()
     exp.run()
@@ -781,7 +796,7 @@ def test_apply_seed_function_called():
     exp = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        seed_config=SeedConfig(seed_fn=record_seed),
+        plugins=[SeedPlugin(seed_fn=record_seed)],
     )
     exp.validate()
     exp.apply(data=1, seed=5)

@@ -74,9 +74,9 @@ When the same input data and parameters are seen again, Crystallize loads the re
 
 Caching is useful for deterministic or long-running operations. Avoid it for highly stochastic steps where reuse would give misleading results.
 
-If your step generates random numbers, configure a reproducible seed on the
-`SeedConfig(seed=value) or provide a custom `seed_fn`
-library-specific RNGs. See
+If your step generates random numbers, configure a reproducible seed using
+`SeedPlugin(seed=value)` or provide a custom `seed_fn`
+for library-specific RNGs. See
 [Tutorial: Basic Experiment](../tutorials/basic-experiment.md#step-4-assemble-and-run)
 for examples of seeding experiments.
 
@@ -84,7 +84,7 @@ for examples of seeding experiments.
 
 ```python
 from functools import partial
-from crystallize.core.config import ExecutionConfig
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.context import FrozenContext
@@ -98,7 +98,7 @@ exp = Experiment(
         compute_sum(),
     ]),
     replicates=3,
-    execution_config=ExecutionConfig(),
+    plugins=[ParallelExecution()],
 )
 exp.validate()
 result = exp.run()

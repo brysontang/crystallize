@@ -6,6 +6,7 @@ from .result_structs import ExperimentMetrics, HypothesisResult
 
 
 class Result:
+    """Outputs of an experiment run including metrics and provenance."""
     def __init__(
         self,
         metrics: ExperimentMetrics,
@@ -19,10 +20,12 @@ class Result:
         self.provenance = provenance or {}
 
     def get_artifact(self, name: str) -> Any:
+        """Return an artifact by name if it was recorded."""
         return self.artifacts.get(name)
 
     # Convenience
     def get_hypothesis(self, name: str) -> Optional[HypothesisResult]:
+        """Return the :class:`HypothesisResult` with ``name`` if present."""
         return next(
             (h for h in self.metrics.hypotheses if h.name == name),
             None,

@@ -35,6 +35,10 @@ A `Hypothesis` represents a quantifiable claim about your experiment's outcome. 
 
 For details on writing hypotheses and integrating statistical tests, check the [Verifying Hypotheses tutorial](../tutorials/hypotheses.md) and [Integrating Statistical Tests](../how-to/integrate-stats.md).
 
+## Optimizer
+
+An optimizer drives an iterative search over treatments. It implements an `ask`/`tell` interface that the `Experiment.optimize()` method calls each trial. Optimizers remain unopinionated in the core library so you can plug in grid search, Bayesian algorithms, or any strategy you like.
+
 ## Plugin Architecture
 
 Plugins extend Crystallize without subclassing the core classes. They hook into the experiment lifecycle—initialization, before and after each replicate, after each step, and at completion. Built-in plugins handle tasks such as seeding random number generators, running steps in parallel, and saving artifacts, but you can create your own to add logging or custom execution logic.

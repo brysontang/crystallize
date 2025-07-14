@@ -43,7 +43,14 @@ class PipelineStep(ABC):
 
 
 def exit_step(item: Union[PipelineStep, Callable[..., PipelineStep], Tuple[Callable[..., PipelineStep], Dict[str, Any]]]) -> Union[PipelineStep, Callable[..., PipelineStep]]:
-    """Mark a :class:`PipelineStep` as an exit point. Handles instances, factories, or parameterized tuples."""
+    """Mark a :class:`PipelineStep` as the final step of a pipeline.
+
+    This helper accepts an already constructed step, a factory callable or a
+    ``(factory, params)`` tuple as produced by :func:`pipeline_step`.  The
+    returned object behaves identically to the input but is annotated with the
+    ``is_exit_step`` attribute so that :meth:`Experiment.apply` knows when to
+    stop execution.
+    """
     if isinstance(item, PipelineStep):
         setattr(item, "is_exit_step", True)
         return item

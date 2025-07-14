@@ -4,7 +4,7 @@ from crystallize.core.exceptions import MissingMetricError
 
 
 class Hypothesis:
-    """A quantifiable assertion to verify after experiment execution."""
+    """Encapsulate a statistical test to compare baseline and treatment results."""
 
     def __init__(
         self,
@@ -30,6 +30,16 @@ class Hypothesis:
         baseline_metrics: Mapping[str, Sequence[Any]],
         treatment_metrics: Mapping[str, Sequence[Any]],
     ) -> Any:
+        """Evaluate the hypothesis using selected metric groups.
+
+        Args:
+            baseline_metrics: Aggregated metrics from baseline runs.
+            treatment_metrics: Aggregated metrics from a treatment.
+
+        Returns:
+            The output of the ``verifier`` callable. When multiple metric groups
+            are specified the result is a list of outputs in the same order.
+        """
         def subset(keys: Sequence[str]) -> tuple[Dict[str, Sequence[Any]], Dict[str, Sequence[Any]]]:
             b: Dict[str, Sequence[Any]] = {}
             t: Dict[str, Sequence[Any]] = {}
@@ -59,6 +69,7 @@ class Hypothesis:
         return outputs[0] if len(outputs) == 1 else outputs
 
     def rank_treatments(self, verifier_results: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Rank treatments using the ``ranker`` score function."""
         scores = {name: self.ranker(res) for name, res in verifier_results.items()}
         ranked = sorted(scores.items(), key=lambda x: x[1])
         best = ranked[0][0] if ranked else None

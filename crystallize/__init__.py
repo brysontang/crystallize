@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from .core import (
-    ExperimentBuilder,
-    StepInput,
     data_source,
     hypothesis,
     pipeline,
@@ -22,8 +20,6 @@ __all__ = [
     "data_source",
     "verifier",
     "pipeline",
-    "ExperimentBuilder",
-    "StepInput",
     "BasePlugin",
     "SerialExecution",
     "ParallelExecution",

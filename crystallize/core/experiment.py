@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import warnings
 from collections import defaultdict
 from typing import (
     Any,
-    Callable,
     DefaultDict,
     Dict,
     List,
@@ -78,105 +76,6 @@ class Experiment:
 
     # ------------------------------------------------------------------ #
 
-    def with_datasource(self, datasource: DataSource) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.datasource = datasource
-        return self
-
-    def with_pipeline(self, pipeline: Pipeline) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.pipeline = pipeline
-        return self
-
-    def with_treatments(self, treatments: List[Treatment]) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.treatments = treatments
-        return self
-
-    def with_hypotheses(self, hypotheses: List[Hypothesis]) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.hypotheses = hypotheses
-        return self
-
-    def with_replicates(self, replicates: int) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.replicates = max(1, replicates)
-        return self
-
-    def with_parallel(self, parallel: bool) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.parallel = parallel
-        return self
-
-    def with_max_workers(self, max_workers: Optional[int]) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.max_workers = max_workers
-        return self
-
-    def with_seed(self, seed: Optional[int]) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self
-
-    def with_auto_seed(self, auto_seed: bool) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self
-
-    def with_seed_fn(self, seed_fn: Callable[[int], None]) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self
-
-    def with_executor_type(self, executor_type: str) -> "Experiment":
-        warnings.warn(
-            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if executor_type not in VALID_EXECUTOR_TYPES:
-            raise ValueError(
-                f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{executor_type}'"
-            )
-        self.executor_type = executor_type
-        return self
 
     def validate(self) -> None:
         if self.datasource is None or self.pipeline is None:

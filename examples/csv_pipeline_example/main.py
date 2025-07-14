@@ -43,7 +43,7 @@ def main() -> None:
         treatments=[better_data()],
         hypotheses=[hyp],
         replicates=10,
-        execution_config=ExecutionConfig(),
+        plugins=[ExecutionConfig()],
     )
     experiment.validate()
     result = experiment.run()

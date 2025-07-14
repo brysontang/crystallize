@@ -66,8 +66,10 @@ if __name__ == "__main__":
         treatments=[add_ten()],
         hypotheses=[check_for_improvement],
         replicates=20,
-        execution_config=ExecutionConfig(parallel=True),
-        logging_config=LoggingConfig(verbose=True, log_level="DEBUG"),
+        plugins=[
+            ExecutionConfig(parallel=True),
+            LoggingConfig(verbose=True, log_level="DEBUG"),
+        ],
     )
     experiment.validate()
     result = experiment.run()

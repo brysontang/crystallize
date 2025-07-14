@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import importlib
 import logging
+import warnings
 import os
-import time
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from typing import (
@@ -18,7 +18,7 @@ from typing import (
     Tuple,
 )
 
-from crystallize.core.config import ExecutionConfig, LoggingConfig, SeedConfig
+from crystallize.core.plugins import BasePlugin
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.hypothesis import Hypothesis
@@ -58,77 +58,134 @@ class Experiment:
         hypotheses: Optional[List[Hypothesis]] = None,
         replicates: int = 1,
         *,
-        progress: bool = False,
-        seed_config: Optional[SeedConfig] = None,
-        execution_config: Optional[ExecutionConfig] = None,
-        logging_config: Optional[LoggingConfig] = None,
+        plugins: Optional[List[BasePlugin]] = None,
     ) -> None:
         self.datasource = datasource
         self.pipeline = pipeline
         self.treatments = treatments or []
         self.hypotheses = hypotheses or []
         self.replicates = max(1, replicates)
-        seed_cfg = seed_config or SeedConfig()
-        exec_cfg = execution_config or ExecutionConfig()
-        log_cfg = logging_config or LoggingConfig()
-        self.progress = progress
-        self.parallel = exec_cfg.parallel
-        self.seed = seed_cfg.seed
-        self.auto_seed = seed_cfg.auto_seed
-        self.verbose = log_cfg.verbose
-        self.log_level = log_cfg.log_level
-        self.seed_fn = seed_cfg.seed_fn or default_seed_function
-        self.max_workers = exec_cfg.max_workers
-        if exec_cfg.executor_type not in VALID_EXECUTOR_TYPES:
+
+        # Default attributes overridden by plugins
+        self.progress = False
+        self.parallel = False
+        self.max_workers: Optional[int] = None
+        self.executor_type = "thread"
+        self.seed: Optional[int] = None
+        self.auto_seed = True
+        self.seed_fn: Callable[[int], None] | None = default_seed_function
+        self.verbose = False
+        self.log_level = "INFO"
+
+        self.plugins = plugins or []
+        for plugin in self.plugins:
+            plugin.init_hook(self)
+
+        if self.executor_type not in VALID_EXECUTOR_TYPES:
             raise ValueError(
-                f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{exec_cfg.executor_type}'"
+                f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{self.executor_type}'"
             )
-        self.executor_type = exec_cfg.executor_type
+
         self._validated = False
 
     # ------------------------------------------------------------------ #
 
     def with_datasource(self, datasource: DataSource) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.datasource = datasource
         return self
 
     def with_pipeline(self, pipeline: Pipeline) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.pipeline = pipeline
         return self
 
     def with_treatments(self, treatments: List[Treatment]) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.treatments = treatments
         return self
 
     def with_hypotheses(self, hypotheses: List[Hypothesis]) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.hypotheses = hypotheses
         return self
 
     def with_replicates(self, replicates: int) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.replicates = max(1, replicates)
         return self
 
     def with_parallel(self, parallel: bool) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.parallel = parallel
         return self
 
     def with_max_workers(self, max_workers: Optional[int]) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.max_workers = max_workers
         return self
 
     def with_seed(self, seed: Optional[int]) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.seed = seed
         return self
 
     def with_auto_seed(self, auto_seed: bool) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.auto_seed = auto_seed
         return self
 
     def with_seed_fn(self, seed_fn: Callable[[int], None]) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.seed_fn = seed_fn
         return self
 
     def with_executor_type(self, executor_type: str) -> "Experiment":
+        warnings.warn(
+            "The builder pattern is deprecated. Use plugins or direct configuration instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if executor_type not in VALID_EXECUTOR_TYPES:
             raise ValueError(
                 f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{executor_type}'"
@@ -159,12 +216,10 @@ class Experiment:
         if treatment:
             treatment.apply(run_ctx)
 
-        local_seed: Optional[int] = None
-        if self.auto_seed:
-            local_seed = hash((self.seed or 0) + run_ctx.get("replicate", 0))
-            if self.seed_fn is not None:
-                self.seed_fn(local_seed)
-            run_ctx.add("seed_used", local_seed)
+        for plugin in self.plugins:
+            plugin.before_replicate(self, run_ctx)
+
+        local_seed: Optional[int] = run_ctx.get("seed_used")
 
         data = self.datasource.fetch(run_ctx)
         logger = logging.getLogger("crystallize")
@@ -183,6 +238,7 @@ class Experiment:
             condition=run_ctx.get("condition"),
             logger=logger,
             return_provenance=True,
+            experiment=self,
         )
         return run_ctx.metrics.as_dict(), local_seed, prov
 
@@ -192,21 +248,8 @@ class Experiment:
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
 
-        logging.basicConfig(
-            level=getattr(logging, self.log_level.upper(), logging.INFO)
-        )
-        logger = logging.getLogger("crystallize")
-        logger.info(
-            "Experiment: %d replicates, %d treatments, %d hypotheses (seed=%s, parallel=%s/%s workers)",
-            self.replicates,
-            len(self.treatments),
-            len(self.hypotheses),
-            self.seed,
-            self.executor_type,
-            self.max_workers or "auto",
-        )
-        if self.auto_seed and self.seed_fn is None:
-            logger.warning("No seed_fn provided—randomness may not be reproducible")
+        for plugin in self.plugins:
+            plugin.before_run(self)
 
         baseline_samples: List[Mapping[str, Any]] = []
         treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
@@ -221,7 +264,6 @@ class Experiment:
         )
 
         errors: Dict[str, Exception] = {}
-        start_time = time.perf_counter()
 
         # ---------- replicate execution -------------------------------- #
         def _execute_replicate(rep: int) -> Tuple[
@@ -412,21 +454,12 @@ class Experiment:
             "ctx_changes": {k: v for k, v in provenance_runs.items()},
         }
 
-        duration = time.perf_counter() - start_time
-        bests = [
-            f"{h.name}: '{h.ranking.get('best')}'"
-            for h in hypothesis_results
-            if h.ranking.get("best") is not None
-        ]
-        best_summary = "; Best " + ", ".join(bests) if bests else ""
-        logger.info(
-            "Completed in %.1fs%s; %d errors",
-            duration,
-            best_summary,
-            len(errors),
-        )
+        result = Result(metrics=metrics, errors=errors, provenance=provenance)
 
-        return Result(metrics=metrics, errors=errors, provenance=provenance)
+        for plugin in self.plugins:
+            plugin.after_run(self, result)
+
+        return result
 
     # ------------------------------------------------------------------ #
     def apply(

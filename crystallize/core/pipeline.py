@@ -1,6 +1,9 @@
 import logging
 from types import MappingProxyType
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from crystallize.core.experiment import Experiment
 
 from crystallize.core.cache import compute_hash, load_cache, store_cache
 from crystallize.core.context import FrozenContext, LoggingContext
@@ -29,6 +32,7 @@ class Pipeline:
         condition: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
         return_provenance: bool = False,
+        experiment: Optional["Experiment"] = None,
     ) -> Any | Tuple[Any, List[Mapping[str, Any]]]:
         """
         Execute the pipeline in order.
@@ -81,6 +85,10 @@ class Pipeline:
                 except Exception as exc:
                     raise PipelineExecutionError(step.__class__.__name__, exc) from exc
                 cache_hit = False
+
+            if experiment is not None:
+                for plugin in experiment.plugins:
+                    plugin.after_step(experiment, step, data, ctx)
             if cache_hit and i == len(self.steps) - 1 and isinstance(data, Mapping):
                 for key, value in data.items():
                     ctx.metrics.add(key, value)

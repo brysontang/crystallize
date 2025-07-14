@@ -124,28 +124,26 @@ class ExperimentBuilder:
     def build(self) -> Experiment:
         normalized_steps = [self._instantiate(step) for step in self._pipeline_steps]
         pipeline_obj = Pipeline(normalized_steps)
-        exec_cfg = ExecutionConfig(
+        exec_plug = ExecutionConfig(
             parallel=self._parallel,
             max_workers=self._max_workers,
             executor_type=self._executor_type,
         )
-        seed_cfg = SeedConfig(
+        seed_plug = SeedConfig(
             seed=self._seed,
             auto_seed=self._auto_seed,
             seed_fn=self._seed_fn,
         )
-        log_cfg = LoggingConfig(verbose=self._verbose, log_level=self._log_level)
+        log_plug = LoggingConfig(verbose=self._verbose, log_level=self._log_level)
         exp = Experiment(
             datasource=self._datasource,
             pipeline=pipeline_obj,
             treatments=self._treatments,
             hypotheses=self._hypotheses,
             replicates=self._replicates,
-            progress=self._progress,
-            seed_config=seed_cfg,
-            execution_config=exec_cfg,
-            logging_config=log_cfg,
+            plugins=[exec_plug, seed_plug, log_plug],
         )
+        exp.progress = self._progress
         exp.validate()
         return exp
 

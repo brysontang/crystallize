@@ -12,6 +12,7 @@ from .core import (
     verifier,
     treatment,
 )
+from .core.plugins import BasePlugin, ExecutionPlugin, LoggingPlugin, SeedPlugin
 
 __all__ = [
     "pipeline_step",
@@ -22,4 +23,8 @@ __all__ = [
     "pipeline",
     "ExperimentBuilder",
     "StepInput",
+    "BasePlugin",
+    "ExecutionPlugin",
+    "SeedPlugin",
+    "LoggingPlugin",
 ]

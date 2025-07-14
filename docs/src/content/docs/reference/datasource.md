@@ -13,9 +13,7 @@ title: Datasource
 ---
 
 ## <kbd>class</kbd> `DataSource`
-
-
-
+Abstract provider of input data for an experiment. 
 
 
 
@@ -28,18 +26,19 @@ title: Datasource
 fetch(ctx: crystallize.core.context.FrozenContext) → Any
 ```
 
-Fetch or generate data. 
+Return raw data for a single pipeline run. 
+
+Implementations may load data from disk, generate synthetic samples or access remote sources.  They should be deterministic with respect to the provided context. 
 
 
 
 **Args:**
  
- - <b>`ctx`</b> (FrozenContext):  Immutable execution context. 
+ - <b>`ctx`</b>:  Immutable execution context for the current run. 
 
 
 
 **Returns:**
- 
- - <b>`Any`</b>:  The data produced by this DataSource. 
+ The produced data object. 
 
 

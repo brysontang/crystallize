@@ -16,7 +16,7 @@ title: Pipeline
 ---
 
 ## <kbd>class</kbd> `Pipeline`
-Linear sequence of :class:`PipelineStep` objects. 
+Linear sequence of :class:`PipelineStep` objects forming an experiment workflow. 
 
 ### <kbd>method</kbd> `Pipeline.__init__`
 
@@ -59,19 +59,21 @@ run(
 ) → Union[Any, Tuple[Any, List[Mapping[str, Any]]]]
 ```
 
-Execute the pipeline in order. 
+Run the sequence of steps on ``data`` using ``ctx``. 
+
+Steps may read from or write to the context and record metrics. When a step is marked as cacheable its outputs are stored on disk keyed by its input hash and parameters.  Subsequent runs will reuse cached results if available. 
 
 
 
 **Args:**
  
- - <b>`data`</b>:  Raw data from a DataSource. 
- - <b>`ctx`</b>:   Immutable execution context. 
+ - <b>`data`</b>:  Raw input from a :class:`DataSource`. 
+ - <b>`ctx`</b>:  Immutable execution context shared across steps. 
 
 
 
 **Returns:**
- If ``return_provenance`` is ``False`` (default), returns the output from the last step. Otherwise returns a tuple ``(output, provenance)`` where ``provenance`` is a list of step records. 
+ Either the pipeline output or ``(output, provenance)`` when ``return_provenance`` is ``True``. The provenance list contains a record per step detailing cache hits and context mutations. 
 
 ---
 

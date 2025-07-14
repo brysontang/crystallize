@@ -26,7 +26,9 @@ Set deterministic seeds for common libraries if available.
 ---
 
 ## <kbd>class</kbd> `BasePlugin`
-Abstract base class for creating plugins that hook into the Experiment lifecycle. 
+Interface for extending the :class:`~crystallize.core.experiment.Experiment` lifecycle. 
+
+Subclasses can override any of the hook methods to observe or modify the behaviour of an experiment.  Hooks are called in a well-defined order during :meth:`Experiment.run` allowing plugins to coordinate tasks such as seeding, logging, artifact storage or custom execution strategies. 
 
 
 
@@ -39,7 +41,7 @@ Abstract base class for creating plugins that hook into the Experiment lifecycle
 after_run(experiment: 'Experiment', result: 'Result') → None
 ```
 
-Called at the end of ``Experiment.run()`` after the ``Result`` object is created. 
+Execute cleanup or reporting after :meth:`Experiment.run` completes. 
 
 ---
 
@@ -54,7 +56,7 @@ after_step(
 ) → None
 ```
 
-Called after each ``PipelineStep`` is executed. 
+Observe results after every :class:`PipelineStep` execution. 
 
 ---
 
@@ -64,7 +66,7 @@ Called after each ``PipelineStep`` is executed.
 before_replicate(experiment: 'Experiment', ctx: 'FrozenContext') → None
 ```
 
-Called before each replicate's pipeline is executed. 
+Run prior to each pipeline execution for a replicate. 
 
 ---
 
@@ -74,7 +76,7 @@ Called before each replicate's pipeline is executed.
 before_run(experiment: 'Experiment') → None
 ```
 
-Called at the beginning of ``Experiment.run()``, before any replicates start. 
+Execute logic before :meth:`Experiment.run` begins. 
 
 ---
 
@@ -84,7 +86,7 @@ Called at the beginning of ``Experiment.run()``, before any replicates start.
 init_hook(experiment: 'Experiment') → None
 ```
 
-Called during ``Experiment.__init__`` to configure the experiment instance. 
+Configure the experiment instance during initialization. 
 
 ---
 
@@ -97,13 +99,15 @@ run_experiment_loop(
 ) → List[Any]
 ```
 
-Run replicates and return results or ``NotImplemented``. 
+Run all replicates and return their results. 
+
+Returning ``NotImplemented`` signals that the plugin does not provide a custom execution strategy and the default should be used instead. 
 
 
 ---
 
 ## <kbd>class</kbd> `SeedPlugin`
-Plugin handling deterministic seeding. 
+Manage deterministic seeding for all random operations. 
 
 ### <kbd>method</kbd> `SeedPlugin.__init__`
 
@@ -130,7 +134,7 @@ __init__(
 after_run(experiment: 'Experiment', result: 'Result') → None
 ```
 
-Called at the end of ``Experiment.run()`` after the ``Result`` object is created. 
+Execute cleanup or reporting after :meth:`Experiment.run` completes. 
 
 ---
 
@@ -145,7 +149,7 @@ after_step(
 ) → None
 ```
 
-Called after each ``PipelineStep`` is executed. 
+Observe results after every :class:`PipelineStep` execution. 
 
 ---
 
@@ -167,7 +171,7 @@ before_replicate(experiment: 'Experiment', ctx: 'FrozenContext') → None
 before_run(experiment: 'Experiment') → None
 ```
 
-Called at the beginning of ``Experiment.run()``, before any replicates start. 
+Execute logic before :meth:`Experiment.run` begins. 
 
 ---
 
@@ -192,13 +196,15 @@ run_experiment_loop(
 ) → List[Any]
 ```
 
-Run replicates and return results or ``NotImplemented``. 
+Run all replicates and return their results. 
+
+Returning ``NotImplemented`` signals that the plugin does not provide a custom execution strategy and the default should be used instead. 
 
 
 ---
 
 ## <kbd>class</kbd> `LoggingPlugin`
-Plugin configuring logging verbosity and output. 
+Configure logging verbosity and experiment progress reporting. 
 
 ### <kbd>method</kbd> `LoggingPlugin.__init__`
 
@@ -250,7 +256,7 @@ after_step(
 before_replicate(experiment: 'Experiment', ctx: 'FrozenContext') → None
 ```
 
-Called before each replicate's pipeline is executed. 
+Run prior to each pipeline execution for a replicate. 
 
 ---
 
@@ -287,13 +293,15 @@ run_experiment_loop(
 ) → List[Any]
 ```
 
-Run replicates and return results or ``NotImplemented``. 
+Run all replicates and return their results. 
+
+Returning ``NotImplemented`` signals that the plugin does not provide a custom execution strategy and the default should be used instead. 
 
 
 ---
 
 ## <kbd>class</kbd> `ArtifactPlugin`
-Plugin that saves artifacts logged during pipeline execution. 
+Persist artifacts produced during pipeline execution. 
 
 ### <kbd>method</kbd> `ArtifactPlugin.__init__`
 
@@ -319,7 +327,7 @@ __init__(
 after_run(experiment: 'Experiment', result: 'Result') → None
 ```
 
-Called at the end of ``Experiment.run()`` after the ``Result`` object is created. 
+Execute cleanup or reporting after :meth:`Experiment.run` completes. 
 
 ---
 
@@ -334,9 +342,7 @@ after_step(
 ) → None
 ```
 
-
-
-
+Write any artifacts logged in ``ctx.artifacts`` to disk. 
 
 ---
 
@@ -346,7 +352,7 @@ after_step(
 before_replicate(experiment: 'Experiment', ctx: 'FrozenContext') → None
 ```
 
-Called before each replicate's pipeline is executed. 
+Run prior to each pipeline execution for a replicate. 
 
 ---
 
@@ -368,7 +374,7 @@ before_run(experiment: 'Experiment') → None
 init_hook(experiment: 'Experiment') → None
 ```
 
-Called during ``Experiment.__init__`` to configure the experiment instance. 
+Configure the experiment instance during initialization. 
 
 ---
 
@@ -381,6 +387,8 @@ run_experiment_loop(
 ) → List[Any]
 ```
 
-Run replicates and return results or ``NotImplemented``. 
+Run all replicates and return their results. 
+
+Returning ``NotImplemented`` signals that the plugin does not provide a custom execution strategy and the default should be used instead. 
 
 

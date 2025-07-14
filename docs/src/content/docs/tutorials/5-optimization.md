@@ -70,8 +70,8 @@ def initial_data(ctx):
     return [1, 2, 3]
 
 @pipeline_step()
-def add_delta(data, ctx):
-    return [x + ctx.get("delta", 0) for x in data]
+def add_delta(data: list, ctx, *, delta: int = 0) -> list:
+    return [x + delta for x in data]
 
 @pipeline_step()
 def record_sum(data, ctx):

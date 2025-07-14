@@ -19,7 +19,7 @@ You can explore a simple implementation in the [getting started tutorial](../tut
 
 ## Pipeline & PipelineStep
 
-A `Pipeline` is an ordered list of `PipelineStep` objects. Each step performs a deterministic transformation on data, returning the new value for the next step. Steps receive a frozen execution context and can record metrics. Because steps are deterministic, Crystallize automatically caches their outputs by content hash to ensure reproducible reruns.
+A `Pipeline` is an ordered list of `PipelineStep` objects. Each step performs a deterministic transformation on data, returning the new value for the next step. Steps receive a frozen execution context and can record metrics. `PipelineStep` functions also support **automatic parameter injection** from the context for a clean and readable signature. Because steps are deterministic, Crystallize automatically caches their outputs by content hash to ensure reproducible reruns.
 
 Learn how to design your own steps in [Creating Custom Pipeline Steps](../how-to/custom-steps.md).
 

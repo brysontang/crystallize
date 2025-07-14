@@ -76,7 +76,12 @@ Steps do not cache by default (hash on params/input). In high-replicate runs, ca
 ```python
 # Example cacheable step (from pipeline; already @pipeline_step(cacheable=True))
 @pipeline_step(cacheable=True)  # Explicit for clarity
-def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
+def normalize_age(
+    data: pd.DataFrame,
+    ctx: FrozenContext,
+    *,
+    scale_factor: float = 1.0,
+) -> pd.DataFrame:
     # ... (as before)
     return data
 ```
@@ -111,8 +116,13 @@ def titanic_source(ctx: FrozenContext):
     return pd.DataFrame(sampled_data)
 
 @pipeline_step(cacheable=True)
-def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
-    scale = ctx.get("scale_factor", 1.0)
+def normalize_age(
+    data: pd.DataFrame,
+    ctx: FrozenContext,
+    *,
+    scale_factor: float = 1.0,
+) -> pd.DataFrame:
+    scale = scale_factor
     data['Age'] = data['Age'] * scale
     mean_age = data['Age'].mean()
     std_age = data['Age'].std()

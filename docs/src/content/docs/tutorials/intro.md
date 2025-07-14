@@ -58,9 +58,9 @@ def initial_data(ctx: FrozenContext):
 
 # 2. Define the data processing pipeline
 @pipeline_step()
-def add_delta(data, ctx: FrozenContext):
-    # The 'delta' value is injected by our treatment
-    return [x + ctx.get("delta", 0.0) for x in data]
+def add_delta(data: list, ctx: FrozenContext, *, delta: float = 0.0) -> list:
+    """Add a delta value from the context."""
+    return [x + delta for x in data]
 
 @pipeline_step()
 def add_random(data, ctx: FrozenContext):
@@ -141,8 +141,8 @@ Pipelines are sequences of transformations.
 
 ```python
 @pipeline_step()
-def add_delta(data, ctx: FrozenContext):
-    return [x + ctx.get("delta", 0.0) for x in data]
+def add_delta(data: list, ctx: FrozenContext, *, delta: float = 0.0) -> list:
+    return [x + delta for x in data]
 
 @pipeline_step()
 def add_random(data, ctx: FrozenContext):

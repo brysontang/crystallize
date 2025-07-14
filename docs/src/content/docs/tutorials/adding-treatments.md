@@ -63,11 +63,14 @@ Modify `normalize_age` to apply scaling if 'scale_factor' present (treatment-onl
 
 ```python
 @pipeline_step()
-def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
-    """
-    Scale 'Age' if treatment active, then normalize.
-    """
-    scale = ctx.get("scale_factor", 1.0) + random.random()  # Default 1.0 (baseline no-op) + random noise for tutorial
+def normalize_age(
+    data: pd.DataFrame,
+    ctx: FrozenContext,
+    *,
+    scale_factor: float = 1.0,
+) -> pd.DataFrame:
+    """Scale ``Age`` if treatment active, then normalize."""
+    scale = scale_factor + random.random()  # default 1.0 + noise for tutorial
     data['Age'] = data['Age'] * scale  # Apply variation
     mean_age = data['Age'].mean()
     std_age = data['Age'].std()
@@ -137,8 +140,13 @@ def titanic_source(ctx: FrozenContext):
     return pd.DataFrame(sampled_data)
 
 @pipeline_step()
-def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
-    scale = ctx.get("scale_factor", 1.0) + random.random()  # Treatment injects this
+def normalize_age(
+    data: pd.DataFrame,
+    ctx: FrozenContext,
+    *,
+    scale_factor: float = 1.0,
+) -> pd.DataFrame:
+    scale = scale_factor + random.random()  # Treatment injects this
     data['Age'] = data['Age'] * scale
     mean_age = data['Age'].mean()
     std_age = data['Age'].std()

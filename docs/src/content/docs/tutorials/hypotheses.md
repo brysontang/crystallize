@@ -149,8 +149,13 @@ def titanic_source(ctx: FrozenContext):
     return pd.DataFrame(sampled_data)
 
 @pipeline_step()
-def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
-    scale = ctx.get("scale_factor", 1.0) + random.random()
+def normalize_age(
+    data: pd.DataFrame,
+    ctx: FrozenContext,
+    *,
+    scale_factor: float = 1.0,
+) -> pd.DataFrame:
+    scale = scale_factor + random.random()
     data['Age'] = data['Age'] * scale
     mean_age = data['Age'].mean()
     std_age = data['Age'].std()

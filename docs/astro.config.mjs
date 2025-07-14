@@ -59,6 +59,39 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Explanation',
+          items: [
+            {
+              label: 'Core Concepts',
+              slug: 'explanation/core-concepts',
+            },
+            {
+              label: 'Reproducibility',
+              slug: 'explanation/reproducibility',
+            },
+            {
+              label: 'Parallel Execution Strategies',
+              slug: 'explanation/parallelism',
+            },
+            {
+              label: 'Extending Crystallize',
+              slug: 'explanation/extending',
+            },
+            {
+              label: 'How Crystallize Compares to Other Tools',
+              slug: 'explanation/comparisons',
+            },
+            {
+              label: 'Frequently Asked Questions',
+              slug: 'explanation/faq',
+            },
+          ],
+        },
+        {
+          label: 'API Reference',
+          autogenerate: { directory: 'reference' },
+        },
+        {
           label: 'Glossary',
           slug: 'glossary',
         },

@@ -30,7 +30,18 @@ class FrozenMetrics:
 
 
 class FrozenContext:
-    """Immutable execution context with safe mutation helpers."""
+    """Immutable execution context shared between pipeline steps.
+
+    Once a key is set its value cannot be modified. Attempting to do so raises
+    :class:`ContextMutationError`. This immutability guarantees deterministic
+    provenance during pipeline execution.
+
+    Attributes:
+        metrics: :class:`FrozenMetrics` used to accumulate lists of metric
+            values.
+        artifacts: :class:`ArtifactLog` collecting binary artifacts to be saved
+            by :class:`~crystallize.core.plugins.ArtifactPlugin`.
+    """
 
     def __init__(self, initial: Mapping[str, Any]) -> None:
         self._data = copy.deepcopy(dict(initial))
@@ -60,7 +71,7 @@ class FrozenContext:
 
 
 class LoggingContext:
-    """Proxy for :class:`FrozenContext` that logs key reads."""
+    """Proxy around :class:`FrozenContext` that records all key accesses."""
 
     def __init__(self, ctx: FrozenContext, logger: logging.Logger) -> None:
         self._ctx = ctx

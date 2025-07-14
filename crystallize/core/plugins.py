@@ -24,18 +24,24 @@ def default_seed_function(seed: int) -> None:
 
 
 class BasePlugin(ABC):
-    """Abstract base class for creating plugins that hook into the Experiment lifecycle."""
+    """Interface for extending the :class:`~crystallize.core.experiment.Experiment` lifecycle.
+
+    Subclasses can override any of the hook methods to observe or modify the
+    behaviour of an experiment.  Hooks are called in a well-defined order during
+    :meth:`Experiment.run` allowing plugins to coordinate tasks such as
+    seeding, logging, artifact storage or custom execution strategies.
+    """
 
     def init_hook(self, experiment: Experiment) -> None:
-        """Called during ``Experiment.__init__`` to configure the experiment instance."""
+        """Configure the experiment instance during initialization."""
         pass
 
     def before_run(self, experiment: Experiment) -> None:
-        """Called at the beginning of ``Experiment.run()``, before any replicates start."""
+        """Execute logic before :meth:`Experiment.run` begins."""
         pass
 
     def before_replicate(self, experiment: Experiment, ctx: FrozenContext) -> None:
-        """Called before each replicate's pipeline is executed."""
+        """Run prior to each pipeline execution for a replicate."""
         pass
 
     def after_step(
@@ -45,11 +51,11 @@ class BasePlugin(ABC):
         data: Any,
         ctx: FrozenContext,
     ) -> None:
-        """Called after each ``PipelineStep`` is executed."""
+        """Observe results after every :class:`PipelineStep` execution."""
         pass
 
     def after_run(self, experiment: Experiment, result: Result) -> None:
-        """Called at the end of ``Experiment.run()`` after the ``Result`` object is created."""
+        """Execute cleanup or reporting after :meth:`Experiment.run` completes."""
         pass
 
     def run_experiment_loop(
@@ -57,13 +63,17 @@ class BasePlugin(ABC):
         experiment: "Experiment",
         replicate_fn: Callable[[int], Any],
     ) -> List[Any]:
-        """Run replicates and return results or ``NotImplemented``."""
+        """Run all replicates and return their results.
+
+        Returning ``NotImplemented`` signals that the plugin does not provide a
+        custom execution strategy and the default should be used instead.
+        """
         return NotImplemented
 
 
 @dataclass
 class SeedPlugin(BasePlugin):
-    """Plugin handling deterministic seeding."""
+    """Manage deterministic seeding for all random operations."""
 
     seed: Optional[int] = None
     auto_seed: bool = True
@@ -83,7 +93,7 @@ class SeedPlugin(BasePlugin):
 
 @dataclass
 class LoggingPlugin(BasePlugin):
-    """Plugin configuring logging verbosity and output."""
+    """Configure logging verbosity and experiment progress reporting."""
 
     verbose: bool = False
     log_level: str = "INFO"
@@ -154,7 +164,7 @@ class LoggingPlugin(BasePlugin):
 
 @dataclass
 class ArtifactPlugin(BasePlugin):
-    """Plugin that saves artifacts logged during pipeline execution."""
+    """Persist artifacts produced during pipeline execution."""
 
     root_dir: str = "./crystallize_artifacts"
     versioned: bool = False
@@ -182,6 +192,7 @@ class ArtifactPlugin(BasePlugin):
         data: Any,
         ctx: FrozenContext,
     ) -> None:
+        """Write any artifacts logged in ``ctx.artifacts`` to disk."""
         if len(ctx.artifacts) == 0:
             return
         rep = ctx.get("replicate", 0)

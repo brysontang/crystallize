@@ -14,6 +14,7 @@ from crystallize.core.experiment import Experiment
 from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.pipeline_step import PipelineStep, exit_step
+from crystallize.core.optimizers import BaseOptimizer, Objective
 from crystallize.core.treatment import Treatment
 
 
@@ -772,3 +773,68 @@ def test_apply_seed_function_called():
     exp.validate()
     exp.apply(data=1, seed=5)
     assert called == [5]
+
+class CountingOptimizer(BaseOptimizer):
+    def __init__(self) -> None:
+        super().__init__(Objective(metric="metric", direction="minimize"))
+        self.ask_called = 0
+        self.tell_called = 0
+
+    def ask(self) -> list[Treatment]:
+        self.ask_called += 1
+        return [Treatment("opt", {"increment": 1})]
+
+    def tell(self, objective_values: dict[str, float]) -> None:
+        self.tell_called += 1
+
+    def get_best_treatment(self) -> Treatment:
+        return Treatment("best", {"increment": 0})
+
+
+def test_run_with_arguments() -> None:
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+    exp = Experiment(datasource=datasource, pipeline=pipeline)
+    exp.validate()
+    treatment = Treatment("inc", {"increment": 2})
+    hyp = Hypothesis(
+        verifier=always_significant,
+        metrics="metric",
+        ranker=lambda r: r["p_value"],
+    )
+    result = exp.run(treatments=[treatment], hypotheses=[hyp], replicates=2)
+    assert result.metrics.treatments["inc"].metrics["metric"] == [2, 3]
+
+
+class IncrementStep(PipelineStep):
+    cacheable = False
+
+    def __call__(self, data, ctx):
+        return data + ctx.get("increment", 0)
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_apply_with_treatment_object() -> None:
+    pipeline = Pipeline([exit_step(IncrementStep())])
+    datasource = DummyDataSource()
+    exp = Experiment(datasource=datasource, pipeline=pipeline)
+    exp.validate()
+    treatment = Treatment("inc", {"increment": 2})
+    output = exp.apply(treatment=treatment, data=1)
+    assert output == 3
+
+
+def test_optimize_method_calls_optimizer_correctly() -> None:
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+    exp = Experiment(datasource=datasource, pipeline=pipeline)
+    exp.validate()
+    opt = CountingOptimizer()
+    best = exp.optimize(opt, num_trials=5, replicates_per_trial=1)
+    assert opt.ask_called == 5
+    assert opt.tell_called == 5
+    assert best.name == "best"
+

@@ -171,22 +171,19 @@ def test_experiment_requires_validation():
 
 
 def test_experiment_builder_chaining():
-    experiment = (
-        Experiment()
-        .with_datasource(DummyDataSource())
-        .with_pipeline(Pipeline([PassStep()]))
-        .with_treatments([Treatment("t", {"increment": 1})])
-        .with_hypotheses(
-            [
-                Hypothesis(
-                    verifier=always_significant,
-                    metrics="metric",
-                    ranker=lambda r: r["p_value"],
-                    name="hypothesis",
-                )
-            ]
-        )
-        .with_replicates(2)
+    experiment = Experiment(
+        datasource=DummyDataSource(),
+        pipeline=Pipeline([PassStep()]),
+        treatments=[Treatment("t", {"increment": 1})],
+        hypotheses=[
+            Hypothesis(
+                verifier=always_significant,
+                metrics="metric",
+                ranker=lambda r: r["p_value"],
+                name="hypothesis",
+            )
+        ],
+        replicates=2,
     )
     experiment.validate()
     result = experiment.run()
@@ -205,7 +202,7 @@ def test_run_zero_replicates():
 
 
 def test_validate_partial_config():
-    experiment = Experiment().with_pipeline(Pipeline([PassStep()]))
+    experiment = Experiment(pipeline=Pipeline([PassStep()]))
     with pytest.raises(ValueError):
         experiment.validate()
 

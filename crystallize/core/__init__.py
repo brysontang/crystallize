@@ -6,7 +6,6 @@ import inspect
 from functools import update_wrapper
 from typing import Any, Callable, Mapping, Optional, Union, Sequence
 
-from .builder import ExperimentBuilder, StepInput
 from .context import FrozenContext
 from .datasource import DataSource
 from .hypothesis import Hypothesis
@@ -179,6 +178,4 @@ __all__ = [
     "verifier",
     "data_source",
     "pipeline",
-    "ExperimentBuilder",
-    "StepInput",
 ]

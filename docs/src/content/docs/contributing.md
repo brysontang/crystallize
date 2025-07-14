@@ -137,13 +137,13 @@ rm -rf .cache/
 A: Python's Global Interpreter Lock (GIL) means the `ThreadPoolExecutor` provides limited benefit for CPU-bound tasks (like heavy numerical computation), as only one thread can execute Python bytecode at a time.
 
 - For **I/O-bound** steps (e.g., waiting for API calls, reading from disk), use the default `"thread"` executor.
-- For **CPU-bound** steps (e.g., complex simulations, training a model), switch to the `"process"` executor in your `ExperimentBuilder`:
+- For **CPU-bound** steps (e.g., complex simulations, training a model), use the
+  `ParallelExecution` plugin with the `"process"` executor:
 
 ```python
-ExperimentBuilder()
-.parallel(True)
-.executor_type("process") # Use multi-processing
-.build()
+Experiment(
+    plugins=[ParallelExecution(executor_type="process")]
+)
 ```
 
 Remember that all data passed between processes must be "picklable".

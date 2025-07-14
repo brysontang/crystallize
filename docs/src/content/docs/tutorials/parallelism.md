@@ -19,15 +19,14 @@ Start with your script from "Verifying Hypotheses." Add replicates in the builde
 
 ```python
 # In your experiment build (increase replicates for stats)
-exp = (
-    ExperimentBuilder()
-    .datasource(titanic_source)  # From previous
-    .pipeline([normalize_age, compute_metrics])  # From previous
-    .treatments([scale_ages])  # From previous
-    .hypotheses([rank_by_p_value])  # From previous
-    .replicates(50)  # Scale up for better p-value reliability
-    .build()
+exp = Experiment(
+    datasource=titanic_source(),
+    pipeline=Pipeline([normalize_age(), compute_metrics()]),
+    treatments=[scale_ages()],
+    hypotheses=[rank_by_p_value],
+    replicates=50,  # Scale up for better p-value reliability
 )
+exp.validate()
 
 result = exp.run()
 print("Replicate count in metrics:", len(result.metrics.baseline.metrics["std_norm_age"]))  # 50
@@ -47,19 +46,16 @@ print("Replicate count in metrics:", len(result.metrics.baseline.metrics["std_no
 Add `.parallel(True)` and configure executor. For CPU-bound (e.g., heavy math), use "process"; default "thread" for general.
 
 ```python
-# Full build with parallelism (imports: from crystallize import ExperimentBuilder)
-exp = (
-    ExperimentBuilder()
-    .datasource(titanic_source)
-    .pipeline([normalize_age, compute_metrics])
-    .treatments([scale_ages])
-    .hypotheses([rank_by_p_value])
-    .replicates(50)  # High for demo
-    .parallel(True)  # Enable concurrent runs
-    .max_workers(4)  # Limit workers (default: cpu_count-1 for process)
-    .executor_type("process")  # For CPU-bound; use "thread" for IO
-    .build()
+# Full build with parallelism
+exp = Experiment(
+    datasource=titanic_source(),
+    pipeline=Pipeline([normalize_age(), compute_metrics()]),
+    treatments=[scale_ages()],
+    hypotheses=[rank_by_p_value],
+    replicates=50,  # High for demo
+    plugins=[ExecutionPlugin(parallel=True, max_workers=4, executor_type="process")],
 )
+exp.validate()
 
 import time  # To measure speed
 start = time.time()
@@ -105,7 +101,8 @@ def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
 Updated `scaling_experiment.py` (from verifying_hypotheses, add scaling):
 
 ```python
-from crystallize import ExperimentBuilder, data_source, pipeline_step, treatment, hypothesis, verifier
+from crystallize import data_source, pipeline_step, treatment, hypothesis, verifier
+from crystallize.core.plugins import ExecutionPlugin
 from crystallize.core.context import FrozenContext
 import pandas as pd
 import random
@@ -151,18 +148,15 @@ def rank_by_p_value(result):
 
 if __name__ == "__main__":
     import time
-    exp = (
-        ExperimentBuilder()
-        .datasource(titanic_source)
-        .pipeline([normalize_age, compute_metrics])
-        .treatments([scale_ages])
-        .hypotheses([rank_by_p_value])
-        .replicates(50)  # Scaled for power
-        .parallel(True)
-        .max_workers(4)
-        .executor_type("process")
-        .build()
+    exp = Experiment(
+        datasource=titanic_source(),
+        pipeline=Pipeline([normalize_age(), compute_metrics()]),
+        treatments=[scale_ages()],
+        hypotheses=[rank_by_p_value],
+        replicates=50,  # Scaled for power
+        plugins=[ExecutionPlugin(parallel=True, max_workers=4, executor_type="process")],
     )
+    exp.validate()
     start = time.time()
     result = exp.run()
     print("Runtime:", time.time() - start)

@@ -6,7 +6,7 @@ from crystallize import (
     treatment,
     verifier,
 )
-from crystallize.core.config import ExecutionConfig, LoggingConfig
+from crystallize.core.plugins import ExecutionPlugin, LoggingPlugin
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.context import FrozenContext
@@ -67,8 +67,8 @@ if __name__ == "__main__":
         hypotheses=[check_for_improvement],
         replicates=20,
         plugins=[
-            ExecutionConfig(parallel=True),
-            LoggingConfig(verbose=True, log_level="DEBUG"),
+            ExecutionPlugin(parallel=True),
+            LoggingPlugin(verbose=True, log_level="DEBUG"),
         ],
     )
     experiment.validate()

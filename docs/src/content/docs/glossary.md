@@ -27,7 +27,7 @@ def csv_source(ctx: FrozenContext, path: str) -> list:
 
 ## Experiment
 
-The core class orchestrates baseline and treatment runs across replicates, followed by hypothesis verification. Configure it directly with your datasource, pipeline, treatments, hypotheses, replicates, and optional SeedConfig and ExecutionConfig objects. Use `run()` for full execution or `apply()` for single-condition inference.
+The core class orchestrates baseline and treatment runs across replicates, followed by hypothesis verification. Configure it directly with your datasource, pipeline, treatments, hypotheses, replicates, and a list of plugins. Use `run()` for full execution or `apply()` for single-condition inference.
 
 
 ## Exit Step
@@ -51,7 +51,7 @@ See _FrozenContext_.
 Key-value pairs collected during pipeline execution, stored in `FrozenContext.metrics`. Steps call `ctx.metrics.add()` to record values that hypotheses later verify. The last step may return any data type.
 
 ## Parallelism
-Optional concurrent execution of replicates using thread or process pools. Configure via `ExecutionConfig` with `parallel`, `max_workers` (default: CPU count), and `executor_type` ("thread" for I/O-bound, "process" for CPU-bound).
+Optional concurrent execution of replicates using thread or process pools. Configure via the `ExecutionPlugin` with `parallel`, `max_workers` (default: CPU count), and `executor_type` ("thread" for I/O-bound, "process" for CPU-bound).
 
 ## Pipeline
 A sequence of `PipelineStep` objects for deterministic data transformations. Use `pipeline(*steps)` to build them. Metrics are added to the context during execution; returning them is optional.
@@ -79,6 +79,18 @@ A named mutation applied to the context for experimental variations. Defined as 
 ## Verifier
 
 A function in `Hypothesis` that compares baseline and treatment metrics, returning a result dict (e.g., {"p_value": 0.01, "significant": True}). Decorated with `@verifier` for parameterization.
+
+## Plugin
+
+An object subclassing `BasePlugin` that hooks into the experiment lifecycle. Plugins configure or observe experiments by implementing one or more hook methods.
+
+## BasePlugin
+
+The abstract base class defining available hooks: `init_hook`, `before_run`, `before_replicate`, `after_step`, and `after_run`.
+
+## Hook
+
+A method on a plugin invoked at specific points during experiment execution. Hooks enable customization without subclassing `Experiment` itself.
 
 ## FAQ/Troubleshooting
 

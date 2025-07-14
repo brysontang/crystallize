@@ -1,15 +1,15 @@
 ---
 title: Customizing Experiments
-description: Configure seeds, parallelism, and validation using SeedConfig, ExecutionConfig, and the apply method.
+description: Configure seeds, parallelism, and validation using SeedPlugin, ExecutionPlugin, and the apply method.
 ---
 
-Crystallize's `Experiment` class is instantiated directly. Use `SeedConfig` and `ExecutionConfig` to tweak randomness, parallel execution, and other options. This page shows how to customize these settings and how to reuse an experiment with `.apply()`.
+Crystallize's `Experiment` class accepts a list of plugins. Use the built-in `SeedPlugin` and `ExecutionPlugin` to tweak randomness, parallel execution, and other options. This page shows how to customize these settings and how to reuse an experiment with `.apply()`.
 
 ## 1. Build an Experiment
 
 Instantiate your components and pass configuration objects:
 ```python
-from crystallize.core.config import ExecutionConfig, SeedConfig
+from crystallize.core.plugins import ExecutionPlugin, SeedPlugin
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
 
@@ -19,15 +19,17 @@ exp = Experiment(
     treatments=[treatment_a()],
     hypotheses=[my_hyp],
     replicates=3,
-    seed_config=SeedConfig(seed=42),
-    execution_config=ExecutionConfig(parallel=True),
+    plugins=[
+        SeedPlugin(seed=42),
+        ExecutionPlugin(parallel=True),
+    ],
 )
 exp.validate()
 ```
 
 ## 2. Seeding for Reproducibility
 
-The `SeedConfig` dataclass controls how randomness is managed:
+The `SeedPlugin` dataclass controls how randomness is managed:
 
 - `seed`: base seed used for all replicates.
 - `auto_seed`: when `True` (default), each replicate uses `hash(seed + replicate)`.
@@ -40,7 +42,7 @@ $(cat /tmp/custom_seed_snippet.txt)
 
 ## 3. Parallel Execution
 
-Use `ExecutionConfig` to run replicates concurrently. Choose the executor type:
+Use `ExecutionPlugin` to run replicates concurrently. Choose the executor type:
 
 - `executor_type="thread"` (default) for IO-bound steps.
 - `executor_type="process"` for CPU-heavy work that bypasses the GIL.

@@ -91,15 +91,14 @@ Update the builder to include treatments. Baselines run automatically.
 
 ```python
 # Build with treatments
-exp = (
-    ExperimentBuilder()
-    .datasource(titanic_source)
-    .pipeline([normalize_age, compute_metrics])
-    .treatments([scale_ages])  # Add variations here
-    .seed(42)
-    .replicates(3)
-    .build()
+exp = Experiment(
+    datasource=titanic_source(),
+    pipeline=Pipeline([normalize_age(), compute_metrics()]),
+    treatments=[scale_ages()],
+    replicates=3,
+    plugins=[ExecutionPlugin()],
 )
+exp.validate()
 
 # Run and compare baseline vs. treatment
 result = exp.run()
@@ -121,7 +120,8 @@ print("Treatment metrics:", result.metrics.treatments["scale_ages_treatment"].me
 `adding_treatments.py` (copy from basic, add treatment parts):
 
 ```python
-from crystallize import ExperimentBuilder, data_source, pipeline_step, treatment
+from crystallize import data_source, pipeline_step, treatment
+from crystallize.core.plugins import ExecutionPlugin
 from crystallize.core.context import FrozenContext
 import pandas as pd
 import random
@@ -163,15 +163,14 @@ scale_ages = treatment(
 )
 
 if __name__ == "__main__":
-    exp = (
-        ExperimentBuilder()
-        .datasource(titanic_source)
-        .pipeline([normalize_age, compute_metrics])
-        .treatments([scale_ages])
-        .seed(42)
-        .replicates(3)
-        .build()
+    exp = Experiment(
+        datasource=titanic_source(),
+        pipeline=Pipeline([normalize_age(), compute_metrics()]),
+        treatments=[scale_ages()],
+        replicates=3,
+        plugins=[ExecutionPlugin()],
     )
+    exp.validate()
     result = exp.run()
     print("Baseline metrics:", result.metrics.baseline.metrics)
     print("Treatment metrics:", result.metrics.treatments["scale_ages_treatment"].metrics)

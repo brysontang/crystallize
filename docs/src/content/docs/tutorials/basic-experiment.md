@@ -15,10 +15,10 @@ Create `basic_experiment.py` and import essentials:
 
 ```python
 from crystallize import (
-    ExperimentBuilder,   # To assemble the experiment
     data_source,         # Decorator for data fetchers
     pipeline_step,       # Decorator for transformation steps
 )
+from crystallize.core.plugins import ExecutionPlugin
 from crystallize.core.context import FrozenContext  # Immutable context
 import pandas as pd  # For data handling (assumes pandas installed)
 ```
@@ -109,14 +109,13 @@ Build and execute:
 
 ```python
 # Build experiment
-exp = (
-    ExperimentBuilder()
-    .datasource(titanic_source)                # Set source
-    .pipeline([normalize_age, compute_metrics]) # Chain steps
-    .replicates(3)                             # Multiple runs (though data same here)
-    .seed(42)                                  # Set seed for reproducibility
-    .build()
+exp = Experiment(
+    datasource=titanic_source(),
+    pipeline=Pipeline([normalize_age(), compute_metrics()]),
+    replicates=3,
+    plugins=[ExecutionPlugin()],
 )
+exp.validate()
 
 # Run and inspect
 result = exp.run()
@@ -138,7 +137,8 @@ print("Baseline metrics:", result.metrics.baseline.metrics)
 `basic_experiment.py`:
 
 ```python
-from crystallize import ExperimentBuilder, data_source, pipeline_step
+from crystallize import data_source, pipeline_step
+from crystallize.core.plugins import ExecutionPlugin
 from crystallize.core.context import FrozenContext
 import pandas as pd
 import random  # Unused here, but for future noise
@@ -178,14 +178,13 @@ def compute_metrics(data: pd.DataFrame, ctx: FrozenContext):
     return data
 
 if __name__ == "__main__":
-    exp = (
-        ExperimentBuilder()
-        .datasource(titanic_source)
-        .pipeline([normalize_age, compute_metrics])
-        .replicates(3)
-        .seed(42)
-        .build()
+    exp = Experiment(
+        datasource=titanic_source(),
+        pipeline=Pipeline([normalize_age(), compute_metrics()]),
+        replicates=3,
+        plugins=[ExecutionPlugin()],
     )
+    exp.validate()
     r = exp.run()
 
     print("Baseline metrics:", r.metrics.baseline.metrics)

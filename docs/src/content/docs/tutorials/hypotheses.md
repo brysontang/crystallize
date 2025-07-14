@@ -100,15 +100,15 @@ Add to builder; run to verify.
 
 ```python
 # Update build with hypothesis
-exp = (
-    ExperimentBuilder()
-    .datasource(titanic_source)
-    .pipeline([normalize_age, compute_metrics])
-    .treatments([scale_ages])
-    .hypotheses([rank_by_p_value])  # Add here
-    .replicates(20)  # Increase for stats power
-    .build()
+exp = Experiment(
+    datasource=titanic_source(),
+    pipeline=Pipeline([normalize_age(), compute_metrics()]),
+    treatments=[scale_ages()],
+    hypotheses=[rank_by_p_value],  # Add here
+    replicates=20,  # Increase for stats power
+    plugins=[ExecutionPlugin()],
 )
+exp.validate()
 
 # Run and inspect hypothesis
 result = exp.run()
@@ -132,7 +132,8 @@ print("Ranking:", hyp_result.ranking)  # Best treatment (likely none significant
 `verifying_hypotheses.py` (extend from adding_treatments):
 
 ```python
-from crystallize import ExperimentBuilder, data_source, pipeline_step, treatment, hypothesis, verifier
+from crystallize import data_source, pipeline_step, treatment, hypothesis, verifier
+from crystallize.core.plugins import ExecutionPlugin
 from crystallize.core.context import FrozenContext
 import pandas as pd
 import random
@@ -177,15 +178,15 @@ def rank_by_p_value(result):
     return result.get("p_value", 1.0)
 
 if __name__ == "__main__":
-    exp = (
-        ExperimentBuilder()
-        .datasource(titanic_source)
-        .pipeline([normalize_age, compute_metrics])
-        .treatments([scale_ages])
-        .hypotheses([rank_by_p_value])
-        .replicates(20)
-        .build()
+    exp = Experiment(
+        datasource=titanic_source(),
+        pipeline=Pipeline([normalize_age(), compute_metrics()]),
+        treatments=[scale_ages()],
+        hypotheses=[rank_by_p_value],
+        replicates=20,
+        plugins=[ExecutionPlugin()],
     )
+    exp.validate()
     result = exp.run()
     hyp_result = result.get_hypothesis("std_change_hyp")
     print("Hypothesis results:", hyp_result.results)

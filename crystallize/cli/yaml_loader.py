@@ -17,7 +17,7 @@ except Exception:  # pragma: no cover - fallback when PyYAML missing
         return json.loads(content)
 
 
-from crystallize.core.config import ExecutionConfig, LoggingConfig, SeedConfig
+from crystallize.core.plugins import ExecutionPlugin, LoggingPlugin, SeedPlugin
 from crystallize.core.experiment import Experiment
 from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.pipeline import Pipeline
@@ -86,7 +86,7 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
     if max_workers is not None:
         max_workers = int(max_workers)
     executor_type = config.get("executor_type", "thread")
-    exec_plugin = ExecutionConfig(
+    exec_plugin = ExecutionPlugin(
         parallel=parallel,
         max_workers=max_workers,
         executor_type=executor_type,
@@ -96,11 +96,11 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
     auto_seed = bool(config.get("auto_seed", True))
     seed_fn_path = config.get("seed_fn")
     seed_fn = _load_attr(seed_fn_path) if seed_fn_path else None
-    seed_plugin = SeedConfig(seed=seed, auto_seed=auto_seed, seed_fn=seed_fn)
+    seed_plugin = SeedPlugin(seed=seed, auto_seed=auto_seed, seed_fn=seed_fn)
 
     verbose = bool(config.get("verbose", False))
     log_level = config.get("log_level", "INFO")
-    log_plugin = LoggingConfig(verbose=verbose, log_level=log_level)
+    log_plugin = LoggingPlugin(verbose=verbose, log_level=log_level)
 
     exp = Experiment(
         datasource=datasource,

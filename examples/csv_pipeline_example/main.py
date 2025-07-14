@@ -3,7 +3,7 @@ from pathlib import Path
 from scipy.stats import ttest_ind
 
 from crystallize import hypothesis, verifier, treatment
-from crystallize.core.config import ExecutionConfig
+from crystallize.core.plugins import ExecutionPlugin
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
 
@@ -43,7 +43,7 @@ def main() -> None:
         treatments=[better_data()],
         hypotheses=[hyp],
         replicates=10,
-        plugins=[ExecutionConfig()],
+        plugins=[ExecutionPlugin()],
     )
     experiment.validate()
     result = experiment.run()

@@ -4,6 +4,8 @@ from collections import defaultdict
 from types import MappingProxyType
 from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Tuple
 
+from .artifacts import ArtifactLog
+
 
 class ContextMutationError(Exception):
     """Raised when attempting to mutate an existing key in FrozenContext."""
@@ -33,6 +35,7 @@ class FrozenContext:
     def __init__(self, initial: Mapping[str, Any]) -> None:
         self._data = copy.deepcopy(dict(initial))
         self.metrics = FrozenMetrics()
+        self.artifacts = ArtifactLog()
 
     def __getitem__(self, key: str) -> Any:
         return copy.deepcopy(self._data[key])

@@ -125,38 +125,6 @@ class Pipeline:
             len(self.steps),
         )
 
-        if verbose:
-            header = (
-                f"Replicate {rep} Condition '{condition}'" if rep is not None else "Run"
-            )
-            logger.debug(header)
-            for record in self.get_provenance():
-                wrote = record.get("ctx_changes", {}).get("wrote", {})
-                reads = record.get("ctx_changes", {}).get("reads", {})
-                metrics = record.get("ctx_changes", {}).get("metrics", {})
-                if not (reads or wrote or metrics):
-                    continue
-
-                table_lines = [
-                    "+----------+--------+----------+----------+",
-                    "| Action   | Key    | Before   | After    |",
-                    "+----------+--------+----------+----------+",
-                ]
-                for k, v in reads.items():
-                    table_lines.append(
-                        f"| {'Read':<8} | {k:<6} | {str(v)[:8]:<8} | {'':<8} |"
-                    )
-                for k, change in wrote.items():
-                    table_lines.append(
-                        f"| {'Write':<8} | {k:<6} | {str(change['before'])[:8]:<8} | {str(change['after'])[:8]:<8} |"
-                    )
-                for k, change in metrics.items():
-                    table_lines.append(
-                        f"| {'Metric':<8} | {k:<6} | {str(change['before'])[:8]:<8} | {str(change['after'])[:8]:<8} |"
-                    )
-                table_lines.append("+----------+--------+----------+----------+")
-                logger.debug("Step: %s\n%s", record["step"], "\n".join(table_lines))
-
         return data
 
     # ------------------------------------------------------------------ #

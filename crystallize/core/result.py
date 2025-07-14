@@ -76,17 +76,22 @@ class Result:
 
         root = Node("Experiment Summary", "bold")
 
+        color_order = ['bold yellow', 'green', 'cyan']
+
+        def get_color(token: str) -> str:
+            return color_order[tokens.index(token)]
+
         level_styles: Dict[str, str] = {
-            "treatment": "bold yellow",
-            "replicate": "green",
-            "step": "cyan",
-        }
+            "treatment": get_color("treatment"),
+            "replicate": get_color("replicate"),
+            "step": get_color("step"),
+        }        
 
         def add_actions(parent: Node, acts: Dict[str, Any]) -> None:
             mapping = {
                 "reads": ("Reads", "green"),
                 "wrote": ("Writes", "blue"),
-                "metrics": ("Metrics", "red"),
+                "metrics": ("Write Metrics", "red"),
             }
             for key, (label, style) in mapping.items():
                 details = acts.get(key, {})

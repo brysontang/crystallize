@@ -26,6 +26,8 @@ def add_delta(data, ctx: FrozenContext):
 def add_random(data, ctx: FrozenContext):
     # Add some random noise to the data
     # This removes scipy's "catastrophic cancellation" error
+    replicate = ctx.get('replicate', 0)
+    treatment = ctx.get('condition', 'add_ten_treatment')
     return [x + random.random() for x in data]
 
 @pipeline_step()

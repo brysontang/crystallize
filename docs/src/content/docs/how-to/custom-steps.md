@@ -7,15 +7,21 @@ Crystallize pipelines are built from small, deterministic **steps**. This guide 
 
 ## 1. Define a Step with `@pipeline_step`
 
-Use the decorator on a regular function. The function receives two fixed arguments—`data` and `ctx`—followed by any parameters you define. Parameters can have defaults and are stored in the step for provenance and caching.
+Use the decorator on a regular function. `data` and `ctx` are required
+arguments. Additional keyword arguments make your step configurable and are
+automatically pulled from the execution context when not supplied explicitly.
 
 ```python
 from crystallize import pipeline_step
 from crystallize.core.context import FrozenContext
 
-@pipeline_step(cacheable=False)
-def scale_data(data, ctx: FrozenContext, factor: float = 1.0):
-    """Multiply incoming numeric data by ``factor``."""
+@pipeline_step(cacheable=True)
+def scale_data(data: list, ctx: FrozenContext, *, factor: float = 1.0) -> list:
+    """Multiply incoming numeric data by ``factor``.
+
+    The ``factor`` parameter is automatically populated from the context if it
+    exists, otherwise its default is used.
+    """
     return [x * factor for x in data]
 ```
 
@@ -33,20 +39,35 @@ steps = [partial(scale_data, factor=2.0), normalize]
 
 Either form works with `a Pipeline`.
 
-## 2. Using the Immutable `ctx`
+## 2. Automatic Parameter Injection
 
-`ctx` is a [`FrozenContext`](../glossary.md#frozencontext) shared across the pipeline. Treatments typically add keys to it, and steps read or write additional keys. Use `ctx.get("key", default)` to supply fallback values. Attempting to overwrite an existing key raises `ContextMutationError`.
+Any keyword argument in the step signature (besides ``data`` and ``ctx``) will be
+looked up in the :class:`FrozenContext` when the step runs. This keeps your
+dependencies explicit and avoids repetitive ``ctx.get()`` calls.
+
+The ``scale_data`` function above demonstrates this pattern—``factor`` is pulled
+from the context if you don't provide it when constructing the step.
+
+## 3. When to Use ``ctx``
+
+The context object is still important for information that isn't represented by
+parameters. Examples include:
+
+- reading ``ctx.get('replicate')`` to know the current replicate number
+- recording metrics with ``ctx.metrics.add()``
+- saving files or other artifacts via ``ctx.artifacts.add()``
+
+Use parameter injection for simple values and fall back to ``ctx`` for these
+framework features.
 
 ```python
 @pipeline_step()
-def normalize(data, ctx: FrozenContext):
-    scale = ctx.get("scale_factor", 1.0)  # default when no treatment applies
+def normalize(data: list, ctx: FrozenContext) -> list:
+    scale = ctx.get("scale_factor", 1.0)
     return [x / scale for x in data]
 ```
 
-If a treatment sets `{"scale_factor": 2.0}`, this step automatically uses that value on treatment runs while keeping the baseline path unchanged. Attempting to overwrite an existing key raises `ContextMutationError`.
-
-## 3. Recording Metrics
+## 4. Recording Metrics
 
 Each context has a `metrics` object used to accumulate results. Use `ctx.metrics.add(name, value)` to record values in any step. Metrics are aggregated across replicates and passed to hypotheses for verification. The last step may return any data type—returning metrics is optional.
 
@@ -60,7 +81,7 @@ def compute_sum(data, ctx: FrozenContext):
 
 Intermediate steps may also write metrics if useful. All metrics collected across replicates are provided to verifiers.
 
-## 4. Enabling Caching
+## 5. Enabling Caching
 
 By default steps created with `@pipeline_step` are **not** cached. Set `cacheable=True` on the decorator to store step outputs based on a hash of the step's parameters, the step's code, and the input data. A cached step reruns only when one of these elements changes.
 
@@ -97,11 +118,10 @@ exp = Experiment(
         normalize(),
         compute_sum(),
     ]),
-    replicates=3,
     plugins=[ParallelExecution()],
 )
 exp.validate()
-result = exp.run()
+result = exp.run(replicates=3)
 print(result.metrics.baseline.metrics)
 
 ```

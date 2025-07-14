@@ -21,9 +21,13 @@ def initial_data(ctx: FrozenContext):
 
 # 2. Define the data processing pipeline
 @pipeline_step()
-def add_delta(data, ctx: FrozenContext):
-    # The 'delta' value is injected by our treatment
-    return [x + ctx.get("delta", 0.0) for x in data]
+def add_delta(data: list, ctx: FrozenContext, *, delta: float = 0.0) -> list:
+    """Adds a delta value to the data.
+
+    The ``delta`` parameter is automatically injected from the context by the
+    framework.
+    """
+    return [x + delta for x in data]
 
 @pipeline_step()
 def add_random(data, ctx: FrozenContext):

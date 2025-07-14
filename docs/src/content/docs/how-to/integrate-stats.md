@@ -48,12 +48,9 @@ Add the hypothesis to your `Experiment` and run as usual:
 exp = Experiment(
     datasource=my_source(),
     pipeline=my_pipeline,
-    treatments=[my_treatment()],
-    hypotheses=[rank_by_p],
-    replicates=10,
 )
 exp.validate()
-result = exp.run()
+result = exp.run(treatments=[my_treatment()], hypotheses=[rank_by_p], replicates=10)
 print(result.get_hypothesis("rank_by_p").results)
 ```
 - **MissingMetricError** – Ensure all metric keys specified in `metrics` exist in `ctx.metrics`.

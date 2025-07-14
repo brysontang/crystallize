@@ -58,9 +58,9 @@ def initial_data(ctx: FrozenContext):
 
 # 2. Define the data processing pipeline
 @pipeline_step()
-def add_delta(data, ctx: FrozenContext):
-    # The 'delta' value is injected by our treatment
-    return [x + ctx.get("delta", 0.0) for x in data]
+def add_delta(data: list, ctx: FrozenContext, *, delta: float = 0.0) -> list:
+    """Add a delta value from the context."""
+    return [x + delta for x in data]
 
 @pipeline_step()
 def add_random(data, ctx: FrozenContext):
@@ -99,13 +99,14 @@ if __name__ == "__main__":
     experiment = Experiment(
         datasource=initial_data(),
         pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
-        treatments=[add_ten()],
-        hypotheses=[check_for_improvement],
-        replicates=20,  # Run 20 replicates for statistical power
         plugins=[ParallelExecution()],
     )
     experiment.validate()
-    result = experiment.run()
+    result = experiment.run(
+        treatments=[add_ten()],
+        hypotheses=[check_for_improvement],
+        replicates=20,  # Run 20 replicates for statistical power
+    )
 
     # Print the results for our hypothesis
     hyp_result = result.get_hypothesis("check_for_improvement")
@@ -140,8 +141,8 @@ Pipelines are sequences of transformations.
 
 ```python
 @pipeline_step()
-def add_delta(data, ctx: FrozenContext):
-    return [x + ctx.get("delta", 0.0) for x in data]
+def add_delta(data: list, ctx: FrozenContext, *, delta: float = 0.0) -> list:
+    return [x + delta for x in data]
 
 @pipeline_step()
 def add_random(data, ctx: FrozenContext):
@@ -195,13 +196,14 @@ Assemble the experiment directly.
 experiment = Experiment(
     datasource=initial_data(),
     pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
-    treatments=[add_ten()],
-    hypotheses=[check_for_improvement],
-    replicates=20,
     plugins=[ParallelExecution()],
 )
 experiment.validate()
-result = experiment.run()
+result = experiment.run(
+    treatments=[add_ten()],
+    hypotheses=[check_for_improvement],
+    replicates=20,
+)
 hyp_result = result.get_hypothesis("check_for_improvement")
 print(hyp_result.results)
 ```

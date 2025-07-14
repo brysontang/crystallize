@@ -7,6 +7,7 @@ from .core import (
     hypothesis,
     pipeline,
     pipeline_step,
+    inject_from_ctx,
     treatment,
     verifier,
 )
@@ -15,6 +16,7 @@ from .core.plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 
 __all__ = [
     "pipeline_step",
+    "inject_from_ctx",
     "treatment",
     "hypothesis",
     "data_source",

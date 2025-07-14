@@ -22,6 +22,14 @@ class PipelineStep(ABC):
         """
         raise NotImplementedError()
 
+    def setup(self, ctx: FrozenContext) -> None:
+        """Optional hook called once before any replicates run."""
+        pass
+
+    def teardown(self, ctx: FrozenContext) -> None:
+        """Optional hook called once after all replicates finish."""
+        pass
+
     @property
     @abstractmethod
     def params(self) -> dict:
@@ -42,7 +50,13 @@ class PipelineStep(ABC):
         return compute_hash(payload)
 
 
-def exit_step(item: Union[PipelineStep, Callable[..., PipelineStep], Tuple[Callable[..., PipelineStep], Dict[str, Any]]]) -> Union[PipelineStep, Callable[..., PipelineStep]]:
+def exit_step(
+    item: Union[
+        PipelineStep,
+        Callable[..., PipelineStep],
+        Tuple[Callable[..., PipelineStep], Dict[str, Any]],
+    ],
+) -> Union[PipelineStep, Callable[..., PipelineStep]]:
     """Mark a :class:`PipelineStep` as the final step of a pipeline.
 
     This helper accepts an already constructed step, a factory callable or a
@@ -56,15 +70,19 @@ def exit_step(item: Union[PipelineStep, Callable[..., PipelineStep], Tuple[Calla
         return item
     elif isinstance(item, tuple):  # From param
         factory, fixed_kwargs = item
+
         def wrapped_factory(**extra_kwargs: Any) -> PipelineStep:
             inst = factory(**{**fixed_kwargs, **extra_kwargs})
             setattr(inst, "is_exit_step", True)
             return inst
+
         return wrapped_factory
     elif callable(item):  # Plain factory
+
         def wrapped_factory(**kwargs: Any) -> PipelineStep:
             inst = item(**kwargs)
             setattr(inst, "is_exit_step", True)
             return inst
+
         return wrapped_factory
     raise TypeError(f"Invalid item for exit_step: {type(item).__name__}")

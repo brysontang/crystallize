@@ -30,6 +30,7 @@ from crystallize.core.result_structs import (
     TreatmentMetrics,
 )
 from crystallize.core.treatment import Treatment
+from crystallize.core.optimizers import BaseOptimizer, Objective
 
 
 def _run_replicate_remote(args: Tuple["Experiment", int]) -> Tuple[
@@ -59,12 +60,8 @@ class Experiment:
 
     def __init__(
         self,
-        datasource: Optional[DataSource] = None,
-        pipeline: Optional[Pipeline] = None,
-        treatments: Optional[List[Treatment]] = None,
-        hypotheses: Optional[List[Hypothesis]] = None,
-        replicates: int = 1,
-        *,
+        datasource: DataSource,
+        pipeline: Pipeline,
         plugins: Optional[List[BasePlugin]] = None,
     ) -> None:
         """Instantiate an experiment configuration.
@@ -72,21 +69,17 @@ class Experiment:
         Args:
             datasource: Object that provides the initial data for each run.
             pipeline: Pipeline executed for every replicate.
-            treatments: List of treatments applied after the baseline run.
-            hypotheses: Hypotheses verified after all replicates finish.
-            replicates: Number of times to run baseline and treatments.
             plugins: Optional list of plugins controlling experiment behaviour.
         """
         self.datasource = datasource
         self.pipeline = pipeline
-        self.treatments = treatments or []
-        self.hypotheses = hypotheses or []
-        self.replicates = max(1, replicates)
+        self.treatments: List[Treatment] = []
+        self.hypotheses: List[Hypothesis] = []
+        self.replicates: int = 1
 
         self.plugins = plugins or []
         for plugin in self.plugins:
             plugin.init_hook(self)
-
 
         self._validated = False
 
@@ -96,8 +89,6 @@ class Experiment:
     def validate(self) -> None:
         if self.datasource is None or self.pipeline is None:
             raise ValueError("Experiment requires datasource and pipeline")
-        if self.hypotheses and not self.treatments:
-            raise ValueError("Cannot verify hypotheses without treatments")
         self._validated = True
 
     # ------------------------------------------------------------------ #
@@ -199,7 +190,13 @@ class Experiment:
 
     # ------------------------------------------------------------------ #
 
-    def run(self) -> Result:
+    def run(
+        self,
+        *,
+        treatments: List[Treatment] | None = None,
+        hypotheses: List[Hypothesis] | None = None,
+        replicates: int = 1,
+    ) -> Result:
         """Execute the experiment and return a :class:`Result` instance.
 
         The lifecycle proceeds as follows:
@@ -218,6 +215,13 @@ class Experiment:
         """
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
+
+        self.treatments = treatments or []
+        self.hypotheses = hypotheses or []
+        self.replicates = max(1, replicates)
+
+        if self.hypotheses and not self.treatments:
+            raise ValueError("Cannot verify hypotheses without treatments")
 
         for plugin in self.plugins:
             plugin.before_run(self)
@@ -331,7 +335,7 @@ class Experiment:
     # ------------------------------------------------------------------ #
     def apply(
         self,
-        treatment_name: Optional[str] = None,
+        treatment: Treatment | None = None,
         *,
         data: Any | None = None,
         seed: Optional[int] = None,
@@ -340,16 +344,7 @@ class Experiment:
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
 
-        treatment = None
-        if treatment_name:
-            for t in self.treatments:
-                if t.name == treatment_name:
-                    treatment = t
-                    break
-            if treatment is None:
-                raise ValueError(f"Unknown treatment '{treatment_name}'")
-
-        ctx = FrozenContext({"condition": treatment_name or "baseline"})
+        ctx = FrozenContext({"condition": treatment.name if treatment else "baseline"})
         if treatment:
             treatment.apply(ctx)
 
@@ -374,3 +369,38 @@ class Experiment:
                 break
 
         return data
+
+    # ------------------------------------------------------------------ #
+
+    def optimize(
+        self,
+        optimizer: "BaseOptimizer",
+        num_trials: int,
+        replicates_per_trial: int = 1,
+    ) -> Treatment:
+        self.validate()
+
+        for _ in range(num_trials):
+            treatments_for_trial = optimizer.ask()
+            result = self.run(
+                treatments=treatments_for_trial,
+                hypotheses=[],
+                replicates=replicates_per_trial,
+            )
+            objective_values = self._extract_objective_from_result(
+                result, optimizer.objective
+            )
+            optimizer.tell(objective_values)
+
+        return optimizer.get_best_treatment()
+
+    def _extract_objective_from_result(
+        self, result: Result, objective: "Objective"
+    ) -> dict[str, float]:
+        treatment_name = list(result.metrics.treatments.keys())[0]
+        metric_values = result.metrics.treatments[treatment_name].metrics[
+            objective.metric
+        ]
+        aggregated_value = sum(metric_values) / len(metric_values)
+        return {objective.metric: aggregated_value}
+

@@ -130,9 +130,9 @@ def test_full_experiment_with_scipy_verifier():
     pipeline = Pipeline([CollectStep()])
     ds = RandomDataSource()
     treatment = Treatment("shift", {})
-    exp = Experiment(datasource=ds, pipeline=pipeline, treatments=[treatment], hypotheses=[hyp], replicates=3)
+    exp = Experiment(datasource=ds, pipeline=pipeline)
     exp.validate()
-    result = exp.run()
+    result = exp.run(treatments=[treatment], hypotheses=[hyp], replicates=3)
     hyp_res = result.get_hypothesis(hyp.name)
     assert hyp_res is not None and "p_value" in hyp_res.results["shift"]
 

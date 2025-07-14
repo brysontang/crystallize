@@ -105,11 +105,11 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
     exp = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        treatments=treatments,
-        hypotheses=hypotheses,
-        replicates=replicates,
         plugins=[exec_plugin, seed_plugin, log_plugin],
     )
+    exp.treatments = treatments
+    exp.hypotheses = hypotheses
+    exp.replicates = replicates
     return exp
 
 

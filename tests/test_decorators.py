@@ -109,12 +109,9 @@ def test_experiment_integration():
     exp = Experiment(
         datasource=datasource_obj,
         pipeline=pipeline_obj,
-        treatments=[inc_treatment()],
-        hypotheses=[h],
-        replicates=1,
     )
     exp.validate()
-    result = exp.run()
+    result = exp.run(treatments=[inc_treatment()], hypotheses=[h], replicates=1)
     assert result.metrics.baseline.metrics["result"] == [5]
 
 
@@ -122,6 +119,7 @@ def test_negative_replicates_clamped():
     exp = Experiment(
         datasource=dummy_source(value=1),
         pipeline=Pipeline([add(value=1)]),
-        replicates=-3,
     )
+    exp.validate()
+    exp.run(replicates=-3)
     assert exp.replicates == 1

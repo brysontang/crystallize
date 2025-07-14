@@ -27,6 +27,7 @@ Crystallize revolves around several key abstractions:
 - **Pipeline & PipelineSteps**: Deterministic data transformations.
 - **Hypothesis & Treatments**: Quantifiable assertions and experimental variations.
 - **Statistical Tests**: Built-in support for rigorous validation of experiment results.
+- **Optimizer**: Iterative search over treatments using an ask/tell loop.
 
 ---
 

@@ -1,15 +1,16 @@
 ---
 title: Customizing Experiments
-description: Configure seeds, parallelism, and validation using SeedPlugin, ExecutionPlugin, and the apply method.
+description: Configure seeds, parallelism, and validation using SeedPlugin, ParallelExecution, and the apply method.
 ---
 
-Crystallize's `Experiment` class accepts a list of plugins. Use the built-in `SeedPlugin` and `ExecutionPlugin` to tweak randomness, parallel execution, and other options. This page shows how to customize these settings and how to reuse an experiment with `.apply()`.
+Crystallize's `Experiment` class accepts a list of plugins. Use the built-in `SeedPlugin` and `ParallelExecution` to tweak randomness, parallel execution, and other options. This page shows how to customize these settings and how to reuse an experiment with `.apply()`.
 
 ## 1. Build an Experiment
 
 Instantiate your components and pass configuration objects:
 ```python
-from crystallize.core.plugins import ExecutionPlugin, SeedPlugin
+from crystallize.core.plugins import SeedPlugin
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
 
@@ -21,7 +22,7 @@ exp = Experiment(
     replicates=3,
     plugins=[
         SeedPlugin(seed=42),
-        ExecutionPlugin(parallel=True),
+        ParallelExecution(),
     ],
 )
 exp.validate()
@@ -42,7 +43,7 @@ $(cat /tmp/custom_seed_snippet.txt)
 
 ## 3. Parallel Execution
 
-Use `ExecutionPlugin` to run replicates concurrently. Choose the executor type:
+Use `ParallelExecution` to run replicates concurrently. Choose the executor type:
 
 - `executor_type="thread"` (default) for IO-bound steps.
 - `executor_type="process"` for CPU-heavy work that bypasses the GIL.

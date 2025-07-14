@@ -18,7 +18,7 @@ from crystallize import (
     data_source,         # Decorator for data fetchers
     pipeline_step,       # Decorator for transformation steps
 )
-from crystallize.core.plugins import ExecutionPlugin
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.context import FrozenContext  # Immutable context
 import pandas as pd  # For data handling (assumes pandas installed)
 ```
@@ -113,7 +113,7 @@ exp = Experiment(
     datasource=titanic_source(),
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
     replicates=3,
-    plugins=[ExecutionPlugin()],
+    plugins=[ParallelExecution()],
 )
 exp.validate()
 
@@ -138,7 +138,7 @@ print("Baseline metrics:", result.metrics.baseline.metrics)
 
 ```python
 from crystallize import data_source, pipeline_step
-from crystallize.core.plugins import ExecutionPlugin
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.context import FrozenContext
 import pandas as pd
 import random  # Unused here, but for future noise
@@ -182,7 +182,7 @@ if __name__ == "__main__":
         datasource=titanic_source(),
         pipeline=Pipeline([normalize_age(), compute_metrics()]),
         replicates=3,
-        plugins=[ExecutionPlugin()],
+        plugins=[ParallelExecution()],
     )
     exp.validate()
     r = exp.run()

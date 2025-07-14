@@ -51,7 +51,7 @@ See _FrozenContext_.
 Key-value pairs collected during pipeline execution, stored in `FrozenContext.metrics`. Steps call `ctx.metrics.add()` to record values that hypotheses later verify. The last step may return any data type.
 
 ## Parallelism
-Optional concurrent execution of replicates using thread or process pools. Configure via the `ExecutionPlugin` with `parallel`, `max_workers` (default: CPU count), and `executor_type` ("thread" for I/O-bound, "process" for CPU-bound).
+Optional concurrent execution of replicates using thread or process pools. Configure via the `ParallelExecution` plugin with `max_workers` (default: CPU count) and `executor_type` ("thread" for I/O-bound, "process" for CPU-bound).
 
 ## Pipeline
 A sequence of `PipelineStep` objects for deterministic data transformations. Use `pipeline(*steps)` to build them. Metrics are added to the context during execution; returning them is optional.

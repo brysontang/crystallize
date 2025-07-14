@@ -50,7 +50,8 @@ from crystallize.core import (
     Treatment,
 )
 from crystallize.core.experiment import Experiment
-from crystallize.core.plugins import ExecutionPlugin, SeedPlugin
+from crystallize.core.plugins import SeedPlugin
+from crystallize.core.execution import ParallelExecution
 
 # Example setup (simple)
 pipeline = Pipeline([...])
@@ -71,10 +72,7 @@ experiment = Experiment(
     treatments=[treatment],
     hypotheses=[hypothesis],
     replicates=3,
-    plugins=[
-        SeedPlugin(seed=42),
-        ExecutionPlugin(parallel=True, max_workers=4, executor_type="thread"),
-    ],
+    plugins=[SeedPlugin(seed=42), ParallelExecution(max_workers=4)],
 )
 experiment.validate()
 result = experiment.run()

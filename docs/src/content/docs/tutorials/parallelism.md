@@ -53,7 +53,7 @@ exp = Experiment(
     treatments=[scale_ages()],
     hypotheses=[rank_by_p_value],
     replicates=50,  # High for demo
-    plugins=[ExecutionPlugin(parallel=True, max_workers=4, executor_type="process")],
+    plugins=[ParallelExecution(max_workers=4, executor_type="process")],
 )
 exp.validate()
 
@@ -102,7 +102,7 @@ Updated `scaling_experiment.py` (from verifying_hypotheses, add scaling):
 
 ```python
 from crystallize import data_source, pipeline_step, treatment, hypothesis, verifier
-from crystallize.core.plugins import ExecutionPlugin
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.context import FrozenContext
 import pandas as pd
 import random
@@ -154,7 +154,7 @@ if __name__ == "__main__":
         treatments=[scale_ages()],
         hypotheses=[rank_by_p_value],
         replicates=50,  # Scaled for power
-        plugins=[ExecutionPlugin(parallel=True, max_workers=4, executor_type="process")],
+        plugins=[ParallelExecution(max_workers=4, executor_type="process")],
     )
     exp.validate()
     start = time.time()

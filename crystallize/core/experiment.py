@@ -34,6 +34,17 @@ from crystallize.core.result_structs import (
 from crystallize.core.treatment import Treatment
 
 
+def _run_replicate_remote(args: Tuple["Experiment", int]) -> Tuple[
+    Optional[Mapping[str, Any]],
+    Optional[int],
+    Dict[str, Mapping[str, Any]],
+    Dict[str, int],
+    Dict[str, Exception],
+    Dict[str, List[Mapping[str, Any]]],
+]:
+    exp, rep = args
+    return exp._execute_replicate(rep)
+
 
 class Experiment:
     VALID_EXECUTOR_TYPES = VALID_EXECUTOR_TYPES
@@ -219,9 +230,62 @@ class Experiment:
         )
         return run_ctx.metrics.as_dict(), local_seed, prov
 
+    def _execute_replicate(
+        self, rep: int
+    ) -> Tuple[
+        Optional[Mapping[str, Any]],
+        Optional[int],
+        Dict[str, Mapping[str, Any]],
+        Dict[str, int],
+        Dict[str, Exception],
+        Dict[str, List[Mapping[str, Any]]],
+    ]:
+        baseline_result: Optional[Mapping[str, Any]] = None
+        baseline_seed: Optional[int] = None
+        treatment_result: Dict[str, Mapping[str, Any]] = {}
+        treatment_seeds: Dict[str, int] = {}
+        rep_errors: Dict[str, Exception] = {}
+        provenance: Dict[str, List[Mapping[str, Any]]] = {}
+
+        base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
+        try:
+            baseline_result, baseline_seed, base_prov = self._run_condition(base_ctx)
+            provenance["baseline"] = base_prov
+        except Exception as exc:  # pragma: no cover
+            rep_errors[f"baseline_rep_{rep}"] = exc
+            return (
+                baseline_result,
+                baseline_seed,
+                treatment_result,
+                treatment_seeds,
+                rep_errors,
+                provenance,
+            )
+
+        for t in self.treatments:
+            ctx = FrozenContext({"replicate": rep, "condition": t.name})
+            try:
+                result, seed, prov = self._run_condition(ctx, t)
+                treatment_result[t.name] = result
+                if seed is not None:
+                    treatment_seeds[t.name] = seed
+                provenance[t.name] = prov
+            except Exception as exc:  # pragma: no cover
+                rep_errors[f"{t.name}_rep_{rep}"] = exc
+
+        return (
+            baseline_result,
+            baseline_seed,
+            treatment_result,
+            treatment_seeds,
+            rep_errors,
+            provenance,
+        )
+
     # ------------------------------------------------------------------ #
 
     def run(self) -> Result:
+        """Execute the experiment, using serial execution if no plugin provides it."""
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
 
@@ -243,57 +307,6 @@ class Experiment:
         errors: Dict[str, Exception] = {}
 
         # ---------- replicate execution -------------------------------- #
-        def _execute_replicate(rep: int) -> Tuple[
-            Optional[Mapping[str, Any]],
-            Optional[int],
-            Dict[str, Mapping[str, Any]],
-            Dict[str, int],
-            Dict[str, Exception],
-            Dict[str, List[Mapping[str, Any]]],
-        ]:
-            baseline_result: Optional[Mapping[str, Any]] = None
-            baseline_seed: Optional[int] = None
-            treatment_result: Dict[str, Mapping[str, Any]] = {}
-            treatment_seeds: Dict[str, int] = {}
-            rep_errors: Dict[str, Exception] = {}
-            provenance: Dict[str, List[Mapping[str, Any]]] = {}
-            base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
-            try:
-                baseline_result, baseline_seed, base_prov = self._run_condition(
-                    base_ctx
-                )
-                provenance["baseline"] = base_prov
-            except Exception as exc:  # pragma: no cover
-                rep_errors[f"baseline_rep_{rep}"] = exc
-                return (
-                    baseline_result,
-                    baseline_seed,
-                    treatment_result,
-                    treatment_seeds,
-                    rep_errors,
-                    provenance,
-                )
-
-            for t in self.treatments:
-                ctx = FrozenContext({"replicate": rep, "condition": t.name})
-                try:
-                    result, seed, prov = self._run_condition(ctx, t)
-                    treatment_result[t.name] = result
-                    if seed is not None:
-                        treatment_seeds[t.name] = seed
-                    provenance[t.name] = prov
-                except Exception as exc:  # pragma: no cover
-                    rep_errors[f"{t.name}_rep_{rep}"] = exc
-
-            return (
-                baseline_result,
-                baseline_seed,
-                treatment_result,
-                treatment_seeds,
-                rep_errors,
-                provenance,
-            )
-
         exec_plugin = SerialExecution()
         results_list: List[
             Tuple[
@@ -306,13 +319,15 @@ class Experiment:
             ]
         ]
         for plugin in reversed(self.plugins):
-            res = plugin.run_experiment_loop(self, _execute_replicate)
+            res = plugin.run_experiment_loop(self, self._execute_replicate)
             if res is not NotImplemented:
                 exec_plugin = plugin
                 results_list = res
                 break
         else:
-            results_list = exec_plugin.run_experiment_loop(self, _execute_replicate)
+            results_list = exec_plugin.run_experiment_loop(
+                self, self._execute_replicate
+            )
 
         for rep, (base, seed, treats, seeds, errs, prov) in enumerate(results_list):
             if base is not None:

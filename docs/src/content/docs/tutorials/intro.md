@@ -46,7 +46,7 @@ from crystallize import (
     treatment,
     verifier,
 )
-from crystallize.core.plugins import ExecutionPlugin
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.context import FrozenContext
 from scipy.stats import ttest_ind
 import random
@@ -102,7 +102,7 @@ if __name__ == "__main__":
         treatments=[add_ten()],
         hypotheses=[check_for_improvement],
         replicates=20,  # Run 20 replicates for statistical power
-        plugins=[ExecutionPlugin(parallel=True)],
+        plugins=[ParallelExecution()],
     )
     experiment.validate()
     result = experiment.run()
@@ -198,7 +198,7 @@ experiment = Experiment(
     treatments=[add_ten()],
     hypotheses=[check_for_improvement],
     replicates=20,
-    plugins=[ExecutionPlugin(parallel=True)],
+    plugins=[ParallelExecution()],
 )
 experiment.validate()
 result = experiment.run()

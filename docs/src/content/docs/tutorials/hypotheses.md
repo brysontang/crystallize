@@ -106,7 +106,7 @@ exp = Experiment(
     treatments=[scale_ages()],
     hypotheses=[rank_by_p_value],  # Add here
     replicates=20,  # Increase for stats power
-    plugins=[ExecutionPlugin()],
+    plugins=[ParallelExecution()],
 )
 exp.validate()
 
@@ -133,7 +133,7 @@ print("Ranking:", hyp_result.ranking)  # Best treatment (likely none significant
 
 ```python
 from crystallize import data_source, pipeline_step, treatment, hypothesis, verifier
-from crystallize.core.plugins import ExecutionPlugin
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.context import FrozenContext
 import pandas as pd
 import random
@@ -184,7 +184,7 @@ if __name__ == "__main__":
         treatments=[scale_ages()],
         hypotheses=[rank_by_p_value],
         replicates=20,
-        plugins=[ExecutionPlugin()],
+        plugins=[ParallelExecution()],
     )
     exp.validate()
     result = exp.run()

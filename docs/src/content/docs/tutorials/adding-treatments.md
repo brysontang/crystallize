@@ -96,7 +96,7 @@ exp = Experiment(
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
     treatments=[scale_ages()],
     replicates=3,
-    plugins=[ExecutionPlugin()],
+    plugins=[ParallelExecution()],
 )
 exp.validate()
 
@@ -121,7 +121,7 @@ print("Treatment metrics:", result.metrics.treatments["scale_ages_treatment"].me
 
 ```python
 from crystallize import data_source, pipeline_step, treatment
-from crystallize.core.plugins import ExecutionPlugin
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.context import FrozenContext
 import pandas as pd
 import random
@@ -168,7 +168,7 @@ if __name__ == "__main__":
         pipeline=Pipeline([normalize_age(), compute_metrics()]),
         treatments=[scale_ages()],
         replicates=3,
-        plugins=[ExecutionPlugin()],
+        plugins=[ParallelExecution()],
     )
     exp.validate()
     result = exp.run()

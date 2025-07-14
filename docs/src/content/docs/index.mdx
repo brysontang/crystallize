@@ -46,7 +46,8 @@ from crystallize import (
     treatment,
     verifier,
 )
-from crystallize.core.plugins import ExecutionPlugin, SeedPlugin
+from crystallize.core.plugins import SeedPlugin
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.context import FrozenContext
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
@@ -104,10 +105,7 @@ if __name__ == "__main__":
         treatments=[add_ten()],
         hypotheses=[check_for_improvement],
         replicates=20,  # Run the experiment 20 times for statistical power
-        plugins=[
-            SeedPlugin(),
-            ExecutionPlugin(parallel=True),
-        ],
+        plugins=[SeedPlugin(), ParallelExecution()],
     )
     experiment.validate()
     result = experiment.run()

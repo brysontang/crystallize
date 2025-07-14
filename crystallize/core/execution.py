@@ -46,15 +46,24 @@ class ParallelExecution(BasePlugin):
                 f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{self.executor_type}'"
             )
         if self.executor_type == "process":
+            from .experiment import _run_replicate_remote
+
             default_workers = max(1, (os.cpu_count() or 2) - 1)
             exec_cls = ProcessPoolExecutor
+            submit_target = _run_replicate_remote
+            arg_list = [(experiment, rep) for rep in range(experiment.replicates)]
         else:
             default_workers = os.cpu_count() or 8
             exec_cls = ThreadPoolExecutor
+            submit_target = replicate_fn
+            arg_list = list(range(experiment.replicates))
         worker_count = self.max_workers or min(experiment.replicates, default_workers)
         results: List[Any] = [None] * experiment.replicates
         with exec_cls(max_workers=worker_count) as executor:
-            future_map = {executor.submit(replicate_fn, rep): rep for rep in range(experiment.replicates)}
+            future_map = {
+                executor.submit(submit_target, arg): rep
+                for rep, arg in enumerate(arg_list)
+            }
             futures = as_completed(future_map)
             if self.progress and experiment.replicates > 1:
                 from tqdm import tqdm  # type: ignore

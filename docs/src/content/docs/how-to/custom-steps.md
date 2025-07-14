@@ -84,7 +84,7 @@ for examples of seeding experiments.
 
 ```python
 from functools import partial
-from crystallize.core.plugins import ExecutionPlugin
+from crystallize.core.execution import ParallelExecution
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.context import FrozenContext
@@ -98,7 +98,7 @@ exp = Experiment(
         compute_sum(),
     ]),
     replicates=3,
-    plugins=[ExecutionPlugin()],
+    plugins=[ParallelExecution()],
 )
 exp.validate()
 result = exp.run()

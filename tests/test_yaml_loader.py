@@ -62,7 +62,11 @@ def json_config(tmp_path: Path) -> Path:
 def test_load_experiment_success(json_config: Path):
     exp = load_experiment_from_file(json_config)
     exp.validate()
-    result = exp.run()
+    result = exp.run(
+        treatments=exp.treatments,
+        hypotheses=exp.hypotheses,
+        replicates=exp.replicates,
+    )
     assert result.metrics.baseline.metrics["result"] == [2, 3]
     assert result.metrics.treatments["inc"].metrics["result"] == [2, 3]
 

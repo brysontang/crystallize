@@ -19,7 +19,11 @@ def main(argv: List[str] | None = None) -> None:
     if args.command == "run":
         experiment = load_experiment_from_file(args.config)
         experiment.validate()
-        result = experiment.run()
+        result = experiment.run(
+            treatments=experiment.treatments,
+            hypotheses=experiment.hypotheses,
+            replicates=experiment.replicates,
+        )
         hyp_map = {
             h.name: {"results": h.results, "ranking": h.ranking}
             for h in result.metrics.hypotheses

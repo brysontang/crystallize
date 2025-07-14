@@ -52,12 +52,11 @@ def test_experiment_run_basic():
     experiment = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        treatments=[treatment],
-        hypotheses=[hypothesis],
-        replicates=2,
     )
     experiment.validate()
-    result = experiment.run()
+    result = experiment.run(
+        treatments=[treatment], hypotheses=[hypothesis], replicates=2
+    )
     assert result.metrics.baseline.metrics["metric"] == [0, 1]
     assert result.metrics.treatments["treat"].metrics["metric"] == [1, 2]
     hyp_res = result.get_hypothesis(hypothesis.name)
@@ -79,12 +78,11 @@ def test_experiment_run_multiple_treatments():
     experiment = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        treatments=[treatment1, treatment2],
-        hypotheses=[hypothesis],
-        replicates=2,
     )
     experiment.validate()
-    result = experiment.run()
+    result = experiment.run(
+        treatments=[treatment1, treatment2], hypotheses=[hypothesis], replicates=2
+    )
     assert result.metrics.baseline.metrics["metric"] == [0, 1]
     assert result.metrics.treatments["treat1"].metrics["metric"] == [1, 2]
     assert result.metrics.treatments["treat2"].metrics["metric"] == [2, 3]
@@ -117,10 +115,9 @@ def test_experiment_run_treatments_no_hypotheses():
     experiment = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        treatments=[treatment],
     )
     experiment.validate()
-    result = experiment.run()
+    result = experiment.run(treatments=[treatment])
     assert result.metrics.treatments["treat"].metrics["metric"] == [1]
 
 
@@ -136,10 +133,10 @@ def test_experiment_run_hypothesis_without_treatments_raises():
     experiment = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        hypotheses=[hypothesis],
     )
+    experiment.validate()
     with pytest.raises(ValueError):
-        experiment.validate()
+        experiment.run(hypotheses=[hypothesis])
 
 
 class IdentityStep(PipelineStep):
@@ -174,6 +171,9 @@ def test_experiment_builder_chaining():
     experiment = Experiment(
         datasource=DummyDataSource(),
         pipeline=Pipeline([PassStep()]),
+    )
+    experiment.validate()
+    result = experiment.run(
         treatments=[Treatment("t", {"increment": 1})],
         hypotheses=[
             Hypothesis(
@@ -185,8 +185,6 @@ def test_experiment_builder_chaining():
         ],
         replicates=2,
     )
-    experiment.validate()
-    result = experiment.run()
     assert result.metrics.treatments["t"].metrics["metric"] == [1, 2]
     hyp_res = result.get_hypothesis("hypothesis")
     assert hyp_res is not None and hyp_res.ranking["best"] == "t"
@@ -195,16 +193,15 @@ def test_experiment_builder_chaining():
 def test_run_zero_replicates():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()
-    experiment = Experiment(datasource=datasource, pipeline=pipeline, replicates=0)
+    experiment = Experiment(datasource=datasource, pipeline=pipeline)
     experiment.validate()
-    result = experiment.run()
+    result = experiment.run(replicates=0)
     assert len(result.metrics.baseline.metrics["metric"]) == 1
 
 
 def test_validate_partial_config():
-    experiment = Experiment(pipeline=Pipeline([PassStep()]))
-    with pytest.raises(ValueError):
-        experiment.validate()
+    with pytest.raises(TypeError):
+        Experiment(pipeline=Pipeline([PassStep()]))
 
 
 def test_apply_without_exit_step():
@@ -266,11 +263,9 @@ def test_run_with_non_numeric_metrics_raises():
     experiment = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        treatments=[treatment],
-        hypotheses=[hypothesis],
     )
     experiment.validate()
-    experiment.run()
+    experiment.run(treatments=[treatment], hypotheses=[hypothesis])
 
 
 def test_cache_provenance_reused_between_runs(tmp_path, monkeypatch):
@@ -302,23 +297,21 @@ def test_parallel_execution_matches_serial():
     serial_exp = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        treatments=[treatment],
-        hypotheses=[hypothesis],
-        replicates=2,
     )
     serial_exp.validate()
-    serial_result = serial_exp.run()
+    serial_result = serial_exp.run(
+        treatments=[treatment], hypotheses=[hypothesis], replicates=2
+    )
 
     parallel_exp = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        treatments=[treatment],
-        hypotheses=[hypothesis],
-        replicates=2,
         plugins=[ParallelExecution()],
     )
     parallel_exp.validate()
-    parallel_result = parallel_exp.run()
+    parallel_result = parallel_exp.run(
+        treatments=[treatment], hypotheses=[hypothesis], replicates=2
+    )
 
     assert parallel_result.metrics == serial_result.metrics
 
@@ -343,21 +336,17 @@ def test_parallel_execution_handles_errors():
     serial = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        treatments=[treatment],
-        replicates=2,
     )
     serial.validate()
-    serial_res = serial.run()
+    serial_res = serial.run(treatments=[treatment], replicates=2)
 
     parallel = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        treatments=[treatment],
-        replicates=2,
         plugins=[ParallelExecution()],
     )
     parallel.validate()
-    parallel_res = parallel.run()
+    parallel_res = parallel.run(treatments=[treatment], replicates=2)
 
     assert parallel_res.metrics == serial_res.metrics
     assert parallel_res.errors.keys() == serial_res.errors.keys()
@@ -379,21 +368,20 @@ class SleepStep(PipelineStep):
 def test_parallel_is_faster_for_sleep_step():
     pipeline = Pipeline([SleepStep()])
     ds = DummyDataSource()
-    exp_serial = Experiment(datasource=ds, pipeline=pipeline, replicates=5)
+    exp_serial = Experiment(datasource=ds, pipeline=pipeline)
     exp_serial.validate()
     start = time.time()
-    exp_serial.run()
+    exp_serial.run(replicates=5)
     serial_time = time.time() - start
 
     exp_parallel = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        replicates=5,
         plugins=[ParallelExecution()],
     )
     exp_parallel.validate()
     start = time.time()
-    exp_parallel.run()
+    exp_parallel.run(replicates=5)
     parallel_time = time.time() - start
 
     assert serial_time > parallel_time
@@ -405,11 +393,10 @@ def test_parallel_high_replicate_count():
     exp = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        replicates=10,
         plugins=[ParallelExecution()],
     )
     exp.validate()
-    result = exp.run()
+    result = exp.run(replicates=10)
     assert len(result.metrics.baseline.metrics["metric"]) == 10
 
 
@@ -439,23 +426,21 @@ def test_process_executor_faster_for_cpu_bound_step():
     exp_thread = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        replicates=4,
         plugins=[ParallelExecution(executor_type="thread")],
     )
     exp_thread.validate()
     start = time.time()
-    exp_thread.run()
+    exp_thread.run(replicates=4)
     thread_time = time.time() - start
 
     exp_process = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        replicates=4,
         plugins=[ParallelExecution(executor_type="process")],
     )
     exp_process.validate()
     start = time.time()
-    exp_process.run()
+    exp_process.run(replicates=4)
     process_time = time.time() - start
 
     assert process_time < thread_time
@@ -488,12 +473,11 @@ def test_full_experiment_replicate_counts(replicates):
     experiment = Experiment(
         datasource=datasource,
         pipeline=pipeline,
-        treatments=[treatment],
-        hypotheses=[hypothesis],
-        replicates=replicates,
     )
     experiment.validate()
-    result = experiment.run()
+    result = experiment.run(
+        treatments=[treatment], hypotheses=[hypothesis], replicates=replicates
+    )
     assert len(result.metrics.baseline.metrics["metric"]) == replicates
     assert len(result.metrics.treatments["t"].metrics["metric"]) == replicates
     hyp_res = result.get_hypothesis(hypothesis.name)
@@ -505,10 +489,10 @@ def test_apply_with_treatment_and_exit():
     datasource = DummyDataSource()
     treatment = Treatment("inc", {"increment": 2})
     experiment = Experiment(
-        datasource=datasource, pipeline=pipeline, treatments=[treatment]
+        datasource=datasource, pipeline=pipeline
     )
     experiment.validate()
-    output = experiment.apply(treatment_name="inc", data=5)
+    output = experiment.apply(treatment=treatment, data=5)
     assert output == 5
 
 
@@ -548,12 +532,10 @@ def test_multiple_hypotheses_partial_failure():
     exp = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        treatments=[Treatment("t", {"increment": 1})],
-        hypotheses=[good, bad],
     )
     exp.validate()
     with pytest.raises(Exception):
-        exp.run()
+        exp.run(treatments=[Treatment("t", {"increment": 1})], hypotheses=[good, bad])
 
 
 
@@ -595,11 +577,10 @@ def test_process_pool_respects_max_workers(monkeypatch):
     exp = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        replicates=5,
         plugins=[ParallelExecution(executor_type="process", max_workers=2)],
     )
     exp.validate()
-    exp.run()
+    exp.run(replicates=5)
 
     assert recorded["max"] == 2
 
@@ -620,11 +601,10 @@ def test_ctx_mutation_error_parallel_and_serial(parallel):
     exp = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        replicates=2,
         plugins=plugins,
     )
     exp.validate()
-    result = exp.run()
+    result = exp.run(replicates=2)
     assert result.metrics.baseline.metrics == {}
     assert "baseline_rep_0" in result.errors and "baseline_rep_1" in result.errors
 
@@ -637,9 +617,9 @@ class FailingSource(DataSource):
 def test_datasource_failure_recorded():
     pipeline = Pipeline([PassStep()])
     ds = FailingSource()
-    exp = Experiment(datasource=ds, pipeline=pipeline, replicates=2)
+    exp = Experiment(datasource=ds, pipeline=pipeline)
     exp.validate()
-    result = exp.run()
+    result = exp.run(replicates=2)
     assert "baseline_rep_0" in result.errors
     assert "baseline_rep_1" in result.errors
 
@@ -649,10 +629,10 @@ def test_treatment_failure_recorded():
     ds = DummyDataSource()
     failing = Treatment("boom", lambda ctx: (_ for _ in ()).throw(RuntimeError("bad")))
     exp = Experiment(
-        datasource=ds, pipeline=pipeline, treatments=[failing], replicates=2
+        datasource=ds, pipeline=pipeline
     )
     exp.validate()
-    result = exp.run()
+    result = exp.run(treatments=[failing], replicates=2)
     assert "boom_rep_0" in result.errors
     assert "boom_rep_1" in result.errors
 
@@ -668,12 +648,10 @@ def test_ranker_error_bubbles():
     exp = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        treatments=[Treatment("t", {"increment": 1})],
-        hypotheses=[hyp],
     )
     exp.validate()
     with pytest.raises(ZeroDivisionError):
-        exp.run()
+        exp.run(treatments=[Treatment("t", {"increment": 1})], hypotheses=[hyp])
 
 
 def test_invalid_replicates_type():
@@ -689,9 +667,9 @@ def test_zero_negative_replicates_clamped():
     pipeline = Pipeline([PassStep()])
     ds = DummyDataSource()
     for reps in [0, -5]:
-        exp = Experiment(datasource=ds, pipeline=pipeline, replicates=reps)
+        exp = Experiment(datasource=ds, pipeline=pipeline)
         exp.validate()
-        result = exp.run()
+        result = exp.run(replicates=reps)
         assert len(result.metrics.baseline.metrics["metric"]) == 1
 
 
@@ -702,11 +680,10 @@ def test_high_replicates_parallel_no_issues():
     exp = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        replicates=50,
         plugins=[ParallelExecution(executor_type="thread")],
     )
     exp.validate()
-    result = exp.run()
+    result = exp.run(replicates=50)
     assert len(result.metrics.baseline.metrics["metric"]) == 50
 
 
@@ -739,23 +716,21 @@ def test_auto_seed_reproducible_serial_vs_parallel():
     serial = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        replicates=3,
         plugins=[SeedPlugin(seed=123, auto_seed=True, seed_fn=numpy_seed_fn)],
     )
     serial.validate()
-    res_serial = serial.run()
+    res_serial = serial.run(replicates=3)
 
     parallel = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        replicates=3,
         plugins=[
             SeedPlugin(seed=123, auto_seed=True, seed_fn=numpy_seed_fn),
             ParallelExecution(),
         ],
     )
     parallel.validate()
-    res_parallel = parallel.run()
+    res_parallel = parallel.run(replicates=3)
 
     assert res_serial.metrics == res_parallel.metrics
     assert res_serial.provenance["seeds"] == res_parallel.provenance["seeds"]
@@ -774,11 +749,10 @@ def test_custom_seed_function_called():
     exp = Experiment(
         datasource=ds,
         pipeline=pipeline,
-        replicates=1,
         plugins=[SeedPlugin(seed=7, seed_fn=record_seed, auto_seed=True)],
     )
     exp.validate()
-    exp.run()
+    exp.run(replicates=1)
     assert called == [hash(7)]
 
 

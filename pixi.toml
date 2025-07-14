@@ -3,7 +3,7 @@ authors = ["Bryson Tang <brysontang@gmail.com>"]
 channels = ["conda-forge"]
 name = "crystallize-ml"
 platforms = ["osx-arm64", "linux-64"]
-version = "0.3.0"
+version = "0.2.0"
 
 [tasks]
 test = "pytest -q"

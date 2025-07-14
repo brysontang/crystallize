@@ -28,7 +28,8 @@ class Pipeline:
         rep: Optional[int] = None,
         condition: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
-    ) -> Any:
+        return_provenance: bool = False,
+    ) -> Any | Tuple[Any, List[Mapping[str, Any]]]:
         """
         Execute the pipeline in order.
 
@@ -37,7 +38,9 @@ class Pipeline:
             ctx:  Immutable execution context.
 
         Returns:
-            Any: Output from the last step in the pipeline.
+            If ``return_provenance`` is ``False`` (default), returns the output
+            from the last step. Otherwise returns a tuple ``(output,
+            provenance)`` where ``provenance`` is a list of step records.
         """
         logger = logger or logging.getLogger("crystallize")
 
@@ -115,7 +118,8 @@ class Pipeline:
                 }
             )
 
-        self._provenance = tuple(MappingProxyType(p) for p in provenance)
+        final_provenance = tuple(MappingProxyType(p) for p in provenance)
+        self._provenance = final_provenance
 
         hit_count = sum(1 for p in provenance if p["cache_hit"])
         logger.info(
@@ -125,9 +129,10 @@ class Pipeline:
             len(self.steps),
         )
 
+        if return_provenance:
+            return data, list(final_provenance)
         return data
 
-    # ------------------------------------------------------------------ #
 
     def signature(self) -> str:
         """Hash‐friendly signature for caching/provenance."""

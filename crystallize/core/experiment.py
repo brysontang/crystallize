@@ -175,7 +175,7 @@ class Experiment:
             self.replicates,
             run_ctx.get("condition"),
         )
-        self.pipeline.run(
+        _, prov = self.pipeline.run(
             data,
             run_ctx,
             verbose=self.verbose,
@@ -183,8 +183,9 @@ class Experiment:
             rep=run_ctx.get("replicate"),
             condition=run_ctx.get("condition"),
             logger=logger,
+            return_provenance=True,
         )
-        return run_ctx.metrics.as_dict(), local_seed, self.pipeline.get_provenance()
+        return run_ctx.metrics.as_dict(), local_seed, prov
 
     # ------------------------------------------------------------------ #
 

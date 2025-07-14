@@ -13,9 +13,7 @@ title: Result
 ---
 
 ## <kbd>class</kbd> `Result`
-
-
-
+Outputs of an experiment run including metrics and provenance. 
 
 ### <kbd>method</kbd> `Result.__init__`
 
@@ -43,9 +41,7 @@ __init__(
 get_artifact(name: 'str') → Any
 ```
 
-
-
-
+Return an artifact by name if it was recorded. 
 
 ---
 
@@ -55,9 +51,7 @@ get_artifact(name: 'str') → Any
 get_hypothesis(name: 'str') → Optional[HypothesisResult]
 ```
 
-
-
-
+Return the :class:`HypothesisResult` with ``name`` if present. 
 
 ---
 

@@ -11,6 +11,7 @@ from .datasource import DataSource
 from .hypothesis import Hypothesis
 from .pipeline import Pipeline
 from .pipeline_step import PipelineStep, exit_step
+from .injection import inject_from_ctx
 from .treatment import Treatment
 
 
@@ -28,24 +29,31 @@ def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:
             if name not in {"data", "ctx"} and p.default is not inspect.Signature.empty
         }
 
+        injected_fn = inject_from_ctx(fn)
+
         is_cacheable = cacheable
 
         def factory(**overrides: Any) -> PipelineStep:
-            params = {**defaults, **overrides}
-            missing = [n for n in param_names if n not in params]
+            unknown = set(overrides) - set(param_names)
+            if unknown:
+                raise TypeError(f"Unknown parameters: {', '.join(sorted(unknown))}")
+            params = dict(overrides)
+            missing = [n for n in param_names if n not in params and n not in defaults]
             if missing:
                 raise TypeError(f"Missing parameters: {', '.join(missing)}")
+
+            explicit_params = set(overrides)
 
             class FunctionStep(PipelineStep):
                 cacheable = is_cacheable
 
                 def __call__(self, data: Any, ctx: FrozenContext) -> Any:
-                    kwargs = {n: params[n] for n in param_names}
-                    return fn(data, ctx, **kwargs)
+                    kwargs = {n: params[n] for n in explicit_params}
+                    return injected_fn(data, ctx, **kwargs)
 
                 @property
                 def params(self) -> dict:
-                    return {n: params[n] for n in param_names}
+                    return {n: params[n] for n in explicit_params}
 
             FunctionStep.__name__ = f"{fn.__name__.title()}Step"
             return FunctionStep()
@@ -173,6 +181,7 @@ def pipeline(*steps: PipelineStep) -> Pipeline:
 __all__ = [
     "pipeline_step",
     "exit_step",
+    "inject_from_ctx",
     "treatment",
     "hypothesis",
     "verifier",

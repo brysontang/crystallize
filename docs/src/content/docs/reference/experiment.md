@@ -24,18 +24,21 @@ title: Experiment
 
 ```python
 __init__(
-    datasource: 'Optional[DataSource]' = None,
-    pipeline: 'Optional[Pipeline]' = None,
-    treatments: 'Optional[List[Treatment]]' = None,
-    hypotheses: 'Optional[List[Hypothesis]]' = None,
-    replicates: 'int' = 1,
+    datasource: 'DataSource',
+    pipeline: 'Pipeline',
     plugins: 'Optional[List[BasePlugin]]' = None
 ) → None
 ```
 
+Instantiate an experiment configuration. 
 
 
 
+**Args:**
+ 
+ - <b>`datasource`</b>:  Object that provides the initial data for each run. 
+ - <b>`pipeline`</b>:  Pipeline executed for every replicate. 
+ - <b>`plugins`</b>:  Optional list of plugins controlling experiment behaviour. 
 
 
 
@@ -46,7 +49,7 @@ __init__(
 
 ```python
 apply(
-    treatment_name: 'Optional[str]' = None,
+    treatment: 'Treatment | None' = None,
     data: 'Any | None' = None,
     seed: 'Optional[int]' = None
 ) → Any
@@ -66,13 +69,39 @@ Return the first plugin instance matching ``plugin_class``.
 
 ---
 
+### <kbd>method</kbd> `Experiment.optimize`
+
+```python
+optimize(
+    optimizer: "'BaseOptimizer'",
+    num_trials: 'int',
+    replicates_per_trial: 'int' = 1
+) → Treatment
+```
+
+
+
+
+
+---
+
 ### <kbd>method</kbd> `Experiment.run`
 
 ```python
-run() → Result
+run(
+    treatments: 'List[Treatment] | None' = None,
+    hypotheses: 'List[Hypothesis] | None' = None,
+    replicates: 'int' = 1
+) → Result
 ```
 
-Execute the experiment, using serial execution if no plugin provides it. 
+Execute the experiment and return a :class:`Result` instance. 
+
+The lifecycle proceeds as follows: 
+
+1. ``before_run`` hooks for all plugins are invoked. 2. Each replicate is executed via ``run_experiment_loop``.  The default  implementation runs serially, but plugins may provide parallel or  distributed strategies. 3. After all replicates complete, metrics are aggregated and  hypotheses are verified. 4. ``after_run`` hooks for all plugins are executed. 
+
+The returned :class:`~crystallize.core.result.Result` contains aggregated metrics, any captured errors and a provenance record of context mutations for every pipeline step. 
 
 ---
 

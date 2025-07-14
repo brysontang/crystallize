@@ -17,9 +17,6 @@ from crystallize.core.pipeline import Pipeline
 exp = Experiment(
     datasource=my_source(),
     pipeline=Pipeline([step1(), step2()]),
-    treatments=[treatment_a()],
-    hypotheses=[my_hyp],
-    replicates=3,
     plugins=[
         SeedPlugin(seed=42),
         ParallelExecution(),

@@ -3,15 +3,19 @@ from typing import Any
 from crystallize.core.context import FrozenContext
 
 class DataSource(ABC):
+    """Abstract provider of input data for an experiment."""
     @abstractmethod
     def fetch(self, ctx: FrozenContext) -> Any:
-        """
-        Fetch or generate data.
+        """Return raw data for a single pipeline run.
+
+        Implementations may load data from disk, generate synthetic samples or
+        access remote sources.  They should be deterministic with respect to the
+        provided context.
 
         Args:
-            ctx (FrozenContext): Immutable execution context.
+            ctx: Immutable execution context for the current run.
 
         Returns:
-            Any: The data produced by this DataSource.
+            The produced data object.
         """
         raise NotImplementedError()

@@ -46,9 +46,15 @@ def _run_replicate_remote(args: Tuple["Experiment", int]) -> Tuple[
 
 class Experiment:
     VALID_EXECUTOR_TYPES = VALID_EXECUTOR_TYPES
-    """
-    Orchestrates baseline + treatment pipelines across replicates, then verifies
-    one or more hypotheses using aggregated metrics.
+    """Central orchestrator for running and evaluating experiments.
+
+    An ``Experiment`` coordinates data loading, pipeline execution, treatment
+    application and hypothesis verification.  Behavior during the run is
+    extended through a list of :class:`~crystallize.core.plugins.BasePlugin`
+    instances, allowing custom seeding strategies, logging, artifact handling
+    or alternative execution loops.  All state is communicated via a
+    :class:`~crystallize.core.context.FrozenContext` instance passed through the
+    pipeline steps.
     """
 
     def __init__(
@@ -61,6 +67,16 @@ class Experiment:
         *,
         plugins: Optional[List[BasePlugin]] = None,
     ) -> None:
+        """Instantiate an experiment configuration.
+
+        Args:
+            datasource: Object that provides the initial data for each run.
+            pipeline: Pipeline executed for every replicate.
+            treatments: List of treatments applied after the baseline run.
+            hypotheses: Hypotheses verified after all replicates finish.
+            replicates: Number of times to run baseline and treatments.
+            plugins: Optional list of plugins controlling experiment behaviour.
+        """
         self.datasource = datasource
         self.pipeline = pipeline
         self.treatments = treatments or []
@@ -184,7 +200,22 @@ class Experiment:
     # ------------------------------------------------------------------ #
 
     def run(self) -> Result:
-        """Execute the experiment, using serial execution if no plugin provides it."""
+        """Execute the experiment and return a :class:`Result` instance.
+
+        The lifecycle proceeds as follows:
+
+        1. ``before_run`` hooks for all plugins are invoked.
+        2. Each replicate is executed via ``run_experiment_loop``.  The default
+           implementation runs serially, but plugins may provide parallel or
+           distributed strategies.
+        3. After all replicates complete, metrics are aggregated and
+           hypotheses are verified.
+        4. ``after_run`` hooks for all plugins are executed.
+
+        The returned :class:`~crystallize.core.result.Result` contains aggregated
+        metrics, any captured errors and a provenance record of context
+        mutations for every pipeline step.
+        """
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
 

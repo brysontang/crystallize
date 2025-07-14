@@ -15,7 +15,7 @@ VALID_EXECUTOR_TYPES = {"thread", "process"}
 
 @dataclass
 class SerialExecution(BasePlugin):
-    """Default serial execution strategy."""
+    """Execute replicates one after another within the main process."""
 
     progress: bool = False
 
@@ -32,7 +32,7 @@ class SerialExecution(BasePlugin):
 
 @dataclass
 class ParallelExecution(BasePlugin):
-    """Run replicates concurrently using a pool executor."""
+    """Run replicates concurrently using ``ThreadPoolExecutor`` or ``ProcessPoolExecutor``."""
 
     max_workers: Optional[int] = None
     executor_type: str = "thread"

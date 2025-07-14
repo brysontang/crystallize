@@ -11,7 +11,7 @@ from crystallize.core.pipeline_step import PipelineStep
 
 
 class Pipeline:
-    """Linear sequence of :class:`PipelineStep` objects."""
+    """Linear sequence of :class:`PipelineStep` objects forming an experiment workflow."""
 
     def __init__(self, steps: List[PipelineStep]) -> None:
         if not steps:
@@ -33,17 +33,21 @@ class Pipeline:
         return_provenance: bool = False,
         experiment: Optional["Experiment"] = None,
     ) -> Any | Tuple[Any, List[Mapping[str, Any]]]:
-        """
-        Execute the pipeline in order.
+        """Run the sequence of steps on ``data`` using ``ctx``.
+
+        Steps may read from or write to the context and record metrics. When a
+        step is marked as cacheable its outputs are stored on disk keyed by its
+        input hash and parameters.  Subsequent runs will reuse cached results if
+        available.
 
         Args:
-            data: Raw data from a DataSource.
-            ctx:  Immutable execution context.
+            data: Raw input from a :class:`DataSource`.
+            ctx: Immutable execution context shared across steps.
 
         Returns:
-            If ``return_provenance`` is ``False`` (default), returns the output
-            from the last step. Otherwise returns a tuple ``(output,
-            provenance)`` where ``provenance`` is a list of step records.
+            Either the pipeline output or ``(output, provenance)`` when
+            ``return_provenance`` is ``True``. The provenance list contains a
+            record per step detailing cache hits and context mutations.
         """
         logger = logger or logging.getLogger("crystallize")
 

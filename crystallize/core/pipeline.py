@@ -1,5 +1,4 @@
 import logging
-from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -126,7 +125,7 @@ class Pipeline:
                 }
             )
 
-        final_provenance = tuple(MappingProxyType(p) for p in provenance)
+        final_provenance = tuple(provenance)
         self._provenance = final_provenance
 
         hit_count = sum(1 for p in provenance if p["cache_hit"])
@@ -138,7 +137,7 @@ class Pipeline:
         )
 
         if return_provenance:
-            return data, list(final_provenance)
+            return data, [dict(p) for p in final_provenance]
         return data
 
 

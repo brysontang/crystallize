@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from .config import ExecutionConfig, LoggingConfig, SeedConfig
+from .execution import ParallelExecution, SerialExecution
+from .plugins import LoggingPlugin, SeedPlugin
 from .datasource import DataSource
 from .experiment import Experiment
 from .hypothesis import Hypothesis
@@ -124,17 +125,23 @@ class ExperimentBuilder:
     def build(self) -> Experiment:
         normalized_steps = [self._instantiate(step) for step in self._pipeline_steps]
         pipeline_obj = Pipeline(normalized_steps)
-        exec_plug = ExecutionConfig(
-            parallel=self._parallel,
-            max_workers=self._max_workers,
-            executor_type=self._executor_type,
-        )
-        seed_plug = SeedConfig(
+        if self._parallel:
+            exec_plug = ParallelExecution(
+                max_workers=self._max_workers,
+                executor_type=self._executor_type,
+                progress=self._progress,
+            )
+        else:
+            exec_plug = SerialExecution(progress=self._progress)
+        seed_plug = SeedPlugin(
             seed=self._seed,
             auto_seed=self._auto_seed,
             seed_fn=self._seed_fn,
         )
-        log_plug = LoggingConfig(verbose=self._verbose, log_level=self._log_level)
+        log_plug = LoggingPlugin(
+            verbose=self._verbose,
+            log_level=self._log_level,
+        )
         exp = Experiment(
             datasource=self._datasource,
             pipeline=pipeline_obj,
@@ -143,7 +150,6 @@ class ExperimentBuilder:
             replicates=self._replicates,
             plugins=[exec_plug, seed_plug, log_plug],
         )
-        exp.progress = self._progress
         exp.validate()
         return exp
 

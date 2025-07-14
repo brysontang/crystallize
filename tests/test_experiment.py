@@ -1,5 +1,6 @@
 import random
 import time
+import threading
 from typing import List
 
 import numpy as np
@@ -434,7 +435,6 @@ class FibStep(PipelineStep):
         return {"n": self.n}
 
 
-@pytest.mark.xfail(reason="Process executor unsupported in test env")
 def test_process_executor_faster_for_cpu_bound_step():
     pipeline = Pipeline([FibStep(35)])
     ds = DummyDataSource()
@@ -560,7 +560,6 @@ def test_multiple_hypotheses_partial_failure():
 
 
 
-@pytest.mark.xfail(reason="Process executor unsupported in test env")
 def test_process_pool_respects_max_workers(monkeypatch):
     recorded = {}
 
@@ -576,8 +575,16 @@ def test_process_pool_respects_max_workers(monkeypatch):
 
         def submit(self, fn, rep):
             class F:
+                def __init__(self_inner) -> None:
+                    self_inner._condition = threading.Condition()
+                    self_inner._state = "FINISHED"
+                    self_inner._waiters = []
+
                 def result(self_inner):
                     return fn(rep)
+
+                def done(self_inner):  # pragma: no cover - minimal future API
+                    return True
 
             return F()
 

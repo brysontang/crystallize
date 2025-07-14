@@ -228,7 +228,7 @@ class Experiment:
             return_provenance=True,
             experiment=self,
         )
-        return run_ctx.metrics.as_dict(), local_seed, prov
+        return dict(run_ctx.metrics.as_dict()), local_seed, prov
 
     def _execute_replicate(
         self, rep: int
@@ -307,7 +307,18 @@ class Experiment:
         errors: Dict[str, Exception] = {}
 
         # ---------- replicate execution -------------------------------- #
-        exec_plugin = SerialExecution()
+        execution_plugin: Optional[BasePlugin] = None
+        for plugin in reversed(self.plugins):
+            if (
+                getattr(plugin.run_experiment_loop, "__func__", None)
+                is not BasePlugin.run_experiment_loop
+            ):
+                execution_plugin = plugin
+                break
+
+        if execution_plugin is None:
+            execution_plugin = SerialExecution()
+
         results_list: List[
             Tuple[
                 Optional[Mapping[str, Any]],
@@ -317,17 +328,9 @@ class Experiment:
                 Dict[str, Exception],
                 Dict[str, List[Mapping[str, Any]]],
             ]
-        ]
-        for plugin in reversed(self.plugins):
-            res = plugin.run_experiment_loop(self, self._execute_replicate)
-            if res is not NotImplemented:
-                exec_plugin = plugin
-                results_list = res
-                break
-        else:
-            results_list = exec_plugin.run_experiment_loop(
-                self, self._execute_replicate
-            )
+        ] = execution_plugin.run_experiment_loop(
+            self, self._execute_replicate
+        )
 
         for rep, (base, seed, treats, seeds, errs, prov) in enumerate(results_list):
             if base is not None:

@@ -94,14 +94,12 @@ Update the builder to include treatments. Baselines run automatically.
 exp = Experiment(
     datasource=titanic_source(),
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
-    treatments=[scale_ages()],
-    replicates=3,
     plugins=[ParallelExecution()],
 )
 exp.validate()
 
 # Run and compare baseline vs. treatment
-result = exp.run()
+result = exp.run(treatments=[scale_ages()], replicates=3)
 print("Baseline metrics:", result.metrics.baseline.metrics)  # std ~1
 print("Treatment metrics:", result.metrics.treatments["scale_ages_treatment"].metrics)  # std ~1, but scaled input
 ```
@@ -166,12 +164,10 @@ if __name__ == "__main__":
     exp = Experiment(
         datasource=titanic_source(),
         pipeline=Pipeline([normalize_age(), compute_metrics()]),
-        treatments=[scale_ages()],
-        replicates=3,
         plugins=[ParallelExecution()],
     )
     exp.validate()
-    result = exp.run()
+    result = exp.run(treatments=[scale_ages()], replicates=3)
     print("Baseline metrics:", result.metrics.baseline.metrics)
     print("Treatment metrics:", result.metrics.treatments["scale_ages_treatment"].metrics)
 ```

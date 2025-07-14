@@ -103,15 +103,16 @@ Add to builder; run to verify.
 exp = Experiment(
     datasource=titanic_source(),
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
-    treatments=[scale_ages()],
-    hypotheses=[rank_by_p_value],  # Add here
-    replicates=20,  # Increase for stats power
     plugins=[ParallelExecution()],
 )
 exp.validate()
 
 # Run and inspect hypothesis
-result = exp.run()
+result = exp.run(
+    treatments=[scale_ages()],
+    hypotheses=[rank_by_p_value],  # Add here
+    replicates=20,  # Increase for stats power
+)
 hyp_result = result.get_hypothesis("std_change_hyp")
 print("Hypothesis results:", hyp_result.results)  # e.g., {'scale_ages_treatment': {'p_value': ~1, 'significant': False}}
 print("Ranking:", hyp_result.ranking)  # Best treatment (likely none significant)
@@ -181,13 +182,14 @@ if __name__ == "__main__":
     exp = Experiment(
         datasource=titanic_source(),
         pipeline=Pipeline([normalize_age(), compute_metrics()]),
-        treatments=[scale_ages()],
-        hypotheses=[rank_by_p_value],
-        replicates=20,
         plugins=[ParallelExecution()],
     )
     exp.validate()
-    result = exp.run()
+    result = exp.run(
+        treatments=[scale_ages()],
+        hypotheses=[rank_by_p_value],
+        replicates=20,
+    )
     hyp_result = result.get_hypothesis("std_change_hyp")
     print("Hypothesis results:", hyp_result.results)
     print("Ranking:", hyp_result.ranking)

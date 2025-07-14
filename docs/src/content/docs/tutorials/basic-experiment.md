@@ -112,13 +112,12 @@ Build and execute:
 exp = Experiment(
     datasource=titanic_source(),
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
-    replicates=3,
     plugins=[ParallelExecution()],
 )
 exp.validate()
 
 # Run and inspect
-result = exp.run()
+result = exp.run(replicates=3)
 print("Baseline metrics:", result.metrics.baseline.metrics)
 # e.g., {'mean_norm_age': (0.0, 0.0, 0.0)}  # Mean normalized is always 0
 ```
@@ -181,11 +180,10 @@ if __name__ == "__main__":
     exp = Experiment(
         datasource=titanic_source(),
         pipeline=Pipeline([normalize_age(), compute_metrics()]),
-        replicates=3,
         plugins=[ParallelExecution()],
     )
     exp.validate()
-    r = exp.run()
+    r = exp.run(replicates=3)
 
     print("Baseline metrics:", r.metrics.baseline.metrics)
 

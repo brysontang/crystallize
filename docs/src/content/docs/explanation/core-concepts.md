@@ -7,7 +7,7 @@ Crystallize organizes every experiment around a set of focused, decoupled pieces
 
 ## The Experiment
 
-The `Experiment` class is the conductor of a Crystallize run. It ties together your data source, pipeline, treatments, and hypotheses, executing each combination across multiple replicates. After running the configured pipeline for the baseline and every treatment, the experiment collects metrics and passes them to each hypothesis for verification.
+The `Experiment` class is the conductor of a Crystallize run. It combines your data source and pipeline into an execution machine.  When calling ``experiment.run()``, you provide the treatments and hypotheses to evaluate.  The experiment executes the baseline and each treatment across the requested replicates, collects metrics, and verifies them using the supplied hypotheses.
 
 See the [Building Your First Experiment tutorial](../tutorials/basic-experiment.md) for a walkthrough of the experiment lifecycle.
 

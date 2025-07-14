@@ -97,11 +97,10 @@ exp = Experiment(
         normalize(),
         compute_sum(),
     ]),
-    replicates=3,
     plugins=[ParallelExecution()],
 )
 exp.validate()
-result = exp.run()
+result = exp.run(replicates=3)
 print(result.metrics.baseline.metrics)
 
 ```

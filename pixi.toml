@@ -1,6 +1,5 @@
 [workspace]
 name = "crystallize-ml"
-version = "0.6.0" # x-release-please-version
 authors = ["Bryson Tang <brysontang@gmail.com>"]
 channels = ["conda-forge"]
 platforms = ["osx-arm64", "linux-64", "win-64"]

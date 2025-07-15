@@ -5,7 +5,7 @@
       "release-type": "python",
       "component": "crystallize-ml",
       "changelog-path": "CHANGELOG.md",
-      "extra-files": ["pyproject.toml", "pixi.toml"]
+      "extra-files": ["pyproject.toml"]
     },
     "extras/crystallize-extras": {
       "release-type": "python",

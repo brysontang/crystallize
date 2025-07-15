@@ -5,12 +5,20 @@
       "release-type": "python",
       "component": "crystallize-ml",
       "changelog-path": "CHANGELOG.md",
-      "extra-files": ["pixi.toml"]
+      "extra-files": [
+        "pyproject.toml",
+        {
+          "path": "pixi.toml",
+          "type": "toml",
+          "xpath": "/workspace/version"
+        }
+      ]
     },
     "extras/crystallize-extras": {
       "release-type": "python",
       "component": "crystallize-extras",
-      "changelog-path": "extras/crystallize-extras/CHANGELOG.md"
+      "changelog-path": "extras/crystallize-extras/CHANGELOG.md",
+      "extra-files": ["pyproject.toml"]
     }
   },
   "plugins": [

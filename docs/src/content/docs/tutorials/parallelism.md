@@ -22,13 +22,10 @@ Start with your script from "Verifying Hypotheses." Add replicates in the builde
 exp = Experiment(
     datasource=titanic_source(),
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
-    treatments=[scale_ages()],
-    hypotheses=[rank_by_p_value],
-    replicates=50,  # Scale up for better p-value reliability
+    plugins=[ParallelExecution()],
 )
 exp.validate()
-
-result = exp.run()
+result = exp.run(treatments=[scale_ages()], hypotheses=[rank_by_p_value], replicates=50)
 print("Replicate count in metrics:", len(result.metrics.baseline.metrics["std_norm_age"]))  # 50
 ```
 
@@ -50,16 +47,13 @@ Add `.parallel(True)` and configure executor. For CPU-bound (e.g., heavy math), 
 exp = Experiment(
     datasource=titanic_source(),
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
-    treatments=[scale_ages()],
-    hypotheses=[rank_by_p_value],
-    replicates=50,  # High for demo
     plugins=[ParallelExecution(max_workers=4, executor_type="process")],
 )
 exp.validate()
 
 import time  # To measure speed
 start = time.time()
-result = exp.run()
+result = exp.run(treatments=[scale_ages()], hypotheses=[rank_by_p_value], replicates=50)
 print("Runtime:", time.time() - start)  # Faster with parallel
 print("Hypothesis p-value:", result.get_hypothesis("std_change_hyp").results["scale_ages_treatment"]["p_value"])
 ```
@@ -82,7 +76,12 @@ Steps do not cache by default (hash on params/input). In high-replicate runs, ca
 ```python
 # Example cacheable step (from pipeline; already @pipeline_step(cacheable=True))
 @pipeline_step(cacheable=True)  # Explicit for clarity
-def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
+def normalize_age(
+    data: pd.DataFrame,
+    ctx: FrozenContext,
+    *,
+    scale_factor: float = 1.0,
+) -> pd.DataFrame:
     # ... (as before)
     return data
 ```
@@ -117,8 +116,13 @@ def titanic_source(ctx: FrozenContext):
     return pd.DataFrame(sampled_data)
 
 @pipeline_step(cacheable=True)
-def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
-    scale = ctx.get("scale_factor", 1.0)
+def normalize_age(
+    data: pd.DataFrame,
+    ctx: FrozenContext,
+    *,
+    scale_factor: float = 1.0,
+) -> pd.DataFrame:
+    scale = scale_factor
     data['Age'] = data['Age'] * scale
     mean_age = data['Age'].mean()
     std_age = data['Age'].std()
@@ -151,14 +155,15 @@ if __name__ == "__main__":
     exp = Experiment(
         datasource=titanic_source(),
         pipeline=Pipeline([normalize_age(), compute_metrics()]),
-        treatments=[scale_ages()],
-        hypotheses=[rank_by_p_value],
-        replicates=50,  # Scaled for power
         plugins=[ParallelExecution(max_workers=4, executor_type="process")],
     )
     exp.validate()
     start = time.time()
-    result = exp.run()
+    result = exp.run(
+        treatments=[scale_ages()],
+        hypotheses=[rank_by_p_value],
+        replicates=50,  # Scaled for power
+    )
     print("Runtime:", time.time() - start)
     hyp_result = result.get_hypothesis("std_change_hyp")
     print("Hypothesis results:", hyp_result.results)

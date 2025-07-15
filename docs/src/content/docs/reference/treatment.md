@@ -13,14 +13,16 @@ title: Treatment
 ---
 
 ## <kbd>class</kbd> `Treatment`
-A named mutator that tweaks parameters for an experiment replicate. 
+Set up initial context values for a replicate. 
+
+Unlike plugins, a treatment does not hook into the execution lifecycle; it simply mutates the :class:`FrozenContext` before the pipeline starts.  The ``apply`` argument can be a callable or a mapping providing the context additions. 
 
 
 
 **Args:**
  
- - <b>`name`</b>:  Human-readable identifier. 
- - <b>`apply`</b>:  Either a callable ``apply(ctx)`` or a mapping of key-value pairs  to add to the context. The callable form allows dynamic logic while  the mapping form simply inserts the provided keys. Existing keys  must not be mutated – ``FrozenContext`` enforces immutability. 
+ - <b>`name`</b>:  Human-readable identifier for the treatment. 
+ - <b>`apply`</b>:  Either a callable ``apply(ctx)`` or a mapping of keys to insert.  Existing keys must not be mutated—``FrozenContext`` enforces this  immutability. 
 
 ### <kbd>method</kbd> `Treatment.__init__`
 

@@ -102,13 +102,14 @@ if __name__ == "__main__":
     experiment = Experiment(
         datasource=initial_data(),
         pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
-        treatments=[add_ten()],
-        hypotheses=[check_for_improvement],
-        replicates=20,  # Run the experiment 20 times for statistical power
         plugins=[SeedPlugin(), ParallelExecution()],
     )
     experiment.validate()
-    result = experiment.run()
+    result = experiment.run(
+        treatments=[add_ten()],
+        hypotheses=[check_for_improvement],
+        replicates=20,  # Run the experiment 20 times for statistical power
+    )
 
     # Print the results for our hypothesis
     hyp_result = result.get_hypothesis("check_for_improvement")

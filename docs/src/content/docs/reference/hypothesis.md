@@ -13,7 +13,7 @@ title: Hypothesis
 ---
 
 ## <kbd>class</kbd> `Hypothesis`
-A quantifiable assertion to verify after experiment execution. 
+Encapsulate a statistical test to compare baseline and treatment results. 
 
 ### <kbd>method</kbd> `Hypothesis.__init__`
 
@@ -41,9 +41,7 @@ __init__(
 rank_treatments(verifier_results: Mapping[str, Any]) → Mapping[str, Any]
 ```
 
-
-
-
+Rank treatments using the ``ranker`` score function. 
 
 ---
 
@@ -56,8 +54,18 @@ verify(
 ) → Any
 ```
 
+Evaluate the hypothesis using selected metric groups. 
 
 
 
+**Args:**
+ 
+ - <b>`baseline_metrics`</b>:  Aggregated metrics from baseline runs. 
+ - <b>`treatment_metrics`</b>:  Aggregated metrics from a treatment. 
+
+
+
+**Returns:**
+ The output of the ``verifier`` callable. When multiple metric groups are specified the result is a list of outputs in the same order. 
 
 

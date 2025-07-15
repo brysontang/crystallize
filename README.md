@@ -70,13 +70,14 @@ treatment = Treatment(name="experiment_variant", apply_fn=lambda ctx: ctx.update
 experiment = Experiment(
     datasource=datasource,
     pipeline=pipeline,
-    treatments=[treatment],
-    hypotheses=[hypothesis],
-    replicates=3,
     plugins=[SeedPlugin(seed=42), ParallelExecution(max_workers=4)],
 )
 experiment.validate()
-result = experiment.run()
+result = experiment.run(
+    treatments=[treatment],
+    hypotheses=[hypothesis],
+    replicates=3,
+)
 print(result.metrics)
 print(result.hypothesis_result)
 ```

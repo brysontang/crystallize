@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crystallize-extras"
+version = "0.1.0"
+description = "Optional plugins and components for the Crystallize framework."
+requires-python = ">=3.10"
+dependencies = [
+    "crystallize-ml"
+]
+
+[project.optional-dependencies]
+ray = ["ray"]
+vllm = ["vllm"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["crystallize_extras*"]

@@ -103,15 +103,16 @@ Add to builder; run to verify.
 exp = Experiment(
     datasource=titanic_source(),
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
-    treatments=[scale_ages()],
-    hypotheses=[rank_by_p_value],  # Add here
-    replicates=20,  # Increase for stats power
     plugins=[ParallelExecution()],
 )
 exp.validate()
 
 # Run and inspect hypothesis
-result = exp.run()
+result = exp.run(
+    treatments=[scale_ages()],
+    hypotheses=[rank_by_p_value],  # Add here
+    replicates=20,  # Increase for stats power
+)
 hyp_result = result.get_hypothesis("std_change_hyp")
 print("Hypothesis results:", hyp_result.results)  # e.g., {'scale_ages_treatment': {'p_value': ~1, 'significant': False}}
 print("Ranking:", hyp_result.ranking)  # Best treatment (likely none significant)
@@ -148,8 +149,13 @@ def titanic_source(ctx: FrozenContext):
     return pd.DataFrame(sampled_data)
 
 @pipeline_step()
-def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
-    scale = ctx.get("scale_factor", 1.0) + random.random()
+def normalize_age(
+    data: pd.DataFrame,
+    ctx: FrozenContext,
+    *,
+    scale_factor: float = 1.0,
+) -> pd.DataFrame:
+    scale = scale_factor + random.random()
     data['Age'] = data['Age'] * scale
     mean_age = data['Age'].mean()
     std_age = data['Age'].std()
@@ -181,13 +187,14 @@ if __name__ == "__main__":
     exp = Experiment(
         datasource=titanic_source(),
         pipeline=Pipeline([normalize_age(), compute_metrics()]),
-        treatments=[scale_ages()],
-        hypotheses=[rank_by_p_value],
-        replicates=20,
         plugins=[ParallelExecution()],
     )
     exp.validate()
-    result = exp.run()
+    result = exp.run(
+        treatments=[scale_ages()],
+        hypotheses=[rank_by_p_value],
+        replicates=20,
+    )
     hyp_result = result.get_hypothesis("std_change_hyp")
     print("Hypothesis results:", hyp_result.results)
     print("Ranking:", hyp_result.ranking)

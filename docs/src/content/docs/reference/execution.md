@@ -17,7 +17,7 @@ title: Execution
 ---
 
 ## <kbd>class</kbd> `SerialExecution`
-Default serial execution strategy. 
+Execute replicates one after another within the main process. 
 
 ### <kbd>method</kbd> `SerialExecution.__init__`
 
@@ -51,7 +51,7 @@ run_experiment_loop(
 ---
 
 ## <kbd>class</kbd> `ParallelExecution`
-Run replicates concurrently using a pool executor. 
+Run replicates concurrently using ``ThreadPoolExecutor`` or ``ProcessPoolExecutor``. 
 
 ### <kbd>method</kbd> `ParallelExecution.__init__`
 

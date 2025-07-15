@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "component": "crystallize-ml",
+      "changelog-path": "CHANGELOG.md"
+    },
+    "extras/crystallize-extras": {
+      "release-type": "python",
+      "component": "crystallize-extras",
+      "changelog-path": "CHANGELOG.md"
+    }
+  },
+  "plugins": [
+    {
+      "type": "sentence-case"
+    }
+  ],
+  "include-component-in-tag": true,
+  "separate-pull-requests": true,
+  "tag-separator": "@"
+}

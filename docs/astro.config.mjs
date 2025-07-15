@@ -92,6 +92,13 @@ export default defineConfig({
           autogenerate: { directory: 'reference' },
         },
         {
+          label: 'Extras',
+          items: [
+            { label: 'RayExecution', slug: 'extras/ray' },
+            { label: 'vLLM Engine', slug: 'extras/vllm' },
+          ],
+        },
+        {
           label: 'Glossary',
           slug: 'glossary',
         },

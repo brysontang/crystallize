@@ -7,7 +7,7 @@ Crystallize organizes every experiment around a set of focused, decoupled pieces
 
 ## The Experiment
 
-The `Experiment` class is the conductor of a Crystallize run. It ties together your data source, pipeline, treatments, and hypotheses, executing each combination across multiple replicates. After running the configured pipeline for the baseline and every treatment, the experiment collects metrics and passes them to each hypothesis for verification.
+The `Experiment` class is the conductor of a Crystallize run. It combines your data source and pipeline into an execution machine.  When calling ``experiment.run()``, you provide the treatments and hypotheses to evaluate.  The experiment executes the baseline and each treatment across the requested replicates, collects metrics, and verifies them using the supplied hypotheses.
 
 See the [Building Your First Experiment tutorial](../tutorials/basic-experiment.md) for a walkthrough of the experiment lifecycle.
 
@@ -19,7 +19,7 @@ You can explore a simple implementation in the [getting started tutorial](../tut
 
 ## Pipeline & PipelineStep
 
-A `Pipeline` is an ordered list of `PipelineStep` objects. Each step performs a deterministic transformation on data, returning the new value for the next step. Steps receive a frozen execution context and can record metrics. Because steps are deterministic, Crystallize automatically caches their outputs by content hash to ensure reproducible reruns.
+A `Pipeline` is an ordered list of `PipelineStep` objects. Each step performs a deterministic transformation on data, returning the new value for the next step. Steps receive a frozen execution context and can record metrics. `PipelineStep` functions also support **automatic parameter injection** from the context for a clean and readable signature. Because steps are deterministic, Crystallize automatically caches their outputs by content hash to ensure reproducible reruns.
 
 Learn how to design your own steps in [Creating Custom Pipeline Steps](../how-to/custom-steps.md).
 

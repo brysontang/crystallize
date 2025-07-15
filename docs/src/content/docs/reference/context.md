@@ -65,7 +65,17 @@ as_dict() → Mapping[str, Tuple[Any, ...]]
 ---
 
 ## <kbd>class</kbd> `FrozenContext`
-Immutable execution context with safe mutation helpers. 
+Immutable execution context shared between pipeline steps. 
+
+Once a key is set its value cannot be modified. Attempting to do so raises :class:`ContextMutationError`. This immutability guarantees deterministic provenance during pipeline execution. 
+
+
+
+**Attributes:**
+ 
+ - <b>`metrics`</b>:  :class:`FrozenMetrics` used to accumulate lists of metric  values. 
+ - <b>`artifacts`</b>:  :class:`ArtifactLog` collecting binary artifacts to be saved 
+ - <b>`by `</b>: class:`~crystallize.core.plugins.ArtifactPlugin`. 
 
 ### <kbd>method</kbd> `FrozenContext.__init__`
 
@@ -116,7 +126,7 @@ Return the value for ``key`` if present else ``default``.
 ---
 
 ## <kbd>class</kbd> `LoggingContext`
-Proxy for :class:`FrozenContext` that logs key reads. 
+Proxy around :class:`FrozenContext` that records all key accesses. 
 
 ### <kbd>method</kbd> `LoggingContext.__init__`
 

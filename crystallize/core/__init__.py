@@ -18,7 +18,6 @@ from .pipeline_step import PipelineStep, exit_step
 from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 from .result import Result
 from .treatment import Treatment
-from .injection import inject_from_ctx
 
 
 def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:

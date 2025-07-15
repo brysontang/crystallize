@@ -56,6 +56,10 @@ export default defineConfig({
               label: 'Scaling with Replicates and Parallelism',
               slug: 'tutorials/parallelism',
             },
+            {
+              label: 'The Full Workflow',
+              slug: 'tutorials/6-full-workflow',
+            },
           ],
         },
         {

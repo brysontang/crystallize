@@ -95,6 +95,12 @@ print(result.hypothesis_result)
 
 Contributions are very welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+Use [`code2prompt`](https://github.com/mufeedvh/code2prompt) to generate LLM-powered docs:
+
+```bash
+code2prompt crystallize --exclude="*.lock" --exclude="**/docs/src/content/docs/reference/*" --exclude="**package-lock.json"
+```
+
 ---
 
 ## License

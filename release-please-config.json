@@ -10,7 +10,7 @@
         {
           "path": "pixi.toml",
           "type": "toml",
-          "xpath": "/workspace/version"
+          "jsonPath": "/workspace/version"
         }
       ]
     },

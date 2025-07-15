@@ -8,11 +8,17 @@ from typing import Any, Callable, Mapping, Optional, Union, Sequence
 
 from .context import FrozenContext
 from .datasource import DataSource
+from .execution import ParallelExecution, SerialExecution
+from .experiment import Experiment
 from .hypothesis import Hypothesis
+from .injection import inject_from_ctx
+from .optimizers import BaseOptimizer, Objective
 from .pipeline import Pipeline
 from .pipeline_step import PipelineStep, exit_step
-from .injection import inject_from_ctx
+from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
+from .result import Result
 from .treatment import Treatment
+from .injection import inject_from_ctx
 
 
 def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:
@@ -90,14 +96,18 @@ def treatment(
 
 def hypothesis(
     *,
-    verifier: Callable[[Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]],
+    verifier: Callable[
+        [Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]
+    ],
     metrics: str | Sequence[str] | Sequence[Sequence[str]] | None = None,
     name: Optional[str] = None,
 ) -> Callable[[Callable[[Mapping[str, Any]], float]], Hypothesis]:
     """Decorate a ranker function and produce a :class:`Hypothesis`."""
 
     def decorator(fn: Callable[[Mapping[str, Any]], float]) -> Hypothesis:
-        return Hypothesis(verifier=verifier, metrics=metrics, ranker=fn, name=name or fn.__name__)
+        return Hypothesis(
+            verifier=verifier, metrics=metrics, ranker=fn, name=name or fn.__name__
+        )
 
     return decorator
 
@@ -136,23 +146,34 @@ def data_source(fn: Callable[..., Any]) -> Callable[..., DataSource]:
 
 def verifier(
     fn: Callable[..., Any],
-) -> Callable[..., Callable[[Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]]]:
+) -> Callable[
+    ...,
+    Callable[
+        [Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]
+    ],
+]:
     """Decorate a function to produce a parameterized verifier callable."""
 
     sig = inspect.signature(fn)
     param_names = [
         p.name
         for p in sig.parameters.values()
-        if p.name not in {"baseline_samples", "treatment_samples", "baseline", "treatment"}
+        if p.name
+        not in {"baseline_samples", "treatment_samples", "baseline", "treatment"}
     ]
     defaults = {
         name: p.default
         for name, p in sig.parameters.items()
-        if name not in {"baseline_samples", "treatment_samples", "baseline", "treatment"}
+        if name
+        not in {"baseline_samples", "treatment_samples", "baseline", "treatment"}
         and p.default is not inspect.Signature.empty
     }
 
-    def factory(**overrides: Any) -> Callable[[Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]]:
+    def factory(
+        **overrides: Any,
+    ) -> Callable[
+        [Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]
+    ]:
         unknown = set(overrides) - set(param_names)
         if unknown:
             raise TypeError(f"Unknown parameters: {', '.join(sorted(unknown))}")
@@ -178,13 +199,30 @@ def pipeline(*steps: PipelineStep) -> Pipeline:
 
     return Pipeline(list(steps))
 
+
 __all__ = [
+    "ArtifactPlugin",
+    "BasePlugin",
+    "BaseOptimizer",
+    "DataSource",
+    "Experiment",
+    "FrozenContext",
+    "Hypothesis",
+    "LoggingPlugin",
+    "Objective",
+    "ParallelExecution",
+    "Pipeline",
+    "PipelineStep",
+    "Result",
+    "SeedPlugin",
+    "SerialExecution",
+    "Treatment",
     "pipeline_step",
-    "exit_step",
-    "inject_from_ctx",
     "treatment",
     "hypothesis",
-    "verifier",
     "data_source",
+    "verifier",
     "pipeline",
+    "exit_step",
+    "inject_from_ctx",
 ]

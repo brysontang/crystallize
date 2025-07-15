@@ -4,14 +4,12 @@
     ".": {
       "release-type": "python",
       "component": "crystallize-ml",
-      "changelog-path": "CHANGELOG.md",
-      "extra-files": ["pyproject.toml"]
+      "changelog-path": "CHANGELOG.md"
     },
     "extras/crystallize-extras": {
       "release-type": "python",
       "component": "crystallize-extras",
-      "changelog-path": "CHANGELOG.md",
-      "extra-files": ["pyproject.toml"]
+      "changelog-path": "CHANGELOG.md"
     }
   },
   "plugins": [

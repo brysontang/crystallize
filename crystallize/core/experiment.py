@@ -1,28 +1,20 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import (
-    Any,
-    DefaultDict,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-)
+from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence, Tuple
 
+from crystallize.core.context import FrozenContext
+from crystallize.core.datasource import DataSource
+from crystallize.core.execution import VALID_EXECUTOR_TYPES, SerialExecution
+from crystallize.core.hypothesis import Hypothesis
+from crystallize.core.optimizers import BaseOptimizer, Objective
+from crystallize.core.pipeline import Pipeline
 from crystallize.core.plugins import (
     BasePlugin,
     LoggingPlugin,
     SeedPlugin,
     default_seed_function,
 )
-from crystallize.core.execution import SerialExecution, VALID_EXECUTOR_TYPES
-from crystallize.core.context import FrozenContext
-from crystallize.core.datasource import DataSource
-from crystallize.core.hypothesis import Hypothesis
-from crystallize.core.pipeline import Pipeline
 from crystallize.core.result import Result
 from crystallize.core.result_structs import (
     ExperimentMetrics,
@@ -30,7 +22,6 @@ from crystallize.core.result_structs import (
     TreatmentMetrics,
 )
 from crystallize.core.treatment import Treatment
-from crystallize.core.optimizers import BaseOptimizer, Objective
 
 
 def _run_replicate_remote(args: Tuple["Experiment", int]) -> Tuple[
@@ -77,6 +68,8 @@ class Experiment:
         self.hypotheses: List[Hypothesis] = []
         self.replicates: int = 1
 
+        self._setup_ctx = FrozenContext({})
+
         self.plugins = plugins or []
         for plugin in self.plugins:
             plugin.init_hook(self)
@@ -84,7 +77,6 @@ class Experiment:
         self._validated = False
 
     # ------------------------------------------------------------------ #
-
 
     def validate(self) -> None:
         if self.datasource is None or self.pipeline is None:
@@ -136,9 +128,7 @@ class Experiment:
         )
         return dict(run_ctx.metrics.as_dict()), local_seed, prov
 
-    def _execute_replicate(
-        self, rep: int
-    ) -> Tuple[
+    def _execute_replicate(self, rep: int) -> Tuple[
         Optional[Mapping[str, Any]],
         Optional[int],
         Dict[str, Mapping[str, Any]],
@@ -153,7 +143,13 @@ class Experiment:
         rep_errors: Dict[str, Exception] = {}
         provenance: Dict[str, List[Mapping[str, Any]]] = {}
 
-        base_ctx = FrozenContext({"replicate": rep, "condition": "baseline"})
+        base_ctx = FrozenContext(
+            {
+                **self._setup_ctx.as_dict(),
+                "replicate": rep,
+                "condition": "baseline",
+            }
+        )
         try:
             baseline_result, baseline_seed, base_prov = self._run_condition(base_ctx)
             provenance["baseline"] = base_prov
@@ -169,7 +165,13 @@ class Experiment:
             )
 
         for t in self.treatments:
-            ctx = FrozenContext({"replicate": rep, "condition": t.name})
+            ctx = FrozenContext(
+                {
+                    **self._setup_ctx.as_dict(),
+                    "replicate": rep,
+                    "condition": t.name,
+                }
+            )
             try:
                 result, seed, prov = self._run_condition(ctx, t)
                 treatment_result[t.name] = result
@@ -226,106 +228,114 @@ class Experiment:
         for plugin in self.plugins:
             plugin.before_run(self)
 
-        baseline_samples: List[Mapping[str, Any]] = []
-        treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
-            t.name: [] for t in self.treatments
-        }
-        baseline_seeds: List[int] = []
-        treatment_seeds_agg: Dict[str, List[int]] = {
-            t.name: [] for t in self.treatments
-        }
-        provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = (
-            defaultdict(dict)
-        )
+        self._setup_ctx = FrozenContext({})
+        try:
+            for step in self.pipeline.steps:
+                step.setup(self._setup_ctx)
 
-        errors: Dict[str, Exception] = {}
-
-        # ---------- replicate execution -------------------------------- #
-        execution_plugin: Optional[BasePlugin] = None
-        for plugin in reversed(self.plugins):
-            if (
-                getattr(plugin.run_experiment_loop, "__func__", None)
-                is not BasePlugin.run_experiment_loop
-            ):
-                execution_plugin = plugin
-                break
-
-        if execution_plugin is None:
-            execution_plugin = SerialExecution()
-
-        results_list: List[
-            Tuple[
-                Optional[Mapping[str, Any]],
-                Optional[int],
-                Dict[str, Mapping[str, Any]],
-                Dict[str, int],
-                Dict[str, Exception],
-                Dict[str, List[Mapping[str, Any]]],
-            ]
-        ] = execution_plugin.run_experiment_loop(
-            self, self._execute_replicate
-        )
-
-        for rep, (base, seed, treats, seeds, errs, prov) in enumerate(results_list):
-            if base is not None:
-                baseline_samples.append(base)
-            if seed is not None:
-                baseline_seeds.append(seed)
-            for name, sample in treats.items():
-                treatment_samples[name].append(sample)
-            for name, sd in seeds.items():
-                treatment_seeds_agg[name].append(sd)
-            for name, p in prov.items():
-                provenance_runs[name][rep] = p
-            errors.update(errs)
-
-        # ---------- aggregation: preserve full sample arrays ------------ #
-        def collect_all_samples(
-            samples: List[Mapping[str, Sequence[Any]]],
-        ) -> Dict[str, List[Any]]:
-            metrics: DefaultDict[str, List[Any]] = defaultdict(list)
-            for sample in samples:
-                for metric, values in sample.items():
-                    metrics[metric].extend(list(values))
-            return dict(metrics)
-
-        baseline_metrics = collect_all_samples(baseline_samples)
-        treatment_metrics_dict = {
-            name: collect_all_samples(samp) for name, samp in treatment_samples.items()
-        }
-
-        hypothesis_results: List[HypothesisResult] = []
-        for hyp in self.hypotheses:
-            per_treatment: Dict[str, Any] = {}
-            for treatment in self.treatments:
-                per_treatment[treatment.name] = hyp.verify(
-                    baseline_metrics=baseline_metrics,
-                    treatment_metrics=treatment_metrics_dict[treatment.name],
-                )
-            hypothesis_results.append(
-                HypothesisResult(
-                    name=hyp.name,
-                    results=per_treatment,
-                    ranking=hyp.rank_treatments(per_treatment),
-                )
+            baseline_samples: List[Mapping[str, Any]] = []
+            treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
+                t.name: [] for t in self.treatments
+            }
+            baseline_seeds: List[int] = []
+            treatment_seeds_agg: Dict[str, List[int]] = {
+                t.name: [] for t in self.treatments
+            }
+            provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = (
+                defaultdict(dict)
             )
 
-        metrics = ExperimentMetrics(
-            baseline=TreatmentMetrics(baseline_metrics),
-            treatments={
-                name: TreatmentMetrics(m) for name, m in treatment_metrics_dict.items()
-            },
-            hypotheses=hypothesis_results,
-        )
+            errors: Dict[str, Exception] = {}
 
-        provenance = {
-            "pipeline_signature": self.pipeline.signature(),
-            "replicates": self.replicates,
-            "seeds": {"baseline": baseline_seeds, **treatment_seeds_agg},
-            "ctx_changes": {k: v for k, v in provenance_runs.items()},
-        }
+            # ---------- replicate execution -------------------------------- #
+            execution_plugin: Optional[BasePlugin] = None
+            for plugin in reversed(self.plugins):
+                if (
+                    getattr(plugin.run_experiment_loop, "__func__", None)
+                    is not BasePlugin.run_experiment_loop
+                ):
+                    execution_plugin = plugin
+                    break
 
-        result = Result(metrics=metrics, errors=errors, provenance=provenance)
+            if execution_plugin is None:
+                execution_plugin = SerialExecution()
+
+            results_list: List[
+                Tuple[
+                    Optional[Mapping[str, Any]],
+                    Optional[int],
+                    Dict[str, Mapping[str, Any]],
+                    Dict[str, int],
+                    Dict[str, Exception],
+                    Dict[str, List[Mapping[str, Any]]],
+                ]
+            ] = execution_plugin.run_experiment_loop(self, self._execute_replicate)
+
+            for rep, (base, seed, treats, seeds, errs, prov) in enumerate(results_list):
+                if base is not None:
+                    baseline_samples.append(base)
+                if seed is not None:
+                    baseline_seeds.append(seed)
+                for name, sample in treats.items():
+                    treatment_samples[name].append(sample)
+                for name, sd in seeds.items():
+                    treatment_seeds_agg[name].append(sd)
+                for name, p in prov.items():
+                    provenance_runs[name][rep] = p
+                errors.update(errs)
+
+            # ---------- aggregation: preserve full sample arrays ------------ #
+            def collect_all_samples(
+                samples: List[Mapping[str, Sequence[Any]]],
+            ) -> Dict[str, List[Any]]:
+                metrics: DefaultDict[str, List[Any]] = defaultdict(list)
+                for sample in samples:
+                    for metric, values in sample.items():
+                        metrics[metric].extend(list(values))
+                return dict(metrics)
+
+            baseline_metrics = collect_all_samples(baseline_samples)
+            treatment_metrics_dict = {
+                name: collect_all_samples(samp)
+                for name, samp in treatment_samples.items()
+            }
+
+            hypothesis_results: List[HypothesisResult] = []
+            for hyp in self.hypotheses:
+                per_treatment: Dict[str, Any] = {}
+                for treatment in self.treatments:
+                    per_treatment[treatment.name] = hyp.verify(
+                        baseline_metrics=baseline_metrics,
+                        treatment_metrics=treatment_metrics_dict[treatment.name],
+                    )
+                hypothesis_results.append(
+                    HypothesisResult(
+                        name=hyp.name,
+                        results=per_treatment,
+                        ranking=hyp.rank_treatments(per_treatment),
+                    )
+                )
+
+            metrics = ExperimentMetrics(
+                baseline=TreatmentMetrics(baseline_metrics),
+                treatments={
+                    name: TreatmentMetrics(m)
+                    for name, m in treatment_metrics_dict.items()
+                },
+                hypotheses=hypothesis_results,
+            )
+
+            provenance = {
+                "pipeline_signature": self.pipeline.signature(),
+                "replicates": self.replicates,
+                "seeds": {"baseline": baseline_seeds, **treatment_seeds_agg},
+                "ctx_changes": {k: v for k, v in provenance_runs.items()},
+            }
+
+            result = Result(metrics=metrics, errors=errors, provenance=provenance)
+        finally:
+            for step in self.pipeline.steps:
+                step.teardown(self._setup_ctx)
 
         for plugin in self.plugins:
             plugin.after_run(self, result)
@@ -403,4 +413,3 @@ class Experiment:
         ]
         aggregated_value = sum(metric_values) / len(metric_values)
         return {objective.metric: aggregated_value}
-

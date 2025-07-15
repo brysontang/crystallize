@@ -15,7 +15,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-
 dependencies = [
     "pyyaml",
 ]
@@ -23,18 +22,6 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/brysontang/crystallize"
 Documentation = "https://github.com/brysontang/crystallize/tree/main/docs"
-
-[tool.pixi.project]
-channels = ["conda-forge"]
-platforms = ["linux-64", "osx-64", "win-64"]
-
-[tool.pixi.dependencies]
-python = ">=3.10"
-numpy = "*"
-
-[tool.pixi.dev-dependencies]
-pytest = "*"
-coverage = "*"
 
 [tool.setuptools.packages.find]
 where = ["."]

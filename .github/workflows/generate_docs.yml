@@ -21,10 +21,10 @@ jobs:
       - uses: prefix-dev/setup-pixi@v0.8.11
 
       - name: Install dependencies
-        run: pixi install
+        run: pixi install -e dev
 
       - name: Generate docs
-        run: pixi run python generate_docs.py # Adjust path if moved, e.g., scripts/generate_docs.py
+        run: pixi run -e dev python generate_docs.py # Adjust path if moved, e.g., scripts/generate_docs.py
 
       - name: Create Pull Request if changes
         uses: peter-evans/create-pull-request@v7 # Reliable action for auto-PR

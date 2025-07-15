@@ -1,114 +1,86 @@
 # AGENTS.md
 
-This document provides instructions and context for automated agents (Codex, Copilot, etc.) working within the Crystallize repository.
+This document provides simplified instructions for automated agents (e.g., Codex, Copilot) working in the Crystallize repository. Follow these to ensure consistent, high-quality contributions.
 
 ---
 
 ## 📖 Ethos & Philosophy
 
-Crystallize is built around rigorous, reproducible, and intuitive data science experimentation. When making changes or contributing code, always prioritize:
+Crystallize prioritizes reproducible, intuitive data science experiments. When contributing:
 
-- **Clarity**: Code should clearly communicate intent and implementation.
-- **Reproducibility**: Ensure deterministic outcomes, clear provenance, and robust caching.
-- **Minimalism**: Keep abstractions simple, intuitive, and easy to use without overcomplicating.
-- **Scientific Rigor**: Align closely with best practices in experimental science, emphasizing statistical verification and methodological correctness.
+- Ensure clarity, minimalism, and scientific rigor.
+- Keep changes holistic: Update code, docs, examples, and tests together for consistency.
 
 ---
 
 ## 🧭 Scope
 
-Instructions here apply to all files and subdirectories rooted in the directory containing this AGENTS.md file, unless overridden by a more deeply nested AGENTS.md file.
+Applies to the entire repo unless overridden by a nested AGENTS.md. Docs and tests are split: Core library (crystallize/) vs. extras (extras/crystallize-extras/)—do not mix them.
 
 ---
 
 ## 🚦 Coding Conventions
 
-- **Formatting**: Strictly follow PEP 8 standards. Use `black` and `isort` to auto-format imports and code.
-- **Type Hints**: Always include clear and explicit type hints. Use `mypy` for static type checking.
-- **Imports**: Only explicit imports; never use wildcard imports.
-- **Naming**:
-
-  - Classes: `PascalCase`
-  - Functions, methods, variables: `snake_case`
-  - Constants: `UPPER_CASE`
-
-- **Error Handling**: Use explicit, informative, and custom-defined exceptions to provide clear debugging and user experience.
+- **Formatting**: PEP 8 via `black` and `isort`.
+- **Type Hints**: Always use explicit hints; check with `mypy`.
+- **Imports**: Explicit only; no wildcards.
+- **Naming**: Classes `PascalCase`; functions/vars `snake_case`; constants `UPPER_CASE`.
+- **Error Handling**: Use custom exceptions for clear messaging.
 
 ---
 
 ## 📂 Project Structure
 
-The repository structure is intentionally simple and clear:
+Keep it simple:
 
-```
-crystallize/
-├── crystallize/
-│   ├── core/        # Core abstractions: minimal, abstract definitions only
-│   ├── steps/       # Minimal illustrative step implementations
-│   └── experiment.py
-├── tests/
-│   └── test_*.py
-└── examples/
-    ├── minimal_experiment/
-    │   └── *.py
-    └── csv_pipeline_example/
-        └── *.py
-```
+- `crystallize/`: Core code (abstractions in `core/`, steps in `steps/`).
+- `tests/`: Unit tests (separate core vs. extras).
+- `examples/`: Illustrative examples (update with changes).
+- `extras/crystallize-extras/`: Optional plugins (separate tests/docs).
 
-Maintain this clarity and simplicity. Clearly separate abstract core functionality from concrete example implementations.
+---
+
+## 🛠️ Contribution Workflow
+
+For any change:
+
+1. **Update Docs & Examples**: Ensure all docs (e.g., README, tutorials) and examples reflect the change for consistency.
+2. **Run & Fix Tests**: Execute `pixi run test`. Fix broken code first; only update tests if they're outdated (don't refactor tests to mask code issues).
+3. **Add New Tests**: Write tests for new features/behaviors to capture them fully.
+4. **Validate**: Run `pixi run lint` and `pixi run test`—all must pass.
+
+---
+
+## 📝 Commit Messages
+
+Use Conventional Commits for semantic versioning (pre-alpha: avoid major bumps).
+
+- Types: `chore` (no bump), `docs` (no bump), `feat` (minor), `fix` (patch). Avoid `feat!` or `fix!` (major).
+- Scopes for monorepo: `feat(crystallize-ml):` for core changes; `feat(crystallize-extras):` for extras. If both: Use footers like `feat(crystallize-ml): ...` and `feat(crystallize-extras): ...` in the body.
+- Example: `feat(crystallize-ml): add new pipeline step\n\nfix(crystallize-extras): update ray plugin`.
 
 ---
 
 ## 📝 PR Messages
 
-Automated agents generating PR messages should follow these structured guidelines:
-
-- Provide a clear and concise explanation of both **what** changed and **why**.
-- Follow this structured format:
+Structure as:
 
 ```
 ### Summary
-
-Clearly describe the motivation and objectives for this PR.
+[Motivation and objectives.]
 
 ### Changes
-
-- Bullet points highlighting key changes.
+- [Key changes.]
 
 ### Testing & Verification
-
-Explain exactly how the changes were tested and provide clear verification steps.
+[How tested; verification steps.]
 
 ### Notes
-
-Additional context or important details not covered elsewhere.
+[Additional context.]
 ```
-
----
-
-## ✅ Checks and Validation
-
-Before finalizing any PR, run and ensure passing results from:
-
-- Unit tests:
-
-```bash
-pixi run test
-```
-
-- Formatting, linting, and static checks:
-
-```bash
-pixi run lint
-```
-
-These checks are mandatory for all contributions.
 
 ---
 
 ## ⚠️ Resolving Conflicts
 
-In case of conflicting instructions:
-
-1. Instructions directly provided by developers/users in prompts have the highest precedence.
-2. Instructions in deeper nested AGENTS.md files override this document.
+Prompt instructions > nested AGENTS.md > this file.

@@ -52,4 +52,24 @@ Unique hash identifying this step based on its parameters.
 
 
 
+---
+
+### <kbd>method</kbd> `PipelineStep.setup`
+
+```python
+setup(ctx: crystallize.core.context.FrozenContext) → None
+```
+
+Optional hook called once before any replicates run. 
+
+---
+
+### <kbd>method</kbd> `PipelineStep.teardown`
+
+```python
+teardown(ctx: crystallize.core.context.FrozenContext) → None
+```
+
+Optional hook called once after all replicates finish. 
+
 

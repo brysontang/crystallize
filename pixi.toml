@@ -1,30 +1,45 @@
 [workspace]
+name = "crystallize-ml"
+version = "0.6.0" # x-release-please-version
 authors = ["Bryson Tang <brysontang@gmail.com>"]
 channels = ["conda-forge"]
-name = "crystallize-ml"
-platforms = ["osx-arm64", "linux-64"]
-version = "0.6.0"
+platforms = ["osx-arm64", "linux-64", "win-64"]
 
-[tasks]
+[feature.dev.tasks]
 test = "pytest -q"
-cov  = "pytest --cov=crystallize --cov-report=term-missing"
+cov = "pytest --cov=crystallize --cov-report=term-missing"
 lint = "ruff check crystallize tests"
 
 [dependencies]
 python = "3.10.*"
+pyyaml = ">=6.0.2,<7"
+tqdm = "*"
+rich = ">=13.8.1,<14"
+
+[environments]
+dev = { features = ["dev"] }
+extras = { features = ["extras"] }
+ray = { features = ["ray"] }
+vllm = { features = ["vllm"] }
+
+[feature.dev.dependencies]
 pytest = "*"
 pytest-cov = "*"
-ruff = "*"
-pyyaml = ">=6.0.2,<7"
-python-build = ">=1.2.2.post1,<2"
-twine = ">=6.1.0,<7"
+pandas = ">=2.2.3,<3"
+numpy = ">=2.1.1,<3"
 scipy = ">=1.15.2,<2"
-hypothesis = ">=6.135.26,<7"
-pandas = ">=2.3.1,<3"
-tqdm = "*"
-numpy = ">=2.2.6,<3"
-rich = ">=14.0.0,<15"
+ruff = "*"
+python-build = ">=1.2.2.post1,<2"
+twine = ">=5.1.0,<6"
 
-[pypi-dependencies]
-lazydocs = ">=0.4.8, <0.5"
+[feature.dev.pypi-dependencies]
+lazydocs = ">=0.4.8,<0.5"
 
+[feature.extras.pypi-dependencies]
+crystallize-extras = { path = "extras/crystallize-extras" }
+
+[feature.ray.pypi-dependencies]
+ray = "*"
+
+[feature.vllm.pypi-dependencies]
+vllm = "*"

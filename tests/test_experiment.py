@@ -5,6 +5,7 @@ from typing import List
 
 import numpy as np
 import pytest
+from crystallize.core.plugins import BasePlugin
 
 from crystallize.core.execution import ParallelExecution
 from crystallize.core.plugins import SeedPlugin
@@ -838,3 +839,64 @@ def test_optimize_method_calls_optimizer_correctly() -> None:
     assert opt.tell_called == 5
     assert best.name == "best"
 
+
+class FailSetupStep(PipelineStep):
+    def __init__(self) -> None:
+        self.teardown_called = False
+
+    def __call__(self, data, ctx):
+        return data
+
+    def setup(self, ctx):
+        raise RuntimeError("setup fail")
+
+    def teardown(self, ctx):
+        self.teardown_called = True
+
+    @property
+    def params(self):
+        return {}
+
+
+class FailTeardownStep(PipelineStep):
+    def __call__(self, data, ctx):
+        return data
+
+    def teardown(self, ctx):
+        raise RuntimeError("teardown fail")
+
+    @property
+    def params(self):
+        return {}
+
+
+class BadPlugin(BasePlugin):
+    def before_run(self, experiment):
+        raise RuntimeError("plugin fail")
+
+
+def test_step_setup_failure_calls_teardown():
+    step = FailSetupStep()
+    exp = Experiment(datasource=DummyDataSource(), pipeline=Pipeline([step]))
+    exp.validate()
+    with pytest.raises(RuntimeError):
+        exp.run()
+    assert step.teardown_called is True
+
+
+def test_step_teardown_failure_raises():
+    step = FailTeardownStep()
+    exp = Experiment(datasource=DummyDataSource(), pipeline=Pipeline([step]))
+    exp.validate()
+    with pytest.raises(RuntimeError):
+        exp.run()
+
+
+def test_before_run_plugin_failure():
+    plugin = BadPlugin()
+    exp = Experiment(
+        datasource=DummyDataSource(), pipeline=Pipeline([PassStep()]), plugins=[plugin]
+    )
+    exp.validate()
+    with pytest.raises(RuntimeError):
+        exp.run()

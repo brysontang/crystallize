@@ -107,3 +107,54 @@ def test_load_yaml_type_conversion_error():
     }
     with pytest.raises(ValueError):
         load_experiment(config)
+
+def test_step_missing_target():
+    config = {
+        "datasource": {"target": f"{__name__}.dummy_source"},
+        "pipeline": [{}],
+        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+    }
+    with pytest.raises(KeyError):
+        load_experiment(config)
+
+
+def test_treatment_bad_apply_block():
+    config = {
+        "datasource": {"target": f"{__name__}.dummy_source"},
+        "pipeline": [{"target": f"{__name__}.add"}],
+        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+        "treatments": [{"name": "t", "apply": {"params": {"amount": 1}}}],
+    }
+    with pytest.raises(KeyError):
+        load_experiment(config)
+
+
+def test_max_workers_invalid_type():
+    config = {
+        "datasource": {"target": f"{__name__}.dummy_source"},
+        "pipeline": [{"target": f"{__name__}.add"}],
+        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+        "parallel": True,
+        "max_workers": "many",
+    }
+    with pytest.raises(ValueError):
+        load_experiment(config)
+
+
+def test_json_fallback(monkeypatch, tmp_path):
+    import importlib
+    import sys
+    from crystallize.cli import yaml_loader as yl
+
+    monkeypatch.setitem(sys.modules, "yaml", None)
+    yl_reloaded = importlib.reload(yl)
+
+    cfg = {
+        "datasource": {"target": f"{__name__}.dummy_source"},
+        "pipeline": [{"target": f"{__name__}.add"}],
+        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+    }
+    path = tmp_path / "cfg.json"
+    path.write_text(json.dumps(cfg))
+    exp = yl_reloaded.load_experiment_from_file(path)
+    assert exp.pipeline.steps

@@ -1,3 +1,4 @@
+import pytest
 from crystallize_extras.vllm_step.initialize import initialize_llm_engine
 
 from crystallize.core.context import FrozenContext
@@ -23,3 +24,12 @@ def test_initialize_llm_engine_adds_engine(monkeypatch):
     assert result is None
     step.teardown(ctx)
     assert not hasattr(step, "engine")
+
+def test_initialize_llm_engine_missing_dependency(monkeypatch):
+    from crystallize_extras import vllm_step
+
+    monkeypatch.setattr(vllm_step.initialize, "LLM", None)
+    ctx = FrozenContext({})
+    step = vllm_step.initialize.initialize_llm_engine(engine_options={})
+    with pytest.raises(ImportError):
+        step.setup(ctx)

@@ -1,3 +1,4 @@
+import pytest
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.pipeline_step import PipelineStep
@@ -74,3 +75,12 @@ def test_ray_execution_plugin(monkeypatch):
 
     plugin.after_run(exp, None)
     assert dummy_ray.shutdown_called is True
+
+def test_ray_execution_missing_dependency(monkeypatch):
+    from crystallize_extras import ray_plugin
+
+    monkeypatch.setattr(ray_plugin.execution, "ray", None)
+    plugin = ray_plugin.execution.RayExecution()
+    exp = Experiment(datasource=DummyDataSource(), pipeline=Pipeline([DummyStep()]))
+    with pytest.raises(ImportError):
+        plugin.init_hook(exp)

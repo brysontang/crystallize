@@ -1,3 +1,4 @@
+import builtins
 from crystallize.core.result import Result
 from crystallize.core.result_structs import ExperimentMetrics, TreatmentMetrics
 
@@ -44,3 +45,29 @@ def test_print_tree_plain_output(capsys):
     assert "AddStep" in output
     assert "x=1" in output
 
+
+def test_print_tree_without_rich(monkeypatch, capsys):
+    metrics = ExperimentMetrics(
+        baseline=TreatmentMetrics({}),
+        treatments={},
+        hypotheses=[],
+    )
+    prov = {
+        "ctx_changes": {
+            "baseline": {0: [{"step": "AddStep", "ctx_changes": {"reads": {"x": 1}, "wrote": {}, "metrics": {}}}]}
+        }
+    }
+    r = Result(metrics=metrics, provenance=prov)
+
+    original_import = builtins.__import__
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name.startswith("rich"):
+            raise ImportError
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    r.print_tree()
+    output = capsys.readouterr().out
+    assert "Experiment Summary" in output
+    assert "AddStep" in output

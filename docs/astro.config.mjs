@@ -100,6 +100,7 @@ export default defineConfig({
           items: [
             { label: 'RayExecution', slug: 'extras/ray' },
             { label: 'vLLM Engine', slug: 'extras/vllm' },
+            { label: 'Ollama Client', slug: 'extras/ollama' },
           ],
         },
         {

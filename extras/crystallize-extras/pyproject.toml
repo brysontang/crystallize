@@ -14,6 +14,7 @@ dependencies = [
 [project.optional-dependencies]
 ray = ["ray"]
 vllm = ["vllm"]
+ollama = ["ollama"]
 
 [tool.setuptools.packages.find]
 where = ["."]

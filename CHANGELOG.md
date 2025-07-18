@@ -5,6 +5,16 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.7.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.6.2...crystallize-ml@v0.7.0) (2025-07-18)
+
+
+### Features
+
+* **crystallize-extras:** Add Ollama client step ([9c5e91e](https://github.com/brysontang/crystallize/commit/9c5e91e6eb00b77b9e2a1b0a4a76bbe2e77be98f))
+* **crystallize-ml:** Chain experiments via artifact datasource ([7c718a6](https://github.com/brysontang/crystallize/commit/7c718a6bea6b67fdeae7519302906ca04913ed6b))
+* **crystallize-ml:** Polish artifact datasource ([c784139](https://github.com/brysontang/crystallize/commit/c7841392dd84dd378d189f70a4f63ee0fc454695))
+* **crystallize-ml:** Return artifact paths ([0077c1e](https://github.com/brysontang/crystallize/commit/0077c1ee159c97dcdf2f75a2ec0703d33b0500ed))
+
 ## [0.6.2](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.6.1...crystallize-ml@v0.6.2) (2025-07-15)
 
 

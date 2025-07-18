@@ -2,7 +2,6 @@ import pytest
 from crystallize_extras.ollama_step.initialize import initialize_ollama_client
 
 from crystallize.core.context import FrozenContext
-from crystallize.core.resources import ResourceHandle
 
 
 class DummyClient:
@@ -20,8 +19,8 @@ def test_initialize_ollama_client_adds_client(monkeypatch) -> None:
     step.setup(ctx)
     assert "ollama_client" in ctx.as_dict()
     handle = ctx.as_dict()["ollama_client"]
-    assert isinstance(handle, ResourceHandle)
-    client = handle.resource
+    assert callable(handle)
+    client = handle(ctx)
     assert isinstance(client, DummyClient)
     assert client.host == "http://localhost"
     result = step(None, ctx)
@@ -38,4 +37,4 @@ def test_initialize_ollama_client_missing_dependency(monkeypatch) -> None:
     step.setup(ctx)
     handle = ctx.as_dict()["ollama_client"]
     with pytest.raises(ImportError):
-        _ = handle.resource
+        _ = handle(ctx)

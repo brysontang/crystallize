@@ -13,6 +13,8 @@ from crystallize.core.plugins import SeedPlugin
 from crystallize.core.execution import ParallelExecution
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
+from crystallize import resource_factory
+import random
 
 exp = Experiment(
     datasource=my_source(),
@@ -21,6 +23,7 @@ exp = Experiment(
         SeedPlugin(seed=42),
         ParallelExecution(),
     ],
+    initial_ctx={"rng": resource_factory(lambda ctx: random.Random(ctx["seed"]))},
 )
 exp.validate()
 ```

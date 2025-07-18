@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.resources import ResourceHandle
+from crystallize import resource_factory
 
 try:
     from vllm import LLM
@@ -39,9 +39,10 @@ class InitializeLlmEngine(PipelineStep):
         return {"engine_options": self.engine_options, "context_key": self.context_key}
 
     def setup(self, ctx: FrozenContext) -> None:
-        factory = partial(_create_llm_engine, engine_options=self.engine_options)
-        handle = ResourceHandle(factory=factory, resource_id=self.step_hash)
-        ctx.add(self.context_key, handle)
+        factory = resource_factory(
+            lambda ctx, opts=self.engine_options: _create_llm_engine(opts)
+        )
+        ctx.add(self.context_key, factory)
 
     def teardown(self, ctx: FrozenContext) -> None:  # pragma: no cover - handled by exit
         pass

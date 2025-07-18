@@ -2,6 +2,7 @@ import pytest
 from crystallize.core.context import FrozenContext
 from crystallize.core.injection import inject_from_ctx
 from crystallize.core import pipeline_step
+import random
 
 
 def test_inject_from_ctx_direct():
@@ -38,3 +39,12 @@ def test_inject_bad_ctx_type():
 
     with pytest.raises(TypeError):
         fn(1, ctx={})
+
+
+def test_inject_factory_callable():
+    @inject_from_ctx
+    def compute(data: int, ctx: FrozenContext, *, rng) -> int:
+        return data + rng.randint(0, 1)
+
+    ctx = FrozenContext({"rng": lambda ctx: random.Random(0)})
+    assert compute(1, ctx) in {1, 2}

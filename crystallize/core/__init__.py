@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import inspect
+import threading
 from functools import update_wrapper
 from typing import Any, Callable, Mapping, Optional, Union, Sequence
 
 from .context import FrozenContext
 from .datasource import DataSource
 from .execution import ParallelExecution, SerialExecution
-from .resources import ResourceHandle
 from .experiment import Experiment
 from .hypothesis import Hypothesis
 from .injection import inject_from_ctx
@@ -19,6 +19,23 @@ from .pipeline_step import PipelineStep
 from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 from .result import Result
 from .treatment import Treatment
+
+
+_resource_cache = threading.local()
+
+
+def resource_factory(fn: Callable[[FrozenContext], Any]) -> Callable[[FrozenContext], Any]:
+    """Wrap a factory so the created resource is reused per thread/process."""
+
+    def wrapper(ctx: FrozenContext) -> Any:
+        if not hasattr(_resource_cache, "cache"):
+            _resource_cache.cache = {}
+        cache = _resource_cache.cache
+        key = id(wrapper)
+        if key not in cache:
+            cache[key] = fn(ctx)
+        return cache[key]
+    return update_wrapper(wrapper, fn)
 
 
 def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:
@@ -213,7 +230,7 @@ __all__ = [
     "ParallelExecution",
     "Pipeline",
     "PipelineStep",
-    "ResourceHandle",
+    "resource_factory",
     "Result",
     "SeedPlugin",
     "SerialExecution",

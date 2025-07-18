@@ -16,7 +16,7 @@ We'll build a minimal experiment, search for the best parameter, verify it, and 
 First create the core experiment that stays fixed across all stages.
 
 ```python
-from crystallize import data_source, pipeline_step
+from crystallize import data_source, pipeline_step, resource_factory
 from crystallize.core.context import FrozenContext
 from crystallize.core.pipeline import Pipeline
 
@@ -42,7 +42,11 @@ def record_sum(data: list[int], ctx: FrozenContext) -> list[int]:
 
 pipeline = Pipeline([add_delta(), add_noise(), record_sum()])
 datasource = numbers()
-exp = Experiment(datasource=datasource, pipeline=pipeline)
+exp = Experiment(
+    datasource=datasource,
+    pipeline=pipeline,
+    initial_ctx={"rng": resource_factory(lambda ctx: random.Random(ctx.get("seed", 42)))},
+)
 exp.validate()
 ```
 

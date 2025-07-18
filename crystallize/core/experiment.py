@@ -53,6 +53,7 @@ class Experiment:
         datasource: DataSource,
         pipeline: Pipeline,
         plugins: Optional[List[BasePlugin]] = None,
+        initial_ctx: Dict[str, Any] | None = None,
     ) -> None:
         """Instantiate an experiment configuration.
 
@@ -60,6 +61,8 @@ class Experiment:
             datasource: Object that provides the initial data for each run.
             pipeline: Pipeline executed for every replicate.
             plugins: Optional list of plugins controlling experiment behaviour.
+            initial_ctx: Optional mapping of context values or factories
+                available during setup.
         """
         self.datasource = datasource
         self.pipeline = pipeline
@@ -69,6 +72,9 @@ class Experiment:
         self.id: Optional[str] = None
 
         self._setup_ctx = FrozenContext({})
+        if initial_ctx:
+            for key, val in initial_ctx.items():
+                self._setup_ctx.add(key, val)
 
         self.plugins = plugins or []
         for plugin in self.plugins:

@@ -30,7 +30,10 @@ def inject_from_ctx(fn: Callable[..., Any]) -> Callable[..., Any]:
             if name in bound.arguments or name == "ctx" or name == "data":
                 continue
             default = param.default if param.default is not inspect.Signature.empty else None
-            bound.arguments[name] = ctx.get(name, default)
+            value = ctx.get(name, default)
+            if callable(value):
+                value = value(ctx)
+            bound.arguments[name] = value
         return fn(*bound.args, **bound.kwargs)
 
     return wrapper

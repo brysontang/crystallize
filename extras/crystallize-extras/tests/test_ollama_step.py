@@ -2,14 +2,15 @@ import pytest
 from crystallize_extras.ollama_step.initialize import initialize_ollama_client
 
 from crystallize.core.context import FrozenContext
+from crystallize.core.resources import ResourceHandle
 
 
 class DummyClient:
-    def __init__(self, *, host: str):
+    def __init__(self, *, host: str) -> None:
         self.host = host
 
 
-def test_initialize_ollama_client_adds_client(monkeypatch):
+def test_initialize_ollama_client_adds_client(monkeypatch) -> None:
     monkeypatch.setattr(
         "crystallize_extras.ollama_step.initialize.Client",
         DummyClient,
@@ -18,19 +19,23 @@ def test_initialize_ollama_client_adds_client(monkeypatch):
     step = initialize_ollama_client(host="http://localhost")
     step.setup(ctx)
     assert "ollama_client" in ctx.as_dict()
-    assert isinstance(ctx.as_dict()["ollama_client"], DummyClient)
-    assert ctx.as_dict()["ollama_client"].host == "http://localhost"
+    handle = ctx.as_dict()["ollama_client"]
+    assert isinstance(handle, ResourceHandle)
+    client = handle.resource
+    assert isinstance(client, DummyClient)
+    assert client.host == "http://localhost"
     result = step(None, ctx)
     assert result is None
     step.teardown(ctx)
-    assert not hasattr(step, "client")
 
 
-def test_initialize_ollama_client_missing_dependency(monkeypatch):
+def test_initialize_ollama_client_missing_dependency(monkeypatch) -> None:
     from crystallize_extras import ollama_step
 
     monkeypatch.setattr(ollama_step.initialize, "Client", None)
     ctx = FrozenContext({})
     step = ollama_step.initialize.initialize_ollama_client(host="http://loc")
+    step.setup(ctx)
+    handle = ctx.as_dict()["ollama_client"]
     with pytest.raises(ImportError):
-        step.setup(ctx)
+        _ = handle.resource

@@ -2,14 +2,15 @@ import pytest
 from crystallize_extras.vllm_step.initialize import initialize_llm_engine
 
 from crystallize.core.context import FrozenContext
+from crystallize.core.resources import ResourceHandle
 
 
 class DummyLLM:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         self.options = kwargs
 
 
-def test_initialize_llm_engine_adds_engine(monkeypatch):
+def test_initialize_llm_engine_adds_engine(monkeypatch) -> None:
     monkeypatch.setattr(
         "crystallize_extras.vllm_step.initialize.LLM",
         DummyLLM,
@@ -18,18 +19,23 @@ def test_initialize_llm_engine_adds_engine(monkeypatch):
     step = initialize_llm_engine(engine_options={"model": "llama"})
     step.setup(ctx)
     assert "llm_engine" in ctx.as_dict()
-    assert isinstance(ctx.as_dict()["llm_engine"], DummyLLM)
-    assert ctx.as_dict()["llm_engine"].options == {"model": "llama"}
+    handle = ctx.as_dict()["llm_engine"]
+    assert isinstance(handle, ResourceHandle)
+    engine = handle.resource
+    assert isinstance(engine, DummyLLM)
+    assert engine.options == {"model": "llama"}
     result = step(None, ctx)
     assert result is None
     step.teardown(ctx)
-    assert not hasattr(step, "engine")
 
-def test_initialize_llm_engine_missing_dependency(monkeypatch):
+
+def test_initialize_llm_engine_missing_dependency(monkeypatch) -> None:
     from crystallize_extras import vllm_step
 
     monkeypatch.setattr(vllm_step.initialize, "LLM", None)
     ctx = FrozenContext({})
     step = vllm_step.initialize.initialize_llm_engine(engine_options={})
+    step.setup(ctx)
+    handle = ctx.as_dict()["llm_engine"]
     with pytest.raises(ImportError):
-        step.setup(ctx)
+        _ = handle.resource

@@ -9,6 +9,7 @@ from typing import Any, Callable, Mapping, Optional, Union, Sequence
 from .context import FrozenContext
 from .datasource import DataSource
 from .execution import ParallelExecution, SerialExecution
+from .resources import ResourceHandle
 from .experiment import Experiment
 from .hypothesis import Hypothesis
 from .injection import inject_from_ctx
@@ -212,6 +213,7 @@ __all__ = [
     "ParallelExecution",
     "Pipeline",
     "PipelineStep",
+    "ResourceHandle",
     "Result",
     "SeedPlugin",
     "SerialExecution",

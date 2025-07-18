@@ -5,6 +5,31 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.10.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.9.0...crystallize-ml@v0.10.0) (2025-07-18)
+
+
+### Features
+
+* **crystallize-ml:** Make experiment methods stateless ([aad502d](https://github.com/brysontang/crystallize/commit/aad502d6922d4b6bcd57bb701c1aa7b59fb81c73))
+* **crystallize-ml:** Make experiment state stateless ([0601416](https://github.com/brysontang/crystallize/commit/060141610423623fb6daf1721a2bb2c661d49ff7))
+* **crystallize-ml:** Make experiment stateless ([f7c24a3](https://github.com/brysontang/crystallize/commit/f7c24a3e6a5ba612365690d9b20a39c830640434))
+* **crystallize-ml:** Simplify resources with factories ([df5457b](https://github.com/brysontang/crystallize/commit/df5457bbcaaad1b3ebd19aaf6bfe2273c9a3c848))
+* **crystallize-ml:** Stateless experiment runs ([caf9f1f](https://github.com/brysontang/crystallize/commit/caf9f1f7d15595da661037d75cd9c97672b14301))
+
+
+### Bug Fixes
+
+* **crystallize-ml:** Refine factory caching and injection ([0b3af92](https://github.com/brysontang/crystallize/commit/0b3af92ca18e5f5de3ff3b7e14a26eb01ff32a91))
+* **crystallize-ml:** Refine logging and CLI output ([74bb33d](https://github.com/brysontang/crystallize/commit/74bb33d79f9a8f9990934001f4a5c1cc83accfd6))
+* **crystallize-ml:** Restore dataclasses for results ([ac0fbfb](https://github.com/brysontang/crystallize/commit/ac0fbfb5bc02cbbb7809d52ecea0815cef389263))
+* **crystallize-ml:** Set replicates default in apply ([fc3e75c](https://github.com/brysontang/crystallize/commit/fc3e75cd26a2eee2109daf440981fe9c1db27ddd))
+* **crystallize-ml:** Update examples and tests ([32e35f4](https://github.com/brysontang/crystallize/commit/32e35f473ea1a7237e89e4fad69a38b94041bc93))
+
+
+### Documentation
+
+* Auto-update generated API docs ([f9b6cb9](https://github.com/brysontang/crystallize/commit/f9b6cb934e441a9ec2af24535cc31825162c36b2))
+
 ## [0.9.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.8.1...crystallize-ml@v0.9.0) (2025-07-18)
 
 

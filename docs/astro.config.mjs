@@ -34,6 +34,14 @@ export default defineConfig({
               label: 'Integrating Statistical Tests',
               slug: 'how-to/integrate-stats',
             },
+            {
+              label: 'Saving Artifacts',
+              slug: 'how-to/artifacts',
+            },
+            {
+              label: 'Creating Custom Plugins',
+              slug: 'how-to/creating-plugins',
+            },
           ],
         },
         {
@@ -57,8 +65,12 @@ export default defineConfig({
               slug: 'tutorials/parallelism',
             },
             {
+              label: 'Parameter Optimization',
+              slug: 'tutorials/optimization',
+            },
+            {
               label: 'The Full Workflow',
-              slug: 'tutorials/6-full-workflow',
+              slug: 'tutorials/full-workflow',
             },
           ],
         },

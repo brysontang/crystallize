@@ -44,7 +44,7 @@ Keep it simple:
 
 For any change:
 
-1. **Update Docs & Examples**: Ensure all docs (e.g., README, tutorials) and examples reflect the change for consistency.
+1. **Update Docs & Examples**: Ensure all docs (e.g., README, tutorials) and examples reflect the change for consistency, update astro.config.mjs for new docs.
 2. **Run & Fix Tests**: Execute `pixi run test`. Fix broken code first; only update tests if they're outdated (don't refactor tests to mask code issues).
 3. **Add New Tests**: Write tests for new features/behaviors to capture them fully.
 4. **Validate**: Run `pixi run lint` and `pixi run test`—all must pass.

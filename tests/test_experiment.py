@@ -299,6 +299,17 @@ def test_experiment_id_set_after_run(tmp_path, monkeypatch):
     assert exp.id == compute_hash(pipeline.signature())
 
 
+def test_experiment_reusable_multiple_runs():
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+    exp = Experiment(datasource=ds, pipeline=pipeline)
+    exp.validate()
+    res1 = exp.run()
+    res2 = exp.run(treatments=[Treatment("t", {"increment": 1})], replicates=2)
+    assert len(res1.metrics.baseline.metrics["metric"]) == 1
+    assert len(res2.metrics.treatments["t"].metrics["metric"]) == 2
+
+
 def test_parallel_execution_matches_serial():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()

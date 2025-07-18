@@ -5,6 +5,8 @@ description: Configure seeds, parallelism, and validation using SeedPlugin, Para
 
 Crystallize's `Experiment` class accepts a list of plugins. Use the built-in `SeedPlugin` and `ParallelExecution` to tweak randomness, parallel execution, and other options. This page shows how to customize these settings and how to reuse an experiment with `.apply()`.
 
+Every call to `run()` or `apply()` is stateless—you pass treatments, hypotheses and replicate count each time. The same `Experiment` instance can therefore be reused with different configurations.
+
 ## 1. Build an Experiment
 
 Instantiate your components and pass configuration objects:

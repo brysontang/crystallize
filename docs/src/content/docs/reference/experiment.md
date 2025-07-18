@@ -42,6 +42,8 @@ Instantiate an experiment configuration.
 - <b>`plugins`</b>:  Optional list of plugins controlling experiment behaviour.
 - <b>`initial_ctx`</b>:  Optional mapping of context values or factories for setup. Factories may accept ``ctx``. Wrap non-picklable factories with ``resource_factory`` when using process-based parallelism.
 
+`run()` and `apply()` are stateless. Pass treatments, hypotheses and replicates each time you call them to reuse the same `Experiment` instance across configurations.
+
 
 
 

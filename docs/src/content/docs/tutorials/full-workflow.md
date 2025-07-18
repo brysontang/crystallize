@@ -114,7 +114,7 @@ Finally, reuse the same experiment and treatment for a one-off inference run.
 output = exp.apply(treatment=best_treatment)
 ```
 
-`apply()` runs the pipeline once (stopping at the `exit_step`) and returns the final output. This mirrors using your tuned configuration in production.
+`apply()` runs the pipeline once (stopping at the `exit_step`), executing plugin hooks and step setup/teardown, then returns the final output. This mirrors using your tuned configuration in production.
 
 ---
 

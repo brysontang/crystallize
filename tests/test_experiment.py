@@ -1,11 +1,12 @@
 import random
 import time
 import threading
-from typing import List
+from typing import Any, List
 
 import numpy as np
 import pytest
 from crystallize.core.plugins import ArtifactPlugin, BasePlugin
+from crystallize.core.result import Result
 
 from crystallize.core.execution import ParallelExecution
 from crystallize.core.plugins import SeedPlugin
@@ -912,3 +913,78 @@ def test_before_run_plugin_failure():
     exp.validate()
     with pytest.raises(RuntimeError):
         exp.run()
+
+
+class RecordingPlugin(BasePlugin):
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def before_run(self, experiment: Experiment) -> None:
+        self.calls.append("before_run")
+
+    def before_replicate(self, experiment: Experiment, ctx: FrozenContext) -> None:
+        self.calls.append("before_replicate")
+
+    def after_step(
+        self,
+        experiment: Experiment,
+        step: PipelineStep,
+        data: Any,
+        ctx: FrozenContext,
+    ) -> None:
+        self.calls.append(f"after_step_{step.__class__.__name__}")
+
+    def after_run(self, experiment: Experiment, result: Result) -> None:
+        self.calls.append("after_run")
+
+
+class SetupTeardownStep(PipelineStep):
+    def __init__(self) -> None:
+        self.setup_called = False
+        self.teardown_called = False
+
+    def __call__(self, data, ctx):
+        return data
+
+    def setup(self, ctx):
+        self.setup_called = True
+
+    def teardown(self, ctx):
+        self.teardown_called = True
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_apply_runs_full_lifecycle():
+    step = exit_step(SetupTeardownStep())
+    plugin = RecordingPlugin()
+    exp = Experiment(
+        datasource=DummyDataSource(), pipeline=Pipeline([step]), plugins=[plugin]
+    )
+    exp.validate()
+    output = exp.apply(data=1)
+    assert output == 1
+    assert step.setup_called is True and step.teardown_called is True
+    assert plugin.calls == [
+        "before_run",
+        "before_replicate",
+        f"after_step_{step.__class__.__name__}",
+        "after_run",
+    ]
+
+
+def test_apply_seed_plugin_autoseed():
+    called: list[int] = []
+
+    def record_seed(val: int) -> None:
+        called.append(val)
+
+    step = exit_step(IdentityStep())
+    ds = DummyDataSource()
+    plugin = SeedPlugin(seed=7, seed_fn=record_seed)
+    exp = Experiment(datasource=ds, pipeline=Pipeline([step]), plugins=[plugin])
+    exp.validate()
+    exp.apply(data=1)
+    assert called == [hash(7)]

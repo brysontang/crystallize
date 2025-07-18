@@ -55,7 +55,8 @@ apply(
 ) → Any
 ```
 
-Run the pipeline once with optional treatment and return outputs. 
+Run the pipeline once and return the output. Plugin hooks are executed and all steps run their
+``setup`` and ``teardown`` methods. Execution stops at the first ``exit_step``.
 
 ---
 

@@ -110,5 +110,5 @@ Use `apply()` to run the pipeline once with the optimized parameters:
 output = exp.apply(treatment=best)
 ```
 
-This final step mirrors the real-world rollout of the chosen configuration.
+This final step mirrors the real-world rollout of the chosen configuration. `apply()` triggers plugin hooks and step setup/teardown so the run behaves like a single replicate of `run()`.
 

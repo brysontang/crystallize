@@ -417,31 +417,77 @@ class Experiment:
         data: Any | None = None,
         seed: Optional[int] = None,
     ) -> Any:
-        """Run the pipeline once with optional treatment and return outputs."""
+        """Run the pipeline once and return the output.
+
+        This method mirrors :meth:`run` for a single replicate. Plugin hooks
+        are executed and all pipeline steps receive ``setup`` and ``teardown``
+        calls. Execution stops at the first step marked with
+        :func:`~crystallize.core.pipeline_step.exit_step`.
+        """
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
+
+        from .cache import compute_hash
+
+        self.id = compute_hash(self.pipeline.signature())
 
         ctx = FrozenContext({"condition": treatment.name if treatment else "baseline"})
         if treatment:
             treatment.apply(ctx)
 
-        if seed is not None:
-            seed_plugin = self.get_plugin(SeedPlugin)
-            if seed_plugin is not None:
-                fn = seed_plugin.seed_fn or default_seed_function
-                fn(seed)
-                ctx.add("seed_used", seed)
+        for plugin in self.plugins:
+            if isinstance(plugin, SeedPlugin) and seed is not None:
+                continue
+            plugin.before_run(self)
 
-        if data is None:
-            data = self.datasource.fetch(ctx)
+        self._setup_ctx = FrozenContext({})
+        try:
+            for step in self.pipeline.steps:
+                step.setup(self._setup_ctx)
 
-        if not any(getattr(step, "is_exit_step", False) for step in self.pipeline.steps):
-            raise ValueError("Pipeline must contain an exit_step for apply()")
+            for plugin in self.plugins:
+                if isinstance(plugin, SeedPlugin) and seed is not None:
+                    continue
+                plugin.before_replicate(self, ctx)
 
-        for step in self.pipeline.steps:
-            data = step(data, ctx)
-            if getattr(step, "is_exit_step", False):
-                break
+            if seed is not None:
+                seed_plugin = self.get_plugin(SeedPlugin)
+                if seed_plugin is not None:
+                    fn = seed_plugin.seed_fn or default_seed_function
+                    fn(seed)
+                    ctx.add("seed_used", seed)
+
+            if data is None:
+                data = self.datasource.fetch(ctx)
+
+            if not any(getattr(step, "is_exit_step", False) for step in self.pipeline.steps):
+                raise ValueError("Pipeline must contain an exit_step for apply()")
+
+            for step in self.pipeline.steps:
+                data = step(data, ctx)
+                for plugin in self.plugins:
+                    plugin.after_step(self, step, data, ctx)
+                if getattr(step, "is_exit_step", False):
+                    break
+
+            metrics = ExperimentMetrics(
+                baseline=TreatmentMetrics({k: list(v) for k, v in ctx.metrics.as_dict().items()}),
+                treatments={},
+                hypotheses=[],
+            )
+            provenance = {
+                "pipeline_signature": self.pipeline.signature(),
+                "replicates": 1,
+                "seeds": {"baseline": [ctx.get("seed_used", None)]},
+                "ctx_changes": {"baseline": {0: self.pipeline.get_provenance()}},
+            }
+            result = Result(metrics=metrics, provenance=provenance)
+        finally:
+            for step in self.pipeline.steps:
+                step.teardown(self._setup_ctx)
+
+        for plugin in self.plugins:
+            plugin.after_run(self, result)
 
         return data
 

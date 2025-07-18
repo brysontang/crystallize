@@ -94,7 +94,7 @@ class SeedPlugin(BasePlugin):
 
 @dataclass
 class LoggingPlugin(BasePlugin):
-    """Configure logging verbosity and experiment progress reporting."""
+    """Configure experiment logging using the ``crystallize`` logger."""
 
     verbose: bool = False
     log_level: str = "INFO"
@@ -106,10 +106,16 @@ class LoggingPlugin(BasePlugin):
         import logging
         import time
 
-        logging.basicConfig(
-            level=getattr(logging, self.log_level.upper(), logging.INFO)
-        )
         logger = logging.getLogger("crystallize")
+        level = getattr(logging, self.log_level.upper(), logging.INFO)
+        logger.setLevel(level)
+        if not logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
         seed_plugin = experiment.get_plugin(SeedPlugin)
         seed_val = seed_plugin.seed if seed_plugin else None
         logger.info(

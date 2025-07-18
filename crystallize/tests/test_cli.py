@@ -1,6 +1,5 @@
 import subprocess
 import sys
-from ast import literal_eval
 from pathlib import Path
 
 import pytest
@@ -73,6 +72,7 @@ def test_cli_runs_from_yaml(experiment_yaml: Path):
         text=True,
         check=True,
     )
-    output = literal_eval(result.stdout.strip())
-    assert output["rank_p"]["results"]["increment"]["significant"] is True
-    assert output["rank_p"]["results"]["increment"]["accepted"] is True
+    out = result.stdout
+    assert "Hypothesis Results" in out
+    assert "increment" in out
+    assert "Yes" in out

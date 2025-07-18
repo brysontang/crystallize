@@ -39,7 +39,10 @@ class InitializeOllamaClient(PipelineStep):
         return {"host": self.host, "context_key": self.context_key}
 
     def setup(self, ctx: FrozenContext) -> None:
-        factory = resource_factory(lambda ctx, host=self.host: _create_ollama_client(host))
+        factory = resource_factory(
+            lambda ctx, host=self.host: _create_ollama_client(host),
+            key=self.step_hash,
+        )
         ctx.add(self.context_key, factory)
 
     def teardown(self, ctx: FrozenContext) -> None:  # pragma: no cover - handled by exit

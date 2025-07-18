@@ -40,7 +40,8 @@ class InitializeLlmEngine(PipelineStep):
 
     def setup(self, ctx: FrozenContext) -> None:
         factory = resource_factory(
-            lambda ctx, opts=self.engine_options: _create_llm_engine(opts)
+            lambda ctx, opts=self.engine_options: _create_llm_engine(opts),
+            key=self.step_hash,
         )
         ctx.add(self.context_key, factory)
 

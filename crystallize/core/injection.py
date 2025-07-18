@@ -32,7 +32,11 @@ def inject_from_ctx(fn: Callable[..., Any]) -> Callable[..., Any]:
             default = param.default if param.default is not inspect.Signature.empty else None
             value = ctx.get(name, default)
             if callable(value):
-                value = value(ctx)
+                sig = inspect.signature(value)
+                if "ctx" in sig.parameters:
+                    value = value(ctx)
+                else:
+                    value = value()
             bound.arguments[name] = value
         return fn(*bound.args, **bound.kwargs)
 

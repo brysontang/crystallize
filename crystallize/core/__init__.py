@@ -24,17 +24,20 @@ from .treatment import Treatment
 _resource_cache = threading.local()
 
 
-def resource_factory(fn: Callable[[FrozenContext], Any]) -> Callable[[FrozenContext], Any]:
+def resource_factory(
+    fn: Callable[[FrozenContext], Any], *, key: str | None = None
+) -> Callable[[FrozenContext], Any]:
     """Wrap a factory so the created resource is reused per thread/process."""
 
     def wrapper(ctx: FrozenContext) -> Any:
         if not hasattr(_resource_cache, "cache"):
             _resource_cache.cache = {}
         cache = _resource_cache.cache
-        key = id(wrapper)
-        if key not in cache:
-            cache[key] = fn(ctx)
-        return cache[key]
+        cache_key = key if key is not None else hash(fn.__code__)
+        if cache_key not in cache:
+            cache[cache_key] = fn(ctx)
+        return cache[cache_key]
+
     return update_wrapper(wrapper, fn)
 
 

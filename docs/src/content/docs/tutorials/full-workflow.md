@@ -48,6 +48,13 @@ exp = Experiment(
     initial_ctx={"rng": resource_factory(lambda ctx: random.Random(ctx.get("seed", 42)))},
 )
 exp.validate()
+
+# You can also provide plain values:
+exp_static = Experiment(
+    datasource=datasource,
+    pipeline=pipeline,
+    initial_ctx={"static": 42},
+)
 ```
 
 This experiment – our *machine* – will be reused for optimization, validation, and application.

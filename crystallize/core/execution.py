@@ -60,10 +60,18 @@ class ParallelExecution(BasePlugin):
         worker_count = self.max_workers or min(experiment.replicates, default_workers)
         results: List[Any] = [None] * experiment.replicates
         with exec_cls(max_workers=worker_count) as executor:
-            future_map = {
-                executor.submit(submit_target, arg): rep
-                for rep, arg in enumerate(arg_list)
-            }
+            try:
+                future_map = {
+                    executor.submit(submit_target, arg): rep
+                    for rep, arg in enumerate(arg_list)
+                }
+            except Exception as exc:
+                if self.executor_type == "process" and "pickle" in repr(exc).lower():
+                    raise RuntimeError(
+                        "Failed to pickle experiment for multiprocessing. "
+                        "Use 'resource_factory' for non-picklable dependencies."
+                    ) from exc
+                raise
             futures = as_completed(future_map)
             if self.progress and experiment.replicates > 1:
                 from tqdm import tqdm  # type: ignore

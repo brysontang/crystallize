@@ -26,7 +26,17 @@ exp = Experiment(
     initial_ctx={"rng": resource_factory(lambda ctx: random.Random(ctx["seed"]))},
 )
 exp.validate()
+
+exp_static = Experiment(
+    datasource=my_source(),
+    pipeline=Pipeline([step1(), step2()]),
+    initial_ctx={"static": 42},
+)
 ```
+
+When using `ParallelExecution` with `executor_type="process"`, factories in
+`initial_ctx` must be picklable. Wrap them with `resource_factory` if they create
+non-picklable objects like client connections.
 
 ## 2. Seeding for Reproducibility
 

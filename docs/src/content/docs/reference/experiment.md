@@ -11,6 +11,11 @@ title: Experiment
 **Global Variables**
 ---------------
 - **VALID_EXECUTOR_TYPES**
+- **METADATA_FILENAME**
+- **BASELINE_CONDITION**
+- **REPLICATE_KEY**
+- **CONDITION_KEY**
+- **SEED_USED_KEY**
 
 
 ---
@@ -39,10 +44,31 @@ Instantiate an experiment configuration.
  
  - <b>`datasource`</b>:  Object that provides the initial data for each run. 
  - <b>`pipeline`</b>:  Pipeline executed for every replicate. 
-- <b>`plugins`</b>:  Optional list of plugins controlling experiment behaviour.
-- <b>`initial_ctx`</b>:  Optional mapping of context values or factories for setup. Factories may accept ``ctx``. Wrap non-picklable factories with ``resource_factory`` when using process-based parallelism.
+ - <b>`plugins`</b>:  Optional list of plugins controlling experiment behaviour. 
 
-`run()` and `apply()` are stateless. Pass treatments, hypotheses and replicates each time you call them to reuse the same `Experiment` instance across configurations.
+
+---
+
+#### <kbd>property</kbd> Experiment.hypotheses
+
+
+
+
+
+---
+
+#### <kbd>property</kbd> Experiment.replicates
+
+
+
+
+
+---
+
+#### <kbd>property</kbd> Experiment.treatments
+
+
+
 
 
 
@@ -59,9 +85,9 @@ apply(
 ) → Any
 ```
 
-Run the pipeline once and return the output.
+Run the pipeline once and return the output. 
 
-This method mirrors :meth:`run` for a single replicate. Plugin hooks are executed and all pipeline steps receive ``setup`` and ``teardown`` calls. The pipeline executes fully and the final output is returned.
+This method mirrors :meth:`run` for a single replicate. Plugin hooks are executed and all pipeline steps receive ``setup`` and ``teardown`` calls. 
 
 ---
 

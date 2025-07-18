@@ -11,6 +11,10 @@ title: Plugins
 **Global Variables**
 ---------------
 - **TYPE_CHECKING**
+- **REPLICATE_KEY**
+- **CONDITION_KEY**
+- **BASELINE_CONDITION**
+- **METADATA_FILENAME**
 
 ---
 
@@ -204,8 +208,7 @@ Returning ``NotImplemented`` signals that the plugin does not provide a custom e
 ---
 
 ## <kbd>class</kbd> `LoggingPlugin`
-Configure logging verbosity and experiment progress reporting. The plugin uses
-the ``crystallize`` logger and does not alter the root logging configuration.
+Configure experiment logging using the ``crystallize`` logger. 
 
 ### <kbd>method</kbd> `LoggingPlugin.__init__`
 

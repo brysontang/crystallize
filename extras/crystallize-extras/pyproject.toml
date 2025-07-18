@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crystallize-extras"
-version = "0.2.1"
+version = "0.3.0"
 description = "Optional plugins and components for the Crystallize framework."
 requires-python = ">=3.10"
 dependencies = [

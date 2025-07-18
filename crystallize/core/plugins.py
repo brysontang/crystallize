@@ -8,6 +8,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
+from .constants import (
+    REPLICATE_KEY,
+    CONDITION_KEY,
+    BASELINE_CONDITION,
+    METADATA_FILENAME,
+)
+
 if TYPE_CHECKING:
     from crystallize.core.context import FrozenContext
     from crystallize.core.experiment import Experiment
@@ -200,8 +207,8 @@ class ArtifactPlugin(BasePlugin):
         """Write any artifacts logged in ``ctx.artifacts`` to disk."""
         if len(ctx.artifacts) == 0:
             return
-        rep = ctx.get("replicate", 0)
-        condition = ctx.get("condition", "baseline")
+        rep = ctx.get(REPLICATE_KEY, 0)
+        condition = ctx.get(CONDITION_KEY, BASELINE_CONDITION)
         for artifact in ctx.artifacts:
             artifact.step_name = step.__class__.__name__
             dest = (
@@ -221,5 +228,5 @@ class ArtifactPlugin(BasePlugin):
         meta = {"replicates": experiment.replicates, "id": experiment.id}
         base = Path(self.root_dir) / self.experiment_id / f"v{self.version}"
         os.makedirs(base, exist_ok=True)
-        with open(base / "metadata.json", "w") as f:
+        with open(base / METADATA_FILENAME, "w") as f:
             json.dump(meta, f)

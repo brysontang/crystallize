@@ -18,6 +18,13 @@ from .pipeline import Pipeline
 from .pipeline_step import PipelineStep
 from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 from .result import Result
+from .constants import (
+    METADATA_FILENAME,
+    BASELINE_CONDITION,
+    REPLICATE_KEY,
+    CONDITION_KEY,
+    SEED_USED_KEY,
+)
 from .run_results import ReplicateResult
 from .treatment import Treatment
 
@@ -247,4 +254,9 @@ __all__ = [
     "verifier",
     "pipeline",
     "inject_from_ctx",
+    "METADATA_FILENAME",
+    "BASELINE_CONDITION",
+    "REPLICATE_KEY",
+    "CONDITION_KEY",
+    "SEED_USED_KEY",
 ]

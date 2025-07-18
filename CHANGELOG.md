@@ -5,6 +5,14 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.8.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.8.0...crystallize-ml@v0.8.1) (2025-07-18)
+
+
+### Bug Fixes
+
+* **crystallize-ml:** Ollama base_url -&gt; host ([10be1d1](https://github.com/brysontang/crystallize/commit/10be1d1e3a113a5107e26a5583e89af2ad4fa26b))
+* **crystallize-ml:** Ollama base_url -&gt; host ([adc3319](https://github.com/brysontang/crystallize/commit/adc33194c42d623498401e947e6b79b37379663f))
+
 ## [0.8.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.7.0...crystallize-ml@v0.8.0) (2025-07-18)
 
 

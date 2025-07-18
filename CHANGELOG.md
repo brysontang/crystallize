@@ -5,6 +5,14 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.8.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.7.0...crystallize-ml@v0.8.0) (2025-07-18)
+
+
+### Features
+
+* **crystallize-ml:** Add plugin lifecycle to apply ([fb0e288](https://github.com/brysontang/crystallize/commit/fb0e28861cc4dc0b97da34151e8a3821931cd93f))
+* **crystallize-ml:** Apply uses full lifecycle ([9c58a07](https://github.com/brysontang/crystallize/commit/9c58a074b1ccc84dc75f1e2c30d74f30bc2e1657))
+
 ## [0.7.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.6.2...crystallize-ml@v0.7.0) (2025-07-18)
 
 

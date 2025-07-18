@@ -14,8 +14,8 @@ class InitializeOllamaClient(PipelineStep):
 
     cacheable = False
 
-    def __init__(self, *, base_url: str, context_key: str = "ollama_client") -> None:
-        self.base_url = base_url
+    def __init__(self, *, host: str, context_key: str = "ollama_client") -> None:
+        self.host = host
         self.context_key = context_key
 
     def __call__(self, data: Any, ctx: FrozenContext) -> Any:
@@ -23,14 +23,14 @@ class InitializeOllamaClient(PipelineStep):
 
     @property
     def params(self) -> dict:
-        return {"base_url": self.base_url, "context_key": self.context_key}
+        return {"host": self.host, "context_key": self.context_key}
 
     def setup(self, ctx: FrozenContext) -> None:
         if Client is None:
             raise ImportError(
                 "The 'ollama' package is required. Please install with: pip install crystallize-extras[ollama]"
             )
-        self.client = Client(base_url=self.base_url)
+        self.client = Client(host=self.host)
         ctx.add(self.context_key, self.client)
 
     def teardown(self, ctx: FrozenContext) -> None:
@@ -39,7 +39,7 @@ class InitializeOllamaClient(PipelineStep):
 
 
 def initialize_ollama_client(
-    *, base_url: str, context_key: str = "ollama_client"
+    *, host: str, context_key: str = "ollama_client"
 ) -> InitializeOllamaClient:
     """Factory function returning :class:`InitializeOllamaClient`."""
-    return InitializeOllamaClient(base_url=base_url, context_key=context_key)
+    return InitializeOllamaClient(host=host, context_key=context_key)

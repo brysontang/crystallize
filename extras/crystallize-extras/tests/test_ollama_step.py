@@ -5,8 +5,8 @@ from crystallize.core.context import FrozenContext
 
 
 class DummyClient:
-    def __init__(self, *, base_url: str):
-        self.base_url = base_url
+    def __init__(self, *, host: str):
+        self.host = host
 
 
 def test_initialize_ollama_client_adds_client(monkeypatch):
@@ -15,11 +15,11 @@ def test_initialize_ollama_client_adds_client(monkeypatch):
         DummyClient,
     )
     ctx = FrozenContext({})
-    step = initialize_ollama_client(base_url="http://localhost")
+    step = initialize_ollama_client(host="http://localhost")
     step.setup(ctx)
     assert "ollama_client" in ctx.as_dict()
     assert isinstance(ctx.as_dict()["ollama_client"], DummyClient)
-    assert ctx.as_dict()["ollama_client"].base_url == "http://localhost"
+    assert ctx.as_dict()["ollama_client"].host == "http://localhost"
     result = step(None, ctx)
     assert result is None
     step.teardown(ctx)
@@ -31,6 +31,6 @@ def test_initialize_ollama_client_missing_dependency(monkeypatch):
 
     monkeypatch.setattr(ollama_step.initialize, "Client", None)
     ctx = FrozenContext({})
-    step = ollama_step.initialize.initialize_ollama_client(base_url="http://loc")
+    step = ollama_step.initialize.initialize_ollama_client(host="http://loc")
     with pytest.raises(ImportError):
         step.setup(ctx)

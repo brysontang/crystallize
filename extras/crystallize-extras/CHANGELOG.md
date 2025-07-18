@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.2.0...crystallize-extras@v0.2.1) (2025-07-18)
+
+
+### Bug Fixes
+
+* **crystallize-ml:** Ollama base_url -&gt; host ([10be1d1](https://github.com/brysontang/crystallize/commit/10be1d1e3a113a5107e26a5583e89af2ad4fa26b))
+* **crystallize-ml:** Ollama base_url -&gt; host ([adc3319](https://github.com/brysontang/crystallize/commit/adc33194c42d623498401e947e6b79b37379663f))
+
 ## [0.2.0](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.1.1...crystallize-extras@v0.2.0) (2025-07-18)
 
 

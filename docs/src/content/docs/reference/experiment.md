@@ -115,9 +115,10 @@ artifact_datasource(
 ) → DataSource
 ```
 
-Return a datasource configured to load artifacts produced by this experiment. The
-datasource reads from `<root>/<id>/v<version>/replicate_<rep>/<condition>/<step>/<name>`
-and sets its ``replicates`` attribute from ``metadata.json`` when available.
+Return a datasource that yields the file path of an artifact produced by this
+experiment.  The datasource reads from
+`<root>/<id>/v<version>/replicate_<rep>/<condition>/<step>/<name>` and sets its
+``replicates`` attribute from ``metadata.json`` when available.
 
 ---
 

@@ -8,10 +8,11 @@ Crystallize steps can produce files like trained models or plots. Use `ArtifactP
 ## 1. Enable the Plugin
 
 ```python
-from crystallize.core.plugins import ArtifactPlugin
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.pipeline_step import PipelineStep
+from crystallize.core.plugins import ArtifactPlugin
+
 
 class ModelStep(PipelineStep):
     def __call__(self, data, ctx):
@@ -37,24 +38,30 @@ Artifacts are stored under:
 ## Chaining via Importable Datasources
 
 After an experiment runs with `ArtifactPlugin`, you can import the experiment in
-another file and load its artifacts automatically:
+another file and load its artifacts automatically. The datasource provides a
+file path for each replicate, letting you choose how to load the contents:
 
 ```python
 # experiment1.py
 exp1.run(replicates=2)
 
+from pathlib import Path
+
 # experiment2.py
 from experiment1 import exp1
+
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline, pipeline_step
 
+
 @pipeline_step()
-def consume(data, ctx):
-    return data
+def load_json(path, ctx):
+    import json
+    return json.loads(Path(path).read_text())
 
 exp2 = Experiment(
-    datasource=exp1.artifact_datasource(step="ModelStep", name="model.bin"),
-    pipeline=Pipeline([consume()]),
+    datasource=exp1.artifact_datasource(step="ModelStep", name="data.json"),
+    pipeline=Pipeline([load_json()]),
 )
 exp2.validate()
 exp2.run()  # replicates set from metadata

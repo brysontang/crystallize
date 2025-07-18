@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections import defaultdict
 import json
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -12,18 +12,14 @@ from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.optimizers import BaseOptimizer, Objective
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.plugins import (
+    ArtifactPlugin,
     BasePlugin,
     LoggingPlugin,
     SeedPlugin,
-    ArtifactPlugin,
     default_seed_function,
 )
 from crystallize.core.result import Result
-from crystallize.core.result_structs import (
-    ExperimentMetrics,
-    HypothesisResult,
-    TreatmentMetrics,
-)
+from crystallize.core.result_structs import ExperimentMetrics, HypothesisResult, TreatmentMetrics
 from crystallize.core.treatment import Treatment
 
 
@@ -104,7 +100,7 @@ class Experiment:
         name: str = "data.json",
         condition: str = "baseline",
     ) -> DataSource:
-        """Return a datasource loading artifacts from this experiment."""
+        """Return a datasource providing file paths to saved artifacts."""
 
         if self.id is None:
             raise RuntimeError("Experiment has not been run yet")
@@ -127,19 +123,10 @@ class Experiment:
 
             def fetch(self, ctx: FrozenContext) -> Any:
                 rep = ctx.get("replicate", 0)
-                path = (
-                    base
-                    / f"replicate_{rep}"
-                    / condition
-                    / step
-                    / name
-                )
+                path = base / f"replicate_{rep}" / condition / step / name
                 if not path.exists():
-                    raise FileNotFoundError(str(path))
-                if name.endswith(".json"):
-                    with path.open() as f:
-                        return json.load(f)
-                return path.read_bytes()
+                    raise FileNotFoundError(f"Artifact {path} missing for rep {rep}")
+                return str(path)
 
         return ArtifactDataSource()
 
@@ -280,6 +267,7 @@ class Experiment:
             raise ValueError("Replicates mismatch with datasource metadata")
 
         from .cache import compute_hash
+
         self.id = compute_hash(self.pipeline.signature())
 
         if self.hypotheses and not self.treatments:
@@ -298,11 +286,9 @@ class Experiment:
                 t.name: [] for t in self.treatments
             }
             baseline_seeds: List[int] = []
-            treatment_seeds_agg: Dict[str, List[int]] = {
-                t.name: [] for t in self.treatments
-            }
-            provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = (
-                defaultdict(dict)
+            treatment_seeds_agg: Dict[str, List[int]] = {t.name: [] for t in self.treatments}
+            provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = defaultdict(
+                dict
             )
 
             errors: Dict[str, Exception] = {}
@@ -356,8 +342,7 @@ class Experiment:
 
             baseline_metrics = collect_all_samples(baseline_samples)
             treatment_metrics_dict = {
-                name: collect_all_samples(samp)
-                for name, samp in treatment_samples.items()
+                name: collect_all_samples(samp) for name, samp in treatment_samples.items()
             }
 
             hypothesis_results: List[HypothesisResult] = []
@@ -379,8 +364,7 @@ class Experiment:
             metrics = ExperimentMetrics(
                 baseline=TreatmentMetrics(baseline_metrics),
                 treatments={
-                    name: TreatmentMetrics(m)
-                    for name, m in treatment_metrics_dict.items()
+                    name: TreatmentMetrics(m) for name, m in treatment_metrics_dict.items()
                 },
                 hypotheses=hypothesis_results,
             )
@@ -428,9 +412,7 @@ class Experiment:
         if data is None:
             data = self.datasource.fetch(ctx)
 
-        if not any(
-            getattr(step, "is_exit_step", False) for step in self.pipeline.steps
-        ):
+        if not any(getattr(step, "is_exit_step", False) for step in self.pipeline.steps):
             raise ValueError("Pipeline must contain an exit_step for apply()")
 
         for step in self.pipeline.steps:
@@ -457,9 +439,7 @@ class Experiment:
                 hypotheses=[],
                 replicates=replicates_per_trial,
             )
-            objective_values = self._extract_objective_from_result(
-                result, optimizer.objective
-            )
+            objective_values = self._extract_objective_from_result(result, optimizer.objective)
             optimizer.tell(objective_values)
 
         return optimizer.get_best_treatment()
@@ -468,8 +448,6 @@ class Experiment:
         self, result: Result, objective: "Objective"
     ) -> dict[str, float]:
         treatment_name = list(result.metrics.treatments.keys())[0]
-        metric_values = result.metrics.treatments[treatment_name].metrics[
-            objective.metric
-        ]
+        metric_values = result.metrics.treatments[treatment_name].metrics[objective.metric]
         aggregated_value = sum(metric_values) / len(metric_values)
         return {objective.metric: aggregated_value}

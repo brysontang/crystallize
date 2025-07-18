@@ -152,7 +152,7 @@ class IdentityStep(PipelineStep):
         return {}
 
 
-def test_experiment_apply_with_exit_step():
+def test_experiment_apply_runs_pipeline():
     pipeline = Pipeline([IdentityStep(), PassStep()])
     datasource = DummyDataSource()
     experiment = Experiment(datasource=datasource, pipeline=pipeline)
@@ -208,7 +208,7 @@ def test_validate_partial_config():
         Experiment(pipeline=Pipeline([PassStep()]))
 
 
-def test_apply_without_exit_step():
+def test_apply_without_designated_exit():
     pipeline = Pipeline([IdentityStep(), PassStep()])
     datasource = DummyDataSource()
     experiment = Experiment(datasource=datasource, pipeline=pipeline)
@@ -230,7 +230,7 @@ class TrackStep(PipelineStep):
         return {}
 
 
-def test_apply_multiple_exit_steps():
+def test_apply_multiple_steps():
     step1 = TrackStep()
     step2 = TrackStep()
     pipeline = Pipeline([step1, step2, PassStep()])

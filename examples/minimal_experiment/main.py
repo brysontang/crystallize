@@ -70,7 +70,6 @@ if __name__ == "__main__":
         pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
         treatments=[add_ten()],
         hypotheses=[check_for_improvement],
-        replicates=20,
         plugins=[ParallelExecution(), LoggingPlugin(verbose=True, log_level="DEBUG")],
     )
     experiment.validate()

@@ -42,7 +42,6 @@ def main() -> None:
         pipeline=pipeline_obj,
         treatments=[better_data()],
         hypotheses=[hyp],
-        replicates=10,
         plugins=[ParallelExecution()],
     )
     experiment.validate()

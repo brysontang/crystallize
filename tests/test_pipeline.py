@@ -58,7 +58,7 @@ def test_pipeline_execution_error():
         pipeline.run(0, ctx)
 
 
-def test_pipeline_exit_step_mid_chain():
+def test_pipeline_execution_mid_chain():
     pipeline = Pipeline([AddStep(1), AddStep(2), MetricsStep()])
     ctx = FrozenContext({})
     result = pipeline.run(0, ctx)

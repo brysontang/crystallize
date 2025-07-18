@@ -99,3 +99,29 @@ to_df()
 
 
 
+---
+
+## <kbd>class</kbd> `AggregateData`
+Grouped results collected from all replicates. 
+
+### <kbd>method</kbd> `AggregateData.__init__`
+
+```python
+__init__(
+    baseline_metrics: 'Dict[str, List[Any]]',
+    treatment_metrics_dict: 'Dict[str, Dict[str, List[Any]]]',
+    baseline_seeds: 'List[int]',
+    treatment_seeds_agg: 'Dict[str, List[int]]',
+    provenance_runs: "'DefaultDict[str, Dict[int, List[Mapping[str, Any]]]]'",
+    errors: 'Dict[str, Exception]'
+) → None
+```
+
+
+
+
+
+
+
+
+

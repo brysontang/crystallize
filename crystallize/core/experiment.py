@@ -420,8 +420,8 @@ class Experiment:
 
         This method mirrors :meth:`run` for a single replicate. Plugin hooks
         are executed and all pipeline steps receive ``setup`` and ``teardown``
-        calls. Execution stops at the first step marked with
-        :func:`~crystallize.core.pipeline_step.exit_step`.
+        calls. The complete pipeline is executed and the final output is
+        returned.
         """
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
@@ -429,6 +429,8 @@ class Experiment:
         from .cache import compute_hash
 
         self.id = compute_hash(self.pipeline.signature())
+        datasource_reps = getattr(self.datasource, "replicates", None)
+        self.replicates = datasource_reps or 1
 
         ctx = FrozenContext({"condition": treatment.name if treatment else "baseline"})
         if treatment:
@@ -458,15 +460,10 @@ class Experiment:
             if data is None:
                 data = self.datasource.fetch(ctx)
 
-            if not any(getattr(step, "is_exit_step", False) for step in self.pipeline.steps):
-                raise ValueError("Pipeline must contain an exit_step for apply()")
-
             for step in self.pipeline.steps:
                 data = step(data, ctx)
                 for plugin in self.plugins:
                     plugin.after_step(self, step, data, ctx)
-                if getattr(step, "is_exit_step", False):
-                    break
 
             metrics = ExperimentMetrics(
                 baseline=TreatmentMetrics({k: list(v) for k, v in ctx.metrics.as_dict().items()}),

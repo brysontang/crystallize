@@ -15,7 +15,7 @@ from .hypothesis import Hypothesis
 from .injection import inject_from_ctx
 from .optimizers import BaseOptimizer, Objective
 from .pipeline import Pipeline
-from .pipeline_step import PipelineStep, exit_step
+from .pipeline_step import PipelineStep
 from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 from .result import Result
 from .treatment import Treatment
@@ -224,6 +224,5 @@ __all__ = [
     "data_source",
     "verifier",
     "pipeline",
-    "exit_step",
     "inject_from_ctx",
 ]

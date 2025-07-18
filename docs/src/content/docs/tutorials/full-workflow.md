@@ -19,7 +19,7 @@ First create the core experiment that stays fixed across all stages.
 from crystallize import data_source, pipeline_step
 from crystallize.core.context import FrozenContext
 from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import exit_step
+
 from crystallize.core.experiment import Experiment
 import random
 
@@ -40,7 +40,7 @@ def record_sum(data: list[int], ctx: FrozenContext) -> list[int]:
     ctx.metrics.add("total", sum(data))
     return data
 
-pipeline = Pipeline([add_delta(), add_noise(), exit_step(record_sum())])
+pipeline = Pipeline([add_delta(), add_noise(), record_sum()])
 datasource = numbers()
 exp = Experiment(datasource=datasource, pipeline=pipeline)
 exp.validate()
@@ -114,7 +114,7 @@ Finally, reuse the same experiment and treatment for a one-off inference run.
 output = exp.apply(treatment=best_treatment)
 ```
 
-`apply()` runs the pipeline once (stopping at the `exit_step`), executing plugin hooks and step setup/teardown, then returns the final output. This mirrors using your tuned configuration in production.
+`apply()` runs the pipeline once, executing plugin hooks and step setup/teardown, then returns the final output. This mirrors using your tuned configuration in production.
 
 ---
 

@@ -30,10 +30,6 @@ def csv_source(ctx: FrozenContext, path: str) -> list:
 The core class orchestrates baseline and treatment runs across replicates, followed by hypothesis verification. Configure it directly with your datasource, pipeline, treatments, hypotheses, replicates, and a list of plugins. Use `run()` for full execution or `apply()` for single-condition inference.
 
 
-## Exit Step
-
-A pipeline step marked with `exit_step()` that terminates pipeline execution early, useful for production inference to skip metric computation. Multiple exit steps halt at the first encountered.
-
 ## FrozenContext
 
 An immutable dictionary-like object for passing parameters during execution. Supports safe addition of new keys via `add(key, value)` but raises `ContextMutationError` on existing key mutations. Includes a `metrics` attribute for accumulating results.

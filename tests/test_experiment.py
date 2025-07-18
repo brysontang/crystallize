@@ -16,7 +16,7 @@ from crystallize.core.datasource import DataSource
 from crystallize.core.experiment import Experiment
 from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep, exit_step
+from crystallize.core.pipeline_step import PipelineStep
 from crystallize.core.optimizers import BaseOptimizer, Objective
 from crystallize.core.treatment import Treatment
 
@@ -153,12 +153,12 @@ class IdentityStep(PipelineStep):
 
 
 def test_experiment_apply_with_exit_step():
-    pipeline = Pipeline([exit_step(IdentityStep()), PassStep()])
+    pipeline = Pipeline([IdentityStep(), PassStep()])
     datasource = DummyDataSource()
     experiment = Experiment(datasource=datasource, pipeline=pipeline)
     experiment.validate()
     output = experiment.apply(data=5)
-    assert output == 5
+    assert output == {"metric": 5}
 
 
 def test_experiment_requires_validation():
@@ -213,8 +213,8 @@ def test_apply_without_exit_step():
     datasource = DummyDataSource()
     experiment = Experiment(datasource=datasource, pipeline=pipeline)
     experiment.validate()
-    with pytest.raises(ValueError):
-        experiment.apply(data=7)
+    output = experiment.apply(data=7)
+    assert output == {"metric": 7}
 
 
 class TrackStep(PipelineStep):
@@ -233,14 +233,14 @@ class TrackStep(PipelineStep):
 def test_apply_multiple_exit_steps():
     step1 = TrackStep()
     step2 = TrackStep()
-    pipeline = Pipeline([exit_step(step1), exit_step(step2), PassStep()])
+    pipeline = Pipeline([step1, step2, PassStep()])
     datasource = DummyDataSource()
     experiment = Experiment(datasource=datasource, pipeline=pipeline)
     experiment.validate()
     output = experiment.apply(data=3)
-    assert output == 3
+    assert output == {"metric": 3}
     assert step1.called is True
-    assert step2.called is False
+    assert step2.called is True
 
 
 class StringMetricsStep(PipelineStep):
@@ -500,7 +500,7 @@ def test_full_experiment_replicate_counts(replicates):
 
 
 def test_apply_with_treatment_and_exit():
-    pipeline = Pipeline([exit_step(IdentityStep()), PassStep()])
+    pipeline = Pipeline([IdentityStep(), PassStep()])
     datasource = DummyDataSource()
     treatment = Treatment("inc", {"increment": 2})
     experiment = Experiment(
@@ -508,7 +508,7 @@ def test_apply_with_treatment_and_exit():
     )
     experiment.validate()
     output = experiment.apply(treatment=treatment, data=5)
-    assert output == 5
+    assert output == {"metric": 5}
 
 
 def test_provenance_signature_and_cache(tmp_path, monkeypatch):
@@ -777,7 +777,7 @@ def test_apply_seed_function_called():
     def record_seed(val: int) -> None:
         called.append(val)
 
-    pipeline = Pipeline([exit_step(IdentityStep())])
+    pipeline = Pipeline([IdentityStep()])
     ds = DummyDataSource()
     exp = Experiment(
         datasource=ds,
@@ -832,7 +832,7 @@ class IncrementStep(PipelineStep):
 
 
 def test_apply_with_treatment_object() -> None:
-    pipeline = Pipeline([exit_step(IncrementStep())])
+    pipeline = Pipeline([IncrementStep()])
     datasource = DummyDataSource()
     exp = Experiment(datasource=datasource, pipeline=pipeline)
     exp.validate()
@@ -958,7 +958,7 @@ class SetupTeardownStep(PipelineStep):
 
 
 def test_apply_runs_full_lifecycle():
-    step = exit_step(SetupTeardownStep())
+    step = SetupTeardownStep()
     plugin = RecordingPlugin()
     exp = Experiment(
         datasource=DummyDataSource(), pipeline=Pipeline([step]), plugins=[plugin]
@@ -981,7 +981,7 @@ def test_apply_seed_plugin_autoseed():
     def record_seed(val: int) -> None:
         called.append(val)
 
-    step = exit_step(IdentityStep())
+    step = IdentityStep()
     ds = DummyDataSource()
     plugin = SeedPlugin(seed=7, seed_fn=record_seed)
     exp = Experiment(datasource=ds, pipeline=Pipeline([step]), plugins=[plugin])

@@ -63,11 +63,10 @@ After choosing a treatment, you can pass new data through the pipeline:
 result = exp.apply(treatment_name="treatment_a", data=my_data, seed=123)
 ```
 
-`apply()` runs until the first `exit_step` in the pipeline, executing plugin hooks and calling step `setup`/`teardown` just like `run`. The optional `seed` is forwarded to the experiment's `seed_fn`; if omitted, the experiment's stored seed is not used. This is handy for debugging or production inference once your treatment is validated.
+`apply()` runs the entire pipeline once, executing plugin hooks and calling step `setup`/`teardown` just like `run`. The optional `seed` is forwarded to the experiment's `seed_fn`; if omitted, the experiment's stored seed is not used. This is handy for debugging or production inference once your treatment is validated.
 
 ## Troubleshooting & FAQs
 
-- **`ValueError: Pipeline must contain an exit_step`** – `.apply()` requires at least one `exit_step` to know where to stop.
 - **`Unknown treatment`** – The name passed to `treatment_name` must match a treatment in the experiment.
 - **Parallelism slower?** – Use `process` executors for CPU-bound work and ensure steps release the GIL for threads.
 

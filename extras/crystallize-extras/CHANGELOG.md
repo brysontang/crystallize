@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.3.0...crystallize-extras@v0.4.0) (2025-07-18)
+
+
+### Features
+
+* **crystallize-ml:** Simplify resources with factories ([df5457b](https://github.com/brysontang/crystallize/commit/df5457bbcaaad1b3ebd19aaf6bfe2273c9a3c848))
+
+
+### Bug Fixes
+
+* **crystallize-ml:** Refine factory caching and injection ([0b3af92](https://github.com/brysontang/crystallize/commit/0b3af92ca18e5f5de3ff3b7e14a26eb01ff32a91))
+
 ## [0.3.0](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.2.1...crystallize-extras@v0.3.0) (2025-07-18)
 
 

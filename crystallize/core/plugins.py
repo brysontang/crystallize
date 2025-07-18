@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import os
 from abc import ABC
 from dataclasses import dataclass
@@ -170,9 +171,7 @@ class ArtifactPlugin(BasePlugin):
     versioned: bool = False
 
     def before_run(self, experiment: Experiment) -> None:
-        from .cache import compute_hash
-
-        self.experiment_id = compute_hash(experiment.pipeline.signature())
+        self.experiment_id = experiment.id
         base = Path(self.root_dir) / self.experiment_id
         base.mkdir(parents=True, exist_ok=True)
         if self.versioned:
@@ -211,3 +210,10 @@ class ArtifactPlugin(BasePlugin):
             with open(dest / artifact.name, "wb") as f:
                 f.write(artifact.data)
         ctx.artifacts.clear()
+
+    def after_run(self, experiment: Experiment, result: Result) -> None:
+        meta = {"replicates": experiment.replicates, "id": experiment.id}
+        base = Path(self.root_dir) / self.experiment_id / f"v{self.version}"
+        os.makedirs(base, exist_ok=True)
+        with open(base / "metadata.json", "w") as f:
+            json.dump(meta, f)

@@ -20,6 +20,9 @@ jobs:
 
       - uses: prefix-dev/setup-pixi@v0.8.11
 
+      - name: Regenerate lock file
+        run: pixi lock
+
       - name: Install dependencies
         run: pixi install -e dev
 

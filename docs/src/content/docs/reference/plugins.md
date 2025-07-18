@@ -327,7 +327,9 @@ __init__(
 after_run(experiment: 'Experiment', result: 'Result') → None
 ```
 
-Execute cleanup or reporting after :meth:`Experiment.run` completes. 
+
+
+
 
 ---
 

@@ -59,6 +59,24 @@ Run the pipeline once with optional treatment and return outputs.
 
 ---
 
+### <kbd>method</kbd> `Experiment.artifact_datasource`
+
+```python
+artifact_datasource(
+    step: 'str',
+    name: 'str' = 'data.json',
+    condition: 'str' = 'baseline',
+    require_metadata: 'bool' = False
+) → DataSource
+```
+
+Return a datasource providing :class:`pathlib.Path` objects to artifacts. 
+
+Parameters 
+---------- step:  Pipeline step name that produced the artifact. name:  Artifact file name. condition:  Condition directory to load from. Defaults to ``"baseline"``. require_metadata:  If ``True`` and ``metadata.json`` does not exist, raise a  ``FileNotFoundError``. When ``False`` (default), missing metadata  means replicates are inferred from the experiment instance. 
+
+---
+
 ### <kbd>method</kbd> `Experiment.get_plugin`
 
 ```python
@@ -91,7 +109,7 @@ optimize(
 run(
     treatments: 'List[Treatment] | None' = None,
     hypotheses: 'List[Hypothesis] | None' = None,
-    replicates: 'int' = 1
+    replicates: 'int | None' = None
 ) → Result
 ```
 

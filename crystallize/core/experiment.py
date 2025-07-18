@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from crystallize.core.context import FrozenContext
@@ -10,17 +12,14 @@ from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.optimizers import BaseOptimizer, Objective
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.plugins import (
+    ArtifactPlugin,
     BasePlugin,
     LoggingPlugin,
     SeedPlugin,
     default_seed_function,
 )
 from crystallize.core.result import Result
-from crystallize.core.result_structs import (
-    ExperimentMetrics,
-    HypothesisResult,
-    TreatmentMetrics,
-)
+from crystallize.core.result_structs import ExperimentMetrics, HypothesisResult, TreatmentMetrics
 from crystallize.core.treatment import Treatment
 
 
@@ -67,6 +66,7 @@ class Experiment:
         self.treatments: List[Treatment] = []
         self.hypotheses: List[Hypothesis] = []
         self.replicates: int = 1
+        self.id: Optional[str] = None
 
         self._setup_ctx = FrozenContext({})
 
@@ -91,6 +91,67 @@ class Experiment:
             if isinstance(plugin, plugin_class):
                 return plugin
         return None
+
+    # ------------------------------------------------------------------ #
+
+    def artifact_datasource(
+        self,
+        step: str,
+        name: str = "data.json",
+        condition: str = "baseline",
+        *,
+        require_metadata: bool = False,
+    ) -> DataSource:
+        """Return a datasource providing :class:`pathlib.Path` objects to artifacts.
+
+        Parameters
+        ----------
+        step:
+            Pipeline step name that produced the artifact.
+        name:
+            Artifact file name.
+        condition:
+            Condition directory to load from. Defaults to ``"baseline"``.
+        require_metadata:
+            If ``True`` and ``metadata.json`` does not exist, raise a
+            ``FileNotFoundError``. When ``False`` (default), missing metadata
+            means replicates are inferred from the experiment instance.
+        """
+
+        if self.id is None:
+            raise RuntimeError("Experiment has not been run yet")
+
+        plugin = self.get_plugin(ArtifactPlugin)
+        if plugin is None:
+            raise RuntimeError("ArtifactPlugin required to load artifacts")
+
+        base = Path(plugin.root_dir) / self.id / f"v{plugin.version}"
+        meta_path = base / "metadata.json"
+        replicates = self.replicates
+        if meta_path.exists():
+            with open(meta_path) as f:
+                meta = json.load(f)
+            replicates = meta.get("replicates", replicates)
+        elif require_metadata:
+            raise FileNotFoundError(
+                f"Metadata missing: {meta_path}. Did the experiment run with ArtifactPlugin?"
+            )
+
+        class ArtifactDataSource(DataSource):
+            def __init__(self) -> None:
+                self.replicates = replicates
+
+            def fetch(self, ctx: FrozenContext) -> Any:
+                rep = ctx.get("replicate", 0)
+                path = base / f"replicate_{rep}" / condition / step / name
+                if not path.exists():
+                    raise FileNotFoundError(
+                        f"Artifact {path} missing for rep {rep}. "
+                        "Ensure previous experiment ran with ArtifactPlugin and matching replicates/step/name."
+                    )
+                return path
+
+        return ArtifactDataSource()
 
     # ------------------------------------------------------------------ #
 
@@ -197,7 +258,7 @@ class Experiment:
         *,
         treatments: List[Treatment] | None = None,
         hypotheses: List[Hypothesis] | None = None,
-        replicates: int = 1,
+        replicates: int | None = None,
     ) -> Result:
         """Execute the experiment and return a :class:`Result` instance.
 
@@ -220,7 +281,17 @@ class Experiment:
 
         self.treatments = treatments or []
         self.hypotheses = hypotheses or []
+
+        datasource_reps = getattr(self.datasource, "replicates", None)
+        if replicates is None:
+            replicates = datasource_reps or 1
         self.replicates = max(1, replicates)
+        if datasource_reps is not None and datasource_reps != self.replicates:
+            raise ValueError("Replicates mismatch with datasource metadata")
+
+        from .cache import compute_hash
+
+        self.id = compute_hash(self.pipeline.signature())
 
         if self.hypotheses and not self.treatments:
             raise ValueError("Cannot verify hypotheses without treatments")
@@ -238,11 +309,9 @@ class Experiment:
                 t.name: [] for t in self.treatments
             }
             baseline_seeds: List[int] = []
-            treatment_seeds_agg: Dict[str, List[int]] = {
-                t.name: [] for t in self.treatments
-            }
-            provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = (
-                defaultdict(dict)
+            treatment_seeds_agg: Dict[str, List[int]] = {t.name: [] for t in self.treatments}
+            provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = defaultdict(
+                dict
             )
 
             errors: Dict[str, Exception] = {}
@@ -296,8 +365,7 @@ class Experiment:
 
             baseline_metrics = collect_all_samples(baseline_samples)
             treatment_metrics_dict = {
-                name: collect_all_samples(samp)
-                for name, samp in treatment_samples.items()
+                name: collect_all_samples(samp) for name, samp in treatment_samples.items()
             }
 
             hypothesis_results: List[HypothesisResult] = []
@@ -319,8 +387,7 @@ class Experiment:
             metrics = ExperimentMetrics(
                 baseline=TreatmentMetrics(baseline_metrics),
                 treatments={
-                    name: TreatmentMetrics(m)
-                    for name, m in treatment_metrics_dict.items()
+                    name: TreatmentMetrics(m) for name, m in treatment_metrics_dict.items()
                 },
                 hypotheses=hypothesis_results,
             )
@@ -368,9 +435,7 @@ class Experiment:
         if data is None:
             data = self.datasource.fetch(ctx)
 
-        if not any(
-            getattr(step, "is_exit_step", False) for step in self.pipeline.steps
-        ):
+        if not any(getattr(step, "is_exit_step", False) for step in self.pipeline.steps):
             raise ValueError("Pipeline must contain an exit_step for apply()")
 
         for step in self.pipeline.steps:
@@ -397,9 +462,7 @@ class Experiment:
                 hypotheses=[],
                 replicates=replicates_per_trial,
             )
-            objective_values = self._extract_objective_from_result(
-                result, optimizer.objective
-            )
+            objective_values = self._extract_objective_from_result(result, optimizer.objective)
             optimizer.tell(objective_values)
 
         return optimizer.get_best_treatment()
@@ -408,8 +471,6 @@ class Experiment:
         self, result: Result, objective: "Objective"
     ) -> dict[str, float]:
         treatment_name = list(result.metrics.treatments.keys())[0]
-        metric_values = result.metrics.treatments[treatment_name].metrics[
-            objective.metric
-        ]
+        metric_values = result.metrics.treatments[treatment_name].metrics[objective.metric]
         aggregated_value = sum(metric_values) / len(metric_values)
         return {objective.metric: aggregated_value}

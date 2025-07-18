@@ -99,8 +99,24 @@ class Experiment:
         step: str,
         name: str = "data.json",
         condition: str = "baseline",
+        *,
+        require_metadata: bool = False,
     ) -> DataSource:
-        """Return a datasource providing file paths to saved artifacts."""
+        """Return a datasource providing :class:`pathlib.Path` objects to artifacts.
+
+        Parameters
+        ----------
+        step:
+            Pipeline step name that produced the artifact.
+        name:
+            Artifact file name.
+        condition:
+            Condition directory to load from. Defaults to ``"baseline"``.
+        require_metadata:
+            If ``True`` and ``metadata.json`` does not exist, raise a
+            ``FileNotFoundError``. When ``False`` (default), missing metadata
+            means replicates are inferred from the experiment instance.
+        """
 
         if self.id is None:
             raise RuntimeError("Experiment has not been run yet")
@@ -116,6 +132,10 @@ class Experiment:
             with open(meta_path) as f:
                 meta = json.load(f)
             replicates = meta.get("replicates", replicates)
+        elif require_metadata:
+            raise FileNotFoundError(
+                f"Metadata missing: {meta_path}. Did the experiment run with ArtifactPlugin?"
+            )
 
         class ArtifactDataSource(DataSource):
             def __init__(self) -> None:
@@ -125,8 +145,11 @@ class Experiment:
                 rep = ctx.get("replicate", 0)
                 path = base / f"replicate_{rep}" / condition / step / name
                 if not path.exists():
-                    raise FileNotFoundError(f"Artifact {path} missing for rep {rep}")
-                return str(path)
+                    raise FileNotFoundError(
+                        f"Artifact {path} missing for rep {rep}. "
+                        "Ensure previous experiment ran with ArtifactPlugin and matching replicates/step/name."
+                    )
+                return path
 
         return ArtifactDataSource()
 

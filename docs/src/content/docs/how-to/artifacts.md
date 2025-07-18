@@ -39,7 +39,7 @@ Artifacts are stored under:
 
 After an experiment runs with `ArtifactPlugin`, you can import the experiment in
 another file and load its artifacts automatically. The datasource provides a
-file path for each replicate, letting you choose how to load the contents:
+`Path` object for each replicate, letting you choose how to load the contents:
 
 ```python
 # experiment1.py
@@ -57,7 +57,7 @@ from crystallize.core.pipeline import Pipeline, pipeline_step
 @pipeline_step()
 def load_json(path, ctx):
     import json
-    return json.loads(Path(path).read_text())
+    return json.loads(path.read_text())
 
 exp2 = Experiment(
     datasource=exp1.artifact_datasource(step="ModelStep", name="data.json"),
@@ -70,3 +70,22 @@ exp2.run()  # replicates set from metadata
 `artifact_datasource()` reads `<root>/<id>/v<version>/metadata.json` to set the
 replicate count and will raise an error if you provide a different count when
 running the new experiment.
+
+### Loading CSV with Pandas
+
+Because the datasource only yields file paths, you can load data in any format.
+
+```python
+@pipeline_step()
+def load_csv(path, ctx):
+    import pandas as pd
+    return pd.read_csv(path)
+
+exp_csv = Experiment(
+    datasource=exp1.artifact_datasource(step="ModelStep", name="data.csv"),
+    pipeline=Pipeline([load_csv()]),
+)
+```
+
+Set ``require_metadata=True`` when you want to ensure metadata exists and raise
+an error if the previous run lacked `ArtifactPlugin`.

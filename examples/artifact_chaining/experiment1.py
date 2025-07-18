@@ -9,8 +9,11 @@ def source(ctx):
 
 @pipeline_step()
 def save_data(data, ctx):
-    import json
-    ctx.artifacts.add("data.json", json.dumps(data).encode())
+    import pandas as pd
+
+    df = pd.DataFrame({"values": data})
+    csv = df.to_csv(index=False).encode()
+    ctx.artifacts.add("data.csv", csv)
     return data
 
 exp1 = Experiment(

@@ -90,7 +90,8 @@ def test_metadata_written_and_chained(tmp_path: Path, monkeypatch):
     exp2 = Experiment(datasource=ds2, pipeline=pipeline2)
     exp2.validate()
     first_path = ds2.fetch(FrozenContext({"replicate": 0}))
-    assert Path(first_path).exists()
+    assert isinstance(first_path, Path)
+    assert first_path.exists()
     exp2.run()
     assert exp2.replicates == 2
 
@@ -124,3 +125,19 @@ def test_artifact_datasource_missing_file(tmp_path: Path, monkeypatch):
     ds2 = exp1.artifact_datasource(step="LogStep", name="missing.txt")
     with pytest.raises(FileNotFoundError):
         ds2.fetch(FrozenContext({"replicate": 0}))
+
+
+def test_artifact_datasource_require_metadata(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    pipeline = Pipeline([LogStep()])
+    ds = DummySource()
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp1 = Experiment(datasource=ds, pipeline=pipeline, plugins=[plugin])
+    exp1.validate()
+    exp1.run()
+
+    meta = Path(plugin.root_dir) / exp1.id / f"v{plugin.version}" / "metadata.json"
+    meta.unlink()
+
+    with pytest.raises(FileNotFoundError):
+        exp1.artifact_datasource(step="LogStep", name="out.txt", require_metadata=True)

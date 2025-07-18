@@ -111,14 +111,18 @@ The returned :class:`~crystallize.core.result.Result` contains aggregated metric
 artifact_datasource(
     step: 'str',
     name: 'str' = 'data.json',
-    condition: 'str' = 'baseline'
+    condition: 'str' = 'baseline',
+    *,
+    require_metadata: 'bool' = False
 ) → DataSource
 ```
 
-Return a datasource that yields the file path of an artifact produced by this
-experiment.  The datasource reads from
+Return a datasource that yields a :class:`pathlib.Path` for each replicate. The
+datasource reads from
 `<root>/<id>/v<version>/replicate_<rep>/<condition>/<step>/<name>` and sets its
-``replicates`` attribute from ``metadata.json`` when available.
+``replicates`` attribute from ``metadata.json`` when available. When
+``require_metadata`` is ``True`` and the metadata file is missing a
+``FileNotFoundError`` is raised.
 
 ---
 

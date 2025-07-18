@@ -8,6 +8,7 @@ from .core import (
     pipeline,
     pipeline_step,
     inject_from_ctx,
+    resource_factory,
     treatment,
     verifier,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "data_source",
     "verifier",
     "pipeline",
+    "resource_factory",
     "BasePlugin",
     "SerialExecution",
     "ParallelExecution",

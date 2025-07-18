@@ -2,7 +2,6 @@ import pytest
 from crystallize_extras.vllm_step.initialize import initialize_llm_engine
 
 from crystallize.core.context import FrozenContext
-from crystallize.core.resources import ResourceHandle
 
 
 class DummyLLM:
@@ -20,8 +19,8 @@ def test_initialize_llm_engine_adds_engine(monkeypatch) -> None:
     step.setup(ctx)
     assert "llm_engine" in ctx.as_dict()
     handle = ctx.as_dict()["llm_engine"]
-    assert isinstance(handle, ResourceHandle)
-    engine = handle.resource
+    assert callable(handle)
+    engine = handle(ctx)
     assert isinstance(engine, DummyLLM)
     assert engine.options == {"model": "llama"}
     result = step(None, ctx)
@@ -38,4 +37,4 @@ def test_initialize_llm_engine_missing_dependency(monkeypatch) -> None:
     step.setup(ctx)
     handle = ctx.as_dict()["llm_engine"]
     with pytest.raises(ImportError):
-        _ = handle.resource
+        _ = handle(ctx)

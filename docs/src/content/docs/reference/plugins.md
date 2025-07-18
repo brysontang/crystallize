@@ -204,7 +204,8 @@ Returning ``NotImplemented`` signals that the plugin does not provide a custom e
 ---
 
 ## <kbd>class</kbd> `LoggingPlugin`
-Configure logging verbosity and experiment progress reporting. 
+Configure logging verbosity and experiment progress reporting. The plugin uses
+the ``crystallize`` logger and does not alter the root logging configuration.
 
 ### <kbd>method</kbd> `LoggingPlugin.__init__`
 

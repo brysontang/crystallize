@@ -3,22 +3,50 @@
 from __future__ import annotations
 
 import inspect
+import threading
 from functools import update_wrapper
 from typing import Any, Callable, Mapping, Optional, Union, Sequence
 
 from .context import FrozenContext
 from .datasource import DataSource
 from .execution import ParallelExecution, SerialExecution
-from .resources import ResourceHandle
 from .experiment import Experiment
 from .hypothesis import Hypothesis
 from .injection import inject_from_ctx
 from .optimizers import BaseOptimizer, Objective
 from .pipeline import Pipeline
-from .pipeline_step import PipelineStep, exit_step
+from .pipeline_step import PipelineStep
 from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 from .result import Result
+from .constants import (
+    METADATA_FILENAME,
+    BASELINE_CONDITION,
+    REPLICATE_KEY,
+    CONDITION_KEY,
+    SEED_USED_KEY,
+)
+from .run_results import ReplicateResult
 from .treatment import Treatment
+
+
+_resource_cache = threading.local()
+
+
+def resource_factory(
+    fn: Callable[[FrozenContext], Any], *, key: str | None = None
+) -> Callable[[FrozenContext], Any]:
+    """Wrap a factory so the created resource is reused per thread/process."""
+
+    def wrapper(ctx: FrozenContext) -> Any:
+        if not hasattr(_resource_cache, "cache"):
+            _resource_cache.cache = {}
+        cache = _resource_cache.cache
+        cache_key = key if key is not None else hash(fn.__code__)
+        if cache_key not in cache:
+            cache[cache_key] = fn(ctx)
+        return cache[cache_key]
+
+    return update_wrapper(wrapper, fn)
 
 
 def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:
@@ -213,8 +241,9 @@ __all__ = [
     "ParallelExecution",
     "Pipeline",
     "PipelineStep",
-    "ResourceHandle",
+    "resource_factory",
     "Result",
+    "ReplicateResult",
     "SeedPlugin",
     "SerialExecution",
     "Treatment",
@@ -224,6 +253,10 @@ __all__ = [
     "data_source",
     "verifier",
     "pipeline",
-    "exit_step",
     "inject_from_ctx",
+    "METADATA_FILENAME",
+    "BASELINE_CONDITION",
+    "REPLICATE_KEY",
+    "CONDITION_KEY",
+    "SEED_USED_KEY",
 ]

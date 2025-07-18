@@ -5,6 +5,8 @@ description: Configure seeds, parallelism, and validation using SeedPlugin, Para
 
 Crystallize's `Experiment` class accepts a list of plugins. Use the built-in `SeedPlugin` and `ParallelExecution` to tweak randomness, parallel execution, and other options. This page shows how to customize these settings and how to reuse an experiment with `.apply()`.
 
+Every call to `run()` or `apply()` is stateless—you pass treatments, hypotheses and replicate count each time. The same `Experiment` instance can therefore be reused with different configurations.
+
 ## 1. Build an Experiment
 
 Instantiate your components and pass configuration objects:
@@ -13,6 +15,8 @@ from crystallize.core.plugins import SeedPlugin
 from crystallize.core.execution import ParallelExecution
 from crystallize.core.experiment import Experiment
 from crystallize.core.pipeline import Pipeline
+from crystallize import resource_factory
+import random
 
 exp = Experiment(
     datasource=my_source(),
@@ -21,9 +25,20 @@ exp = Experiment(
         SeedPlugin(seed=42),
         ParallelExecution(),
     ],
+    initial_ctx={"rng": resource_factory(lambda ctx: random.Random(ctx["seed"]))},
 )
 exp.validate()
+
+exp_static = Experiment(
+    datasource=my_source(),
+    pipeline=Pipeline([step1(), step2()]),
+    initial_ctx={"static": 42},
+)
 ```
+
+When using `ParallelExecution` with `executor_type="process"`, factories in
+`initial_ctx` must be picklable. Wrap them with `resource_factory` if they create
+non-picklable objects like client connections.
 
 ## 2. Seeding for Reproducibility
 
@@ -63,11 +78,10 @@ After choosing a treatment, you can pass new data through the pipeline:
 result = exp.apply(treatment_name="treatment_a", data=my_data, seed=123)
 ```
 
-`apply()` runs until the first `exit_step` in the pipeline, executing plugin hooks and calling step `setup`/`teardown` just like `run`. The optional `seed` is forwarded to the experiment's `seed_fn`; if omitted, the experiment's stored seed is not used. This is handy for debugging or production inference once your treatment is validated.
+`apply()` runs the entire pipeline once, executing plugin hooks and calling step `setup`/`teardown` just like `run`. The optional `seed` is forwarded to the experiment's `seed_fn`; if omitted, the experiment's stored seed is not used. This is handy for debugging or production inference once your treatment is validated.
 
 ## Troubleshooting & FAQs
 
-- **`ValueError: Pipeline must contain an exit_step`** – `.apply()` requires at least one `exit_step` to know where to stop.
 - **`Unknown treatment`** – The name passed to `treatment_name` must match a treatment in the experiment.
 - **Parallelism slower?** – Use `process` executors for CPU-bound work and ensure steps release the GIL for threads.
 

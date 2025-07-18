@@ -5,7 +5,7 @@ import pytest
 from crystallize.core.context import FrozenContext
 from crystallize.core.exceptions import PipelineExecutionError
 from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep, exit_step
+from crystallize.core.pipeline_step import PipelineStep
 
 
 class AddStep(PipelineStep):
@@ -58,8 +58,8 @@ def test_pipeline_execution_error():
         pipeline.run(0, ctx)
 
 
-def test_pipeline_exit_step_mid_chain():
-    pipeline = Pipeline([AddStep(1), exit_step(AddStep(2)), MetricsStep()])
+def test_pipeline_execution_mid_chain():
+    pipeline = Pipeline([AddStep(1), AddStep(2), MetricsStep()])
     ctx = FrozenContext({})
     result = pipeline.run(0, ctx)
     assert result == {"result": 3}

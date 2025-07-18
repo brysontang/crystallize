@@ -27,9 +27,6 @@ def _make_experiment(plugin: LoggingPlugin) -> Experiment:
     pipeline = Pipeline([DummyStep()])
     ds = DummySource()
     exp = Experiment(datasource=ds, pipeline=pipeline, plugins=[plugin])
-    exp.replicates = 2
-    exp.treatments = []
-    exp.hypotheses = []
     return exp
 
 
@@ -62,14 +59,11 @@ def test_logging_plugin_emits_messages(caplog):
     assert any(m.startswith("Completed in") for m in messages)
 
 
-def test_logging_plugin_invalid_level(monkeypatch):
-    captured = {}
-
-    def fake_basic(**kwargs):
-        captured["level"] = kwargs.get("level")
-
-    monkeypatch.setattr(logging, "basicConfig", fake_basic)
+def test_logging_plugin_invalid_level():
+    logger = logging.getLogger("crystallize")
     plugin = LoggingPlugin(log_level="WRONG")
     exp = _make_experiment(plugin)
     plugin.before_run(exp)
-    assert captured["level"] == logging.INFO
+    assert logger.level == logging.INFO
+    logger.handlers.clear()
+    logger.setLevel(logging.NOTSET)

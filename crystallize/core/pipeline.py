@@ -96,37 +96,25 @@ class Pipeline:
                 for key, value in data.items():
                     ctx.metrics.add(key, value)
 
-            post_ctx_items = ctx.as_dict()
             post_metrics_items = ctx.metrics.as_dict()
-            wrote = {
-                k: {"before": pre_ctx.get(k), "after": v}
-                for k, v in post_ctx_items.items()
-                if k not in pre_ctx or pre_ctx[k] != v
-            }
             metrics_diff: Dict[str, Dict[str, Tuple[Any, ...]]] = {}
             for k, vals in post_metrics_items.items():
                 prev = pre_metrics.get(k, ())
                 if vals != prev:
                     metrics_diff[k] = {"before": prev, "after": vals}
 
-            reads = {}
-            if verbose and isinstance(target_ctx, LoggingContext):
-                reads = target_ctx.reads.copy()
-
-            provenance.append(
-                {
-                    "step": step.__class__.__name__,
-                    "params": step.params,
-                    "step_hash": step_hash,
-                    "input_hash": input_hash,
-                    "output_hash": compute_hash(data),
-                    "cache_hit": cache_hit,
-                    "ctx_changes": {
-                        "reads": reads,
-                        "wrote": wrote,
-                        "metrics": metrics_diff,
-                    },
-                }
+            reads = target_ctx.reads.copy() if verbose and isinstance(target_ctx, LoggingContext) else {}
+            self._record_provenance(
+                provenance,
+                step,
+                data,
+                ctx,
+                pre_ctx,
+                pre_metrics,
+                cache_hit,
+                step_hash,
+                input_hash,
+                reads,
             )
 
         final_provenance = tuple(provenance)
@@ -143,6 +131,48 @@ class Pipeline:
         if return_provenance:
             return data, [dict(p) for p in final_provenance]
         return data
+
+    def _record_provenance(
+        self,
+        provenance: List[Dict[str, Any]],
+        step: PipelineStep,
+        data: Any,
+        ctx: FrozenContext,
+        pre_ctx: Mapping[str, Any],
+        pre_metrics: Mapping[str, Tuple[Any, ...]],
+        cache_hit: bool,
+        step_hash: str,
+        input_hash: str,
+        reads: Mapping[str, Any],
+    ) -> None:
+        post_ctx_items = ctx.as_dict()
+        post_metrics_items = ctx.metrics.as_dict()
+        wrote = {
+            k: {"before": pre_ctx.get(k), "after": v}
+            for k, v in post_ctx_items.items()
+            if k not in pre_ctx or pre_ctx[k] != v
+        }
+        metrics_diff: Dict[str, Dict[str, Tuple[Any, ...]]] = {}
+        for k, vals in post_metrics_items.items():
+            prev = pre_metrics.get(k, ())
+            if vals != prev:
+                metrics_diff[k] = {"before": prev, "after": vals}
+
+        provenance.append(
+            {
+                "step": step.__class__.__name__,
+                "params": step.params,
+                "step_hash": step_hash,
+                "input_hash": input_hash,
+                "output_hash": compute_hash(data),
+                "cache_hit": cache_hit,
+                "ctx_changes": {
+                    "reads": reads,
+                    "wrote": wrote,
+                    "metrics": metrics_diff,
+                },
+            }
+        )
 
 
     def signature(self) -> str:

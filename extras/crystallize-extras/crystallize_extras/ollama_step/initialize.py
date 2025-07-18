@@ -5,7 +5,7 @@ from typing import Any
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.resources import ResourceHandle
+from crystallize import resource_factory
 
 try:
     from ollama import Client
@@ -39,9 +39,11 @@ class InitializeOllamaClient(PipelineStep):
         return {"host": self.host, "context_key": self.context_key}
 
     def setup(self, ctx: FrozenContext) -> None:
-        factory = partial(_create_ollama_client, host=self.host)
-        handle = ResourceHandle(factory=factory, resource_id=self.step_hash)
-        ctx.add(self.context_key, handle)
+        factory = resource_factory(
+            lambda ctx, host=self.host: _create_ollama_client(host),
+            key=self.step_hash,
+        )
+        ctx.add(self.context_key, factory)
 
     def teardown(self, ctx: FrozenContext) -> None:  # pragma: no cover - handled by exit
         pass

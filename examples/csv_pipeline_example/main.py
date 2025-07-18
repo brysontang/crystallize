@@ -40,13 +40,10 @@ def main() -> None:
     experiment = Experiment(
         datasource=datasource,
         pipeline=pipeline_obj,
-        treatments=[better_data()],
-        hypotheses=[hyp],
-        replicates=10,
         plugins=[ParallelExecution()],
     )
     experiment.validate()
-    result = experiment.run()
+    result = experiment.run(treatments=[better_data()], hypotheses=[hyp])
     print(result.metrics["hypotheses"])
     print(result.provenance)
 

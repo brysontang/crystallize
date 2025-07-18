@@ -2,8 +2,18 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    DefaultDict,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
@@ -19,20 +29,28 @@ from crystallize.core.plugins import (
     default_seed_function,
 )
 from crystallize.core.result import Result
-from crystallize.core.result_structs import ExperimentMetrics, HypothesisResult, TreatmentMetrics
+from crystallize.core.result_structs import (
+    ExperimentMetrics,
+    HypothesisResult,
+    TreatmentMetrics,
+    AggregateData,
+)
+from crystallize.core.run_results import ReplicateResult
 from crystallize.core.treatment import Treatment
+from crystallize.core.constants import (
+    METADATA_FILENAME,
+    BASELINE_CONDITION,
+    REPLICATE_KEY,
+    CONDITION_KEY,
+    SEED_USED_KEY,
+)
 
 
-def _run_replicate_remote(args: Tuple["Experiment", int]) -> Tuple[
-    Optional[Mapping[str, Any]],
-    Optional[int],
-    Dict[str, Mapping[str, Any]],
-    Dict[str, int],
-    Dict[str, Exception],
-    Dict[str, List[Mapping[str, Any]]],
-]:
-    exp, rep = args
-    return exp._execute_replicate(rep)
+def _run_replicate_remote(args: Tuple["Experiment", int, List[Treatment]]) -> ReplicateResult:
+    """Wrapper for parallel executor to run a single replicate."""
+
+    exp, rep, treatments = args
+    return exp._execute_replicate(rep, treatments)
 
 
 class Experiment:
@@ -53,6 +71,7 @@ class Experiment:
         datasource: DataSource,
         pipeline: Pipeline,
         plugins: Optional[List[BasePlugin]] = None,
+        initial_ctx: Dict[str, Any] | None = None,
     ) -> None:
         """Instantiate an experiment configuration.
 
@@ -63,12 +82,12 @@ class Experiment:
         """
         self.datasource = datasource
         self.pipeline = pipeline
-        self.treatments: List[Treatment] = []
-        self.hypotheses: List[Hypothesis] = []
-        self.replicates: int = 1
         self.id: Optional[str] = None
 
         self._setup_ctx = FrozenContext({})
+        if initial_ctx:
+            for key, val in initial_ctx.items():
+                self._setup_ctx.add(key, val)
 
         self.plugins = plugins or []
         for plugin in self.plugins:
@@ -94,11 +113,68 @@ class Experiment:
 
     # ------------------------------------------------------------------ #
 
+    @contextmanager
+    def _runtime_state(
+        self,
+        treatments: List[Treatment],
+        hypotheses: List[Hypothesis],
+        replicates: int,
+    ):
+        old_treatments = getattr(self, "_treatments", None)
+        old_hypotheses = getattr(self, "_hypotheses", None)
+        old_replicates = getattr(self, "_replicates", None)
+        self._treatments = treatments
+        self._hypotheses = hypotheses
+        self._replicates = replicates
+        try:
+            yield
+        finally:
+            if old_treatments is None:
+                delattr(self, "_treatments")
+            else:
+                self._treatments = old_treatments
+            if old_hypotheses is None:
+                delattr(self, "_hypotheses")
+            else:
+                self._hypotheses = old_hypotheses
+            if old_replicates is None:
+                delattr(self, "_replicates")
+            else:
+                self._replicates = old_replicates
+
+    # ------------------------------------------------------------------ #
+
+    @property
+    def treatments(self) -> List[Treatment]:
+        return getattr(self, "_treatments", [])
+
+    @treatments.setter
+    def treatments(self, value: List[Treatment]) -> None:
+        self._treatments = value
+
+    @property
+    def hypotheses(self) -> List[Hypothesis]:
+        return getattr(self, "_hypotheses", [])
+
+    @hypotheses.setter
+    def hypotheses(self, value: List[Hypothesis]) -> None:
+        self._hypotheses = value
+
+    @property
+    def replicates(self) -> int:
+        return getattr(self, "_replicates", 1)
+
+    @replicates.setter
+    def replicates(self, value: int) -> None:
+        self._replicates = value
+
+    # ------------------------------------------------------------------ #
+
     def artifact_datasource(
         self,
         step: str,
         name: str = "data.json",
-        condition: str = "baseline",
+        condition: str = BASELINE_CONDITION,
         *,
         require_metadata: bool = False,
     ) -> DataSource:
@@ -126,7 +202,7 @@ class Experiment:
             raise RuntimeError("ArtifactPlugin required to load artifacts")
 
         base = Path(plugin.root_dir) / self.id / f"v{plugin.version}"
-        meta_path = base / "metadata.json"
+        meta_path = base / METADATA_FILENAME
         replicates = self.replicates
         if meta_path.exists():
             with open(meta_path) as f:
@@ -172,7 +248,7 @@ class Experiment:
         for plugin in self.plugins:
             plugin.before_replicate(self, run_ctx)
 
-        local_seed: Optional[int] = run_ctx.get("seed_used")
+        local_seed: Optional[int] = run_ctx.get(SEED_USED_KEY)
 
         data = self.datasource.fetch(run_ctx)
         log_plugin = self.get_plugin(LoggingPlugin)
@@ -189,14 +265,7 @@ class Experiment:
         )
         return dict(run_ctx.metrics.as_dict()), local_seed, prov
 
-    def _execute_replicate(self, rep: int) -> Tuple[
-        Optional[Mapping[str, Any]],
-        Optional[int],
-        Dict[str, Mapping[str, Any]],
-        Dict[str, int],
-        Dict[str, Exception],
-        Dict[str, List[Mapping[str, Any]]],
-    ]:
+    def _execute_replicate(self, rep: int, treatments: List[Treatment]) -> ReplicateResult:
         baseline_result: Optional[Mapping[str, Any]] = None
         baseline_seed: Optional[int] = None
         treatment_result: Dict[str, Mapping[str, Any]] = {}
@@ -207,25 +276,25 @@ class Experiment:
         base_ctx = FrozenContext(
             {
                 **self._setup_ctx.as_dict(),
-                "replicate": rep,
-                "condition": "baseline",
+                REPLICATE_KEY: rep,
+                CONDITION_KEY: BASELINE_CONDITION,
             }
         )
         try:
             baseline_result, baseline_seed, base_prov = self._run_condition(base_ctx)
-            provenance["baseline"] = base_prov
+            provenance[BASELINE_CONDITION] = base_prov
         except Exception as exc:  # pragma: no cover
             rep_errors[f"baseline_rep_{rep}"] = exc
-            return (
-                baseline_result,
-                baseline_seed,
-                treatment_result,
-                treatment_seeds,
-                rep_errors,
-                provenance,
+            return ReplicateResult(
+                baseline_metrics=baseline_result,
+                baseline_seed=baseline_seed,
+                treatment_metrics=treatment_result,
+                treatment_seeds=treatment_seeds,
+                errors=rep_errors,
+                provenance=provenance,
             )
 
-        for t in self.treatments:
+        for t in treatments:
             ctx = FrozenContext(
                 {
                     **self._setup_ctx.as_dict(),
@@ -242,14 +311,111 @@ class Experiment:
             except Exception as exc:  # pragma: no cover
                 rep_errors[f"{t.name}_rep_{rep}"] = exc
 
-        return (
-            baseline_result,
-            baseline_seed,
-            treatment_result,
-            treatment_seeds,
-            rep_errors,
-            provenance,
+        return ReplicateResult(
+            baseline_metrics=baseline_result,
+            baseline_seed=baseline_seed,
+            treatment_metrics=treatment_result,
+            treatment_seeds=treatment_seeds,
+            errors=rep_errors,
+            provenance=provenance,
         )
+
+    def _select_execution_plugin(self) -> BasePlugin:
+        for plugin in reversed(self.plugins):
+            if (
+                getattr(plugin.run_experiment_loop, "__func__", None)
+                is not BasePlugin.run_experiment_loop
+            ):
+                return plugin
+        return SerialExecution()
+
+    def _aggregate_results(
+        self, results_list: List[ReplicateResult]
+    ) -> AggregateData:
+        baseline_samples: List[Mapping[str, Any]] = []
+        treatment_samples: Dict[str, List[Mapping[str, Any]]] = {t.name: [] for t in self.treatments}
+        baseline_seeds: List[int] = []
+        treatment_seeds_agg: Dict[str, List[int]] = {t.name: [] for t in self.treatments}
+        provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = defaultdict(dict)
+        errors: Dict[str, Exception] = {}
+
+        for rep, res in enumerate(results_list):
+            base = res.baseline_metrics
+            seed = res.baseline_seed
+            treats = res.treatment_metrics
+            seeds = res.treatment_seeds
+            errs = res.errors
+            prov = res.provenance
+
+            if base is not None:
+                baseline_samples.append(base)
+            if seed is not None:
+                baseline_seeds.append(seed)
+            for name, sample in treats.items():
+                treatment_samples[name].append(sample)
+            for name, sd in seeds.items():
+                treatment_seeds_agg[name].append(sd)
+            for name, p in prov.items():
+                provenance_runs[name][rep] = p
+            errors.update(errs)
+
+        def collect_all_samples(samples: List[Mapping[str, Sequence[Any]]]) -> Dict[str, List[Any]]:
+            metrics: DefaultDict[str, List[Any]] = defaultdict(list)
+            for sample in samples:
+                for metric, values in sample.items():
+                    metrics[metric].extend(list(values))
+            return dict(metrics)
+
+        baseline_metrics = collect_all_samples(baseline_samples)
+        treatment_metrics_dict = {name: collect_all_samples(samp) for name, samp in treatment_samples.items()}
+
+        return AggregateData(
+            baseline_metrics=baseline_metrics,
+            treatment_metrics_dict=treatment_metrics_dict,
+            baseline_seeds=baseline_seeds,
+            treatment_seeds_agg=treatment_seeds_agg,
+            provenance_runs=provenance_runs,
+            errors=errors,
+        )
+
+    def _verify_hypotheses(
+        self,
+        baseline_metrics: Dict[str, List[Any]],
+        treatment_metrics_dict: Dict[str, Dict[str, List[Any]]],
+    ) -> List[HypothesisResult]:
+        results: List[HypothesisResult] = []
+        for hyp in self.hypotheses:
+            per_treatment = {
+                t.name: hyp.verify(
+                    baseline_metrics=baseline_metrics,
+                    treatment_metrics=treatment_metrics_dict[t.name],
+                )
+                for t in self.treatments
+            }
+            results.append(
+                HypothesisResult(
+                    name=hyp.name,
+                    results=per_treatment,
+                    ranking=hyp.rank_treatments(per_treatment),
+                )
+            )
+        return results
+
+    def _build_result(
+        self,
+        metrics: ExperimentMetrics,
+        errors: Dict[str, Exception],
+        provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]],
+        baseline_seeds: List[int],
+        treatment_seeds_agg: Dict[str, List[int]],
+    ) -> Result:
+        provenance = {
+            "pipeline_signature": self.pipeline.signature(),
+            "replicates": self.replicates,
+            "seeds": {BASELINE_CONDITION: baseline_seeds, **treatment_seeds_agg},
+            "ctx_changes": {k: v for k, v in provenance_runs.items()},
+        }
+        return Result(metrics=metrics, errors=errors, provenance=provenance)
 
     # ------------------------------------------------------------------ #
 
@@ -279,134 +445,66 @@ class Experiment:
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
 
-        self.treatments = treatments or []
-        self.hypotheses = hypotheses or []
+        treatments = treatments or []
+        hypotheses = hypotheses or []
 
         datasource_reps = getattr(self.datasource, "replicates", None)
         if replicates is None:
             replicates = datasource_reps or 1
-        self.replicates = max(1, replicates)
-        if datasource_reps is not None and datasource_reps != self.replicates:
+        replicates = max(1, replicates)
+        if datasource_reps is not None and datasource_reps != replicates:
             raise ValueError("Replicates mismatch with datasource metadata")
 
         from .cache import compute_hash
 
         self.id = compute_hash(self.pipeline.signature())
 
-        if self.hypotheses and not self.treatments:
+        if hypotheses and not treatments:
             raise ValueError("Cannot verify hypotheses without treatments")
 
-        for plugin in self.plugins:
-            plugin.before_run(self)
+        with self._runtime_state(treatments, hypotheses, replicates):
+            for plugin in self.plugins:
+                plugin.before_run(self)
 
-        try:
-            for step in self.pipeline.steps:
-                step.setup(self._setup_ctx)
+            try:
+                for step in self.pipeline.steps:
+                    step.setup(self._setup_ctx)
 
-            baseline_samples: List[Mapping[str, Any]] = []
-            treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
-                t.name: [] for t in self.treatments
-            }
-            baseline_seeds: List[int] = []
-            treatment_seeds_agg: Dict[str, List[int]] = {t.name: [] for t in self.treatments}
-            provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = defaultdict(
-                dict
-            )
-
-            errors: Dict[str, Exception] = {}
-
-            # ---------- replicate execution -------------------------------- #
-            execution_plugin: Optional[BasePlugin] = None
-            for plugin in reversed(self.plugins):
-                if (
-                    getattr(plugin.run_experiment_loop, "__func__", None)
-                    is not BasePlugin.run_experiment_loop
-                ):
-                    execution_plugin = plugin
-                    break
-
-            if execution_plugin is None:
-                execution_plugin = SerialExecution()
-
-            results_list: List[
-                Tuple[
-                    Optional[Mapping[str, Any]],
-                    Optional[int],
-                    Dict[str, Mapping[str, Any]],
-                    Dict[str, int],
-                    Dict[str, Exception],
-                    Dict[str, List[Mapping[str, Any]]],
-                ]
-            ] = execution_plugin.run_experiment_loop(self, self._execute_replicate)
-
-            for rep, (base, seed, treats, seeds, errs, prov) in enumerate(results_list):
-                if base is not None:
-                    baseline_samples.append(base)
-                if seed is not None:
-                    baseline_seeds.append(seed)
-                for name, sample in treats.items():
-                    treatment_samples[name].append(sample)
-                for name, sd in seeds.items():
-                    treatment_seeds_agg[name].append(sd)
-                for name, p in prov.items():
-                    provenance_runs[name][rep] = p
-                errors.update(errs)
-
-            # ---------- aggregation: preserve full sample arrays ------------ #
-            def collect_all_samples(
-                samples: List[Mapping[str, Sequence[Any]]],
-            ) -> Dict[str, List[Any]]:
-                metrics: DefaultDict[str, List[Any]] = defaultdict(list)
-                for sample in samples:
-                    for metric, values in sample.items():
-                        metrics[metric].extend(list(values))
-                return dict(metrics)
-
-            baseline_metrics = collect_all_samples(baseline_samples)
-            treatment_metrics_dict = {
-                name: collect_all_samples(samp) for name, samp in treatment_samples.items()
-            }
-
-            hypothesis_results: List[HypothesisResult] = []
-            for hyp in self.hypotheses:
-                per_treatment: Dict[str, Any] = {}
-                for treatment in self.treatments:
-                    per_treatment[treatment.name] = hyp.verify(
-                        baseline_metrics=baseline_metrics,
-                        treatment_metrics=treatment_metrics_dict[treatment.name],
-                    )
-                hypothesis_results.append(
-                    HypothesisResult(
-                        name=hyp.name,
-                        results=per_treatment,
-                        ranking=hyp.rank_treatments(per_treatment),
-                    )
+                execution_plugin = self._select_execution_plugin()
+                results_list = execution_plugin.run_experiment_loop(
+                    self, lambda rep: self._execute_replicate(rep, self.treatments)
                 )
 
-            metrics = ExperimentMetrics(
-                baseline=TreatmentMetrics(baseline_metrics),
-                treatments={
-                    name: TreatmentMetrics(m) for name, m in treatment_metrics_dict.items()
-                },
-                hypotheses=hypothesis_results,
-            )
+                aggregate = self._aggregate_results(results_list)
 
-            provenance = {
-                "pipeline_signature": self.pipeline.signature(),
-                "replicates": self.replicates,
-                "seeds": {"baseline": baseline_seeds, **treatment_seeds_agg},
-                "ctx_changes": {k: v for k, v in provenance_runs.items()},
-            }
+                hypothesis_results = self._verify_hypotheses(
+                    aggregate.baseline_metrics,
+                    aggregate.treatment_metrics_dict,
+                )
 
-            result = Result(metrics=metrics, errors=errors, provenance=provenance)
-        finally:
-            for step in self.pipeline.steps:
-                step.teardown(self._setup_ctx)
+                metrics = ExperimentMetrics(
+                    baseline=TreatmentMetrics(aggregate.baseline_metrics),
+                    treatments={
+                        name: TreatmentMetrics(m) for name, m in aggregate.treatment_metrics_dict.items()
+                    },
+                    hypotheses=hypothesis_results,
+                )
 
-        for plugin in self.plugins:
-            plugin.after_run(self, result)
+                result = self._build_result(
+                    metrics,
+                    aggregate.errors,
+                    aggregate.provenance_runs,
+                    aggregate.baseline_seeds,
+                    aggregate.treatment_seeds_agg,
+                )
+            finally:
+                for step in self.pipeline.steps:
+                    step.teardown(self._setup_ctx)
 
-        return result
+            for plugin in self.plugins:
+                plugin.after_run(self, result)
+
+            return result
 
     # ------------------------------------------------------------------ #
     def apply(
@@ -420,8 +518,7 @@ class Experiment:
 
         This method mirrors :meth:`run` for a single replicate. Plugin hooks
         are executed and all pipeline steps receive ``setup`` and ``teardown``
-        calls. Execution stops at the first step marked with
-        :func:`~crystallize.core.pipeline_step.exit_step`.
+        calls.
         """
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
@@ -430,64 +527,63 @@ class Experiment:
 
         self.id = compute_hash(self.pipeline.signature())
 
-        ctx = FrozenContext({"condition": treatment.name if treatment else "baseline"})
+        datasource_reps = getattr(self.datasource, "replicates", None)
+        replicates = datasource_reps or 1
+
+        ctx = FrozenContext({CONDITION_KEY: treatment.name if treatment else BASELINE_CONDITION})
         if treatment:
             treatment.apply(ctx)
 
-        for plugin in self.plugins:
-            if isinstance(plugin, SeedPlugin) and seed is not None:
-                continue
-            plugin.before_run(self)
-
-        try:
-            for step in self.pipeline.steps:
-                step.setup(self._setup_ctx)
-
+        with self._runtime_state([treatment] if treatment else [], [], replicates):
             for plugin in self.plugins:
                 if isinstance(plugin, SeedPlugin) and seed is not None:
                     continue
-                plugin.before_replicate(self, ctx)
+                plugin.before_run(self)
 
-            if seed is not None:
-                seed_plugin = self.get_plugin(SeedPlugin)
-                if seed_plugin is not None:
-                    fn = seed_plugin.seed_fn or default_seed_function
-                    fn(seed)
-                    ctx.add("seed_used", seed)
+            try:
+                for step in self.pipeline.steps:
+                    step.setup(self._setup_ctx)
 
-            if data is None:
-                data = self.datasource.fetch(ctx)
-
-            if not any(getattr(step, "is_exit_step", False) for step in self.pipeline.steps):
-                raise ValueError("Pipeline must contain an exit_step for apply()")
-
-            for step in self.pipeline.steps:
-                data = step(data, ctx)
                 for plugin in self.plugins:
-                    plugin.after_step(self, step, data, ctx)
-                if getattr(step, "is_exit_step", False):
-                    break
+                    if isinstance(plugin, SeedPlugin) and seed is not None:
+                        continue
+                    plugin.before_replicate(self, ctx)
 
-            metrics = ExperimentMetrics(
-                baseline=TreatmentMetrics({k: list(v) for k, v in ctx.metrics.as_dict().items()}),
-                treatments={},
-                hypotheses=[],
-            )
-            provenance = {
-                "pipeline_signature": self.pipeline.signature(),
-                "replicates": 1,
-                "seeds": {"baseline": [ctx.get("seed_used", None)]},
-                "ctx_changes": {"baseline": {0: self.pipeline.get_provenance()}},
-            }
-            result = Result(metrics=metrics, provenance=provenance)
-        finally:
-            for step in self.pipeline.steps:
-                step.teardown(self._setup_ctx)
+                if seed is not None:
+                    seed_plugin = self.get_plugin(SeedPlugin)
+                    if seed_plugin is not None:
+                        fn = seed_plugin.seed_fn or default_seed_function
+                        fn(seed)
+                        ctx.add(SEED_USED_KEY, seed)
 
-        for plugin in self.plugins:
-            plugin.after_run(self, result)
+                if data is None:
+                    data = self.datasource.fetch(ctx)
 
-        return data
+                for step in self.pipeline.steps:
+                    data = step(data, ctx)
+                    for plugin in self.plugins:
+                        plugin.after_step(self, step, data, ctx)
+
+                metrics = ExperimentMetrics(
+                    baseline=TreatmentMetrics({k: list(v) for k, v in ctx.metrics.as_dict().items()}),
+                    treatments={},
+                    hypotheses=[],
+                )
+                provenance = {
+                    "pipeline_signature": self.pipeline.signature(),
+                    "replicates": 1,
+                    "seeds": {BASELINE_CONDITION: [ctx.get(SEED_USED_KEY, None)]},
+                    "ctx_changes": {BASELINE_CONDITION: {0: self.pipeline.get_provenance()}},
+                }
+                result = Result(metrics=metrics, provenance=provenance)
+            finally:
+                for step in self.pipeline.steps:
+                    step.teardown(self._setup_ctx)
+
+            for plugin in self.plugins:
+                plugin.after_run(self, result)
+
+            return data
 
     # ------------------------------------------------------------------ #
 

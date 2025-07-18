@@ -299,7 +299,6 @@ class Experiment:
         for plugin in self.plugins:
             plugin.before_run(self)
 
-        self._setup_ctx = FrozenContext({})
         try:
             for step in self.pipeline.steps:
                 step.setup(self._setup_ctx)
@@ -440,7 +439,6 @@ class Experiment:
                 continue
             plugin.before_run(self)
 
-        self._setup_ctx = FrozenContext({})
         try:
             for step in self.pipeline.steps:
                 step.setup(self._setup_ctx)

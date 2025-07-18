@@ -21,7 +21,7 @@ from crystallize_extras.ollama_step.initialize import initialize_ollama_client
 Add the step to your pipeline:
 
 ```python
-step = initialize_ollama_client(base_url="http://localhost:11434")
+step = initialize_ollama_client(host="http://localhost:11434")
 pipeline = Pipeline([step, ...])
 ```
 

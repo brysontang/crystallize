@@ -68,12 +68,10 @@ if __name__ == "__main__":
     experiment = Experiment(
         datasource=initial_data(),
         pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
-        treatments=[add_ten()],
-        hypotheses=[check_for_improvement],
         plugins=[ParallelExecution(), LoggingPlugin(verbose=True, log_level="DEBUG")],
     )
     experiment.validate()
-    result = experiment.run()
+    result = experiment.run(treatments=[add_ten()], hypotheses=[check_for_improvement])
 
     # Print the results for our hypothesis
     hyp_result = result.get_hypothesis("check_for_improvement")

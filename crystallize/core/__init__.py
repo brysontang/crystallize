@@ -18,6 +18,7 @@ from .pipeline import Pipeline
 from .pipeline_step import PipelineStep
 from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 from .result import Result
+from .run_results import ReplicateResult
 from .treatment import Treatment
 
 
@@ -235,6 +236,7 @@ __all__ = [
     "PipelineStep",
     "resource_factory",
     "Result",
+    "ReplicateResult",
     "SeedPlugin",
     "SerialExecution",
     "Treatment",

@@ -27,9 +27,6 @@ def _make_experiment(plugin: LoggingPlugin) -> Experiment:
     pipeline = Pipeline([DummyStep()])
     ds = DummySource()
     exp = Experiment(datasource=ds, pipeline=pipeline, plugins=[plugin])
-    exp.replicates = 2
-    exp.treatments = []
-    exp.hypotheses = []
     return exp
 
 

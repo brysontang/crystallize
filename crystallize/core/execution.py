@@ -51,7 +51,11 @@ class ParallelExecution(BasePlugin):
             default_workers = max(1, (os.cpu_count() or 2) - 1)
             exec_cls = ProcessPoolExecutor
             submit_target = _run_replicate_remote
-            arg_list = [(experiment, rep) for rep in range(experiment.replicates)]
+            treatments = getattr(experiment, "treatments", [])
+            arg_list = [
+                (experiment, rep, treatments)
+                for rep in range(experiment.replicates)
+            ]
         else:
             default_workers = os.cpu_count() or 8
             exec_cls = ThreadPoolExecutor

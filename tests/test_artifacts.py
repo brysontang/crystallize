@@ -93,7 +93,7 @@ def test_metadata_written_and_chained(tmp_path: Path, monkeypatch):
     assert isinstance(first_path, Path)
     assert first_path.exists()
     exp2.run()
-    assert exp2.replicates == 2
+    assert ds2.replicates == 2
 
 
 def test_artifact_datasource_replicate_mismatch(tmp_path: Path, monkeypatch):

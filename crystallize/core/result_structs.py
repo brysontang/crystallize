@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, DefaultDict, Mapping
 
 try:
     import pandas as pd
@@ -38,3 +38,15 @@ class ExperimentMetrics:
             for treat, res in hyp.results.items():
                 rows.append({"condition": treat, "hypothesis": hyp.name, **res})
         return pd.DataFrame(rows)
+
+
+@dataclass
+class AggregateData:
+    """Grouped results collected from all replicates."""
+
+    baseline_metrics: Dict[str, List[Any]]
+    treatment_metrics_dict: Dict[str, Dict[str, List[Any]]]
+    baseline_seeds: List[int]
+    treatment_seeds_agg: Dict[str, List[int]]
+    provenance_runs: "DefaultDict[str, Dict[int, List[Mapping[str, Any]]]]"
+    errors: Dict[str, Exception]

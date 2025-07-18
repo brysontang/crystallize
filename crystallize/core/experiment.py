@@ -3,7 +3,16 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import (
+    Any,
+    DefaultDict,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+)
 
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
@@ -19,7 +28,13 @@ from crystallize.core.plugins import (
     default_seed_function,
 )
 from crystallize.core.result import Result
-from crystallize.core.result_structs import ExperimentMetrics, HypothesisResult, TreatmentMetrics
+from crystallize.core.result_structs import (
+    ExperimentMetrics,
+    HypothesisResult,
+    TreatmentMetrics,
+    AggregateData,
+)
+from crystallize.core.run_results import ReplicateResult
 from crystallize.core.treatment import Treatment
 from crystallize.core.constants import (
     METADATA_FILENAME,
@@ -30,14 +45,9 @@ from crystallize.core.constants import (
 )
 
 
-def _run_replicate_remote(args: Tuple["Experiment", int, List[Treatment]]) -> Tuple[
-    Optional[Mapping[str, Any]],
-    Optional[int],
-    Dict[str, Mapping[str, Any]],
-    Dict[str, int],
-    Dict[str, Exception],
-    Dict[str, List[Mapping[str, Any]]],
-]:
+def _run_replicate_remote(args: Tuple["Experiment", int, List[Treatment]]) -> ReplicateResult:
+    """Wrapper for parallel executor to run a single replicate."""
+
     exp, rep, treatments = args
     return exp._execute_replicate(rep, treatments)
 
@@ -196,14 +206,7 @@ class Experiment:
         )
         return dict(run_ctx.metrics.as_dict()), local_seed, prov
 
-    def _execute_replicate(self, rep: int, treatments: List[Treatment]) -> Tuple[
-        Optional[Mapping[str, Any]],
-        Optional[int],
-        Dict[str, Mapping[str, Any]],
-        Dict[str, int],
-        Dict[str, Exception],
-        Dict[str, List[Mapping[str, Any]]],
-    ]:
+    def _execute_replicate(self, rep: int, treatments: List[Treatment]) -> ReplicateResult:
         baseline_result: Optional[Mapping[str, Any]] = None
         baseline_seed: Optional[int] = None
         treatment_result: Dict[str, Mapping[str, Any]] = {}
@@ -223,13 +226,13 @@ class Experiment:
             provenance[BASELINE_CONDITION] = base_prov
         except Exception as exc:  # pragma: no cover
             rep_errors[f"baseline_rep_{rep}"] = exc
-            return (
-                baseline_result,
-                baseline_seed,
-                treatment_result,
-                treatment_seeds,
-                rep_errors,
-                provenance,
+            return ReplicateResult(
+                baseline_metrics=baseline_result,
+                baseline_seed=baseline_seed,
+                treatment_metrics=treatment_result,
+                treatment_seeds=treatment_seeds,
+                errors=rep_errors,
+                provenance=provenance,
             )
 
         for t in treatments:
@@ -249,13 +252,13 @@ class Experiment:
             except Exception as exc:  # pragma: no cover
                 rep_errors[f"{t.name}_rep_{rep}"] = exc
 
-        return (
-            baseline_result,
-            baseline_seed,
-            treatment_result,
-            treatment_seeds,
-            rep_errors,
-            provenance,
+        return ReplicateResult(
+            baseline_metrics=baseline_result,
+            baseline_seed=baseline_seed,
+            treatment_metrics=treatment_result,
+            treatment_seeds=treatment_seeds,
+            errors=rep_errors,
+            provenance=provenance,
         )
 
     def _select_execution_plugin(self) -> BasePlugin:
@@ -268,25 +271,8 @@ class Experiment:
         return SerialExecution()
 
     def _aggregate_results(
-        self,
-        results_list: List[
-            Tuple[
-                Optional[Mapping[str, Any]],
-                Optional[int],
-                Dict[str, Mapping[str, Any]],
-                Dict[str, int],
-                Dict[str, Exception],
-                Dict[str, List[Mapping[str, Any]]],
-            ]
-        ],
-    ) -> Tuple[
-        Dict[str, List[Any]],
-        Dict[str, Dict[str, List[Any]]],
-        List[int],
-        Dict[str, List[int]],
-        DefaultDict[str, Dict[int, List[Mapping[str, Any]]]],
-        Dict[str, Exception],
-    ]:
+        self, results_list: List[ReplicateResult]
+    ) -> AggregateData:
         baseline_samples: List[Mapping[str, Any]] = []
         treatment_samples: Dict[str, List[Mapping[str, Any]]] = {t.name: [] for t in self.treatments}
         baseline_seeds: List[int] = []
@@ -294,7 +280,14 @@ class Experiment:
         provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = defaultdict(dict)
         errors: Dict[str, Exception] = {}
 
-        for rep, (base, seed, treats, seeds, errs, prov) in enumerate(results_list):
+        for rep, res in enumerate(results_list):
+            base = res.baseline_metrics
+            seed = res.baseline_seed
+            treats = res.treatment_metrics
+            seeds = res.treatment_seeds
+            errs = res.errors
+            prov = res.provenance
+
             if base is not None:
                 baseline_samples.append(base)
             if seed is not None:
@@ -317,13 +310,13 @@ class Experiment:
         baseline_metrics = collect_all_samples(baseline_samples)
         treatment_metrics_dict = {name: collect_all_samples(samp) for name, samp in treatment_samples.items()}
 
-        return (
-            baseline_metrics,
-            treatment_metrics_dict,
-            baseline_seeds,
-            treatment_seeds_agg,
-            provenance_runs,
-            errors,
+        return AggregateData(
+            baseline_metrics=baseline_metrics,
+            treatment_metrics_dict=treatment_metrics_dict,
+            baseline_seeds=baseline_seeds,
+            treatment_seeds_agg=treatment_seeds_agg,
+            provenance_runs=provenance_runs,
+            errors=errors,
         )
 
     def _verify_hypotheses(
@@ -422,33 +415,27 @@ class Experiment:
                 self, lambda rep: self._execute_replicate(rep, self.treatments)
             )
 
-            (
-                baseline_metrics,
-                treatment_metrics_dict,
-                baseline_seeds,
-                treatment_seeds_agg,
-                provenance_runs,
-                errors,
-            ) = self._aggregate_results(results_list)
+            aggregate = self._aggregate_results(results_list)
 
             hypothesis_results = self._verify_hypotheses(
-                baseline_metrics, treatment_metrics_dict
+                aggregate.baseline_metrics,
+                aggregate.treatment_metrics_dict,
             )
 
             metrics = ExperimentMetrics(
-                baseline=TreatmentMetrics(baseline_metrics),
+                baseline=TreatmentMetrics(aggregate.baseline_metrics),
                 treatments={
-                    name: TreatmentMetrics(m) for name, m in treatment_metrics_dict.items()
+                    name: TreatmentMetrics(m) for name, m in aggregate.treatment_metrics_dict.items()
                 },
                 hypotheses=hypothesis_results,
             )
 
             result = self._build_result(
                 metrics,
-                errors,
-                provenance_runs,
-                baseline_seeds,
-                treatment_seeds_agg,
+                aggregate.errors,
+                aggregate.provenance_runs,
+                aggregate.baseline_seeds,
+                aggregate.treatment_seeds_agg,
             )
         finally:
             for step in self.pipeline.steps:

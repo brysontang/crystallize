@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.2.1...crystallize-extras@v0.3.0) (2025-07-18)
+
+
+### Features
+
+* Add ResourceHandle and improve step init ([63ce75e](https://github.com/brysontang/crystallize/commit/63ce75ed4b84db2e589824dadfe1b1b046cec9e0))
+* **crystallize-ml:** Add ResourceHandle utility ([07e5102](https://github.com/brysontang/crystallize/commit/07e5102ea050ef42f56abee056518579c48bf4ff))
+
 ## [0.2.1](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.2.0...crystallize-extras@v0.2.1) (2025-07-18)
 
 

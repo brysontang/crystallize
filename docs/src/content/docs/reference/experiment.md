@@ -59,6 +59,24 @@ Run the pipeline once with optional treatment and return outputs.
 
 ---
 
+### <kbd>method</kbd> `Experiment.artifact_datasource`
+
+```python
+artifact_datasource(
+    step: 'str',
+    name: 'str' = 'data.json',
+    condition: 'str' = 'baseline',
+    require_metadata: 'bool' = False
+) → DataSource
+```
+
+Return a datasource providing :class:`pathlib.Path` objects to artifacts. 
+
+Parameters 
+---------- step:  Pipeline step name that produced the artifact. name:  Artifact file name. condition:  Condition directory to load from. Defaults to ``"baseline"``. require_metadata:  If ``True`` and ``metadata.json`` does not exist, raise a  ``FileNotFoundError``. When ``False`` (default), missing metadata  means replicates are inferred from the experiment instance. 
+
+---
+
 ### <kbd>method</kbd> `Experiment.get_plugin`
 
 ```python
@@ -101,28 +119,7 @@ The lifecycle proceeds as follows:
 
 1. ``before_run`` hooks for all plugins are invoked. 2. Each replicate is executed via ``run_experiment_loop``.  The default  implementation runs serially, but plugins may provide parallel or  distributed strategies. 3. After all replicates complete, metrics are aggregated and  hypotheses are verified. 4. ``after_run`` hooks for all plugins are executed. 
 
-The returned :class:`~crystallize.core.result.Result` contains aggregated metrics, any captured errors and a provenance record of context mutations for every pipeline step.
-
----
-
-### <kbd>method</kbd> `Experiment.artifact_datasource`
-
-```python
-artifact_datasource(
-    step: 'str',
-    name: 'str' = 'data.json',
-    condition: 'str' = 'baseline',
-    *,
-    require_metadata: 'bool' = False
-) → DataSource
-```
-
-Return a datasource that yields a :class:`pathlib.Path` for each replicate. The
-datasource reads from
-`<root>/<id>/v<version>/replicate_<rep>/<condition>/<step>/<name>` and sets its
-``replicates`` attribute from ``metadata.json`` when available. When
-``require_metadata`` is ``True`` and the metadata file is missing a
-``FileNotFoundError`` is raised.
+The returned :class:`~crystallize.core.result.Result` contains aggregated metrics, any captured errors and a provenance record of context mutations for every pipeline step. 
 
 ---
 

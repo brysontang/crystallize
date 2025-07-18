@@ -55,8 +55,9 @@ apply(
 ) → Any
 ```
 
-Run the pipeline once and return the output. Plugin hooks are executed and all steps run their
-``setup`` and ``teardown`` methods. Execution stops at the first ``exit_step``.
+Run the pipeline once and return the output. 
+
+This method mirrors :meth:`run` for a single replicate. Plugin hooks are executed and all pipeline steps receive ``setup`` and ``teardown`` calls. Execution stops at the first step marked with :func:`~crystallize.core.pipeline_step.exit_step`. 
 
 ---
 

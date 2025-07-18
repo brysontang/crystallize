@@ -5,10 +5,11 @@ from typing import List
 
 import numpy as np
 import pytest
-from crystallize.core.plugins import BasePlugin
+from crystallize.core.plugins import ArtifactPlugin, BasePlugin
 
 from crystallize.core.execution import ParallelExecution
 from crystallize.core.plugins import SeedPlugin
+from crystallize.core.cache import compute_hash
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource
 from crystallize.core.experiment import Experiment
@@ -284,6 +285,17 @@ def test_cache_provenance_reused_between_runs(tmp_path, monkeypatch):
     exp2.validate()
     exp2.run()
     assert pipeline2.get_provenance()[0]["cache_hit"] is True
+
+
+def test_experiment_id_set_after_run(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    pipeline = Pipeline([PassStep()])
+    ds = DummyDataSource()
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp = Experiment(datasource=ds, pipeline=pipeline, plugins=[plugin])
+    exp.validate()
+    exp.run()
+    assert exp.id == compute_hash(pipeline.signature())
 
 
 def test_parallel_execution_matches_serial():

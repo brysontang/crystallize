@@ -33,3 +33,33 @@ exp.run()
 
 Artifacts are stored under:
 `<root>/<experiment_id>/v<run>/<replicate>/<condition>/<step>/<name>`.
+
+## Chaining via Importable Datasources
+
+After an experiment runs with `ArtifactPlugin`, you can import the experiment in
+another file and load its artifacts automatically:
+
+```python
+# experiment1.py
+exp1.run(replicates=2)
+
+# experiment2.py
+from experiment1 import exp1
+from crystallize.core.experiment import Experiment
+from crystallize.core.pipeline import Pipeline, pipeline_step
+
+@pipeline_step()
+def consume(data, ctx):
+    return data
+
+exp2 = Experiment(
+    datasource=exp1.artifact_datasource(step="ModelStep", name="model.bin"),
+    pipeline=Pipeline([consume()]),
+)
+exp2.validate()
+exp2.run()  # replicates set from metadata
+```
+
+`artifact_datasource()` reads `<root>/<id>/v<version>/metadata.json` to set the
+replicate count and will raise an error if you provide a different count when
+running the new experiment.

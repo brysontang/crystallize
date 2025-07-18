@@ -91,7 +91,7 @@ optimize(
 run(
     treatments: 'List[Treatment] | None' = None,
     hypotheses: 'List[Hypothesis] | None' = None,
-    replicates: 'int' = 1
+    replicates: 'int | None' = None
 ) → Result
 ```
 
@@ -101,7 +101,23 @@ The lifecycle proceeds as follows:
 
 1. ``before_run`` hooks for all plugins are invoked. 2. Each replicate is executed via ``run_experiment_loop``.  The default  implementation runs serially, but plugins may provide parallel or  distributed strategies. 3. After all replicates complete, metrics are aggregated and  hypotheses are verified. 4. ``after_run`` hooks for all plugins are executed. 
 
-The returned :class:`~crystallize.core.result.Result` contains aggregated metrics, any captured errors and a provenance record of context mutations for every pipeline step. 
+The returned :class:`~crystallize.core.result.Result` contains aggregated metrics, any captured errors and a provenance record of context mutations for every pipeline step.
+
+---
+
+### <kbd>method</kbd> `Experiment.artifact_datasource`
+
+```python
+artifact_datasource(
+    step: 'str',
+    name: 'str' = 'data.json',
+    condition: 'str' = 'baseline'
+) → DataSource
+```
+
+Return a datasource configured to load artifacts produced by this experiment. The
+datasource reads from `<root>/<id>/v<version>/replicate_<rep>/<condition>/<step>/<name>`
+and sets its ``replicates`` attribute from ``metadata.json`` when available.
 
 ---
 

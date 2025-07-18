@@ -41,7 +41,8 @@ Subclasses can override any of the hook methods to observe or modify the behavio
 after_run(experiment: 'Experiment', result: 'Result') → None
 ```
 
-Execute cleanup or reporting after :meth:`Experiment.run` completes. 
+Execute cleanup or reporting after :meth:`Experiment.run` completes.
+Writes ``metadata.json`` containing the experiment id and replicate count.
 
 ---
 

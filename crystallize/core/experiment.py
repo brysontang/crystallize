@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import json
+from pathlib import Path
 from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from crystallize.core.context import FrozenContext
@@ -13,6 +15,7 @@ from crystallize.core.plugins import (
     BasePlugin,
     LoggingPlugin,
     SeedPlugin,
+    ArtifactPlugin,
     default_seed_function,
 )
 from crystallize.core.result import Result
@@ -67,6 +70,7 @@ class Experiment:
         self.treatments: List[Treatment] = []
         self.hypotheses: List[Hypothesis] = []
         self.replicates: int = 1
+        self.id: Optional[str] = None
 
         self._setup_ctx = FrozenContext({})
 
@@ -91,6 +95,53 @@ class Experiment:
             if isinstance(plugin, plugin_class):
                 return plugin
         return None
+
+    # ------------------------------------------------------------------ #
+
+    def artifact_datasource(
+        self,
+        step: str,
+        name: str = "data.json",
+        condition: str = "baseline",
+    ) -> DataSource:
+        """Return a datasource loading artifacts from this experiment."""
+
+        if self.id is None:
+            raise RuntimeError("Experiment has not been run yet")
+
+        plugin = self.get_plugin(ArtifactPlugin)
+        if plugin is None:
+            raise RuntimeError("ArtifactPlugin required to load artifacts")
+
+        base = Path(plugin.root_dir) / self.id / f"v{plugin.version}"
+        meta_path = base / "metadata.json"
+        replicates = self.replicates
+        if meta_path.exists():
+            with open(meta_path) as f:
+                meta = json.load(f)
+            replicates = meta.get("replicates", replicates)
+
+        class ArtifactDataSource(DataSource):
+            def __init__(self) -> None:
+                self.replicates = replicates
+
+            def fetch(self, ctx: FrozenContext) -> Any:
+                rep = ctx.get("replicate", 0)
+                path = (
+                    base
+                    / f"replicate_{rep}"
+                    / condition
+                    / step
+                    / name
+                )
+                if not path.exists():
+                    raise FileNotFoundError(str(path))
+                if name.endswith(".json"):
+                    with path.open() as f:
+                        return json.load(f)
+                return path.read_bytes()
+
+        return ArtifactDataSource()
 
     # ------------------------------------------------------------------ #
 
@@ -197,7 +248,7 @@ class Experiment:
         *,
         treatments: List[Treatment] | None = None,
         hypotheses: List[Hypothesis] | None = None,
-        replicates: int = 1,
+        replicates: int | None = None,
     ) -> Result:
         """Execute the experiment and return a :class:`Result` instance.
 
@@ -220,7 +271,16 @@ class Experiment:
 
         self.treatments = treatments or []
         self.hypotheses = hypotheses or []
+
+        datasource_reps = getattr(self.datasource, "replicates", None)
+        if replicates is None:
+            replicates = datasource_reps or 1
         self.replicates = max(1, replicates)
+        if datasource_reps is not None and datasource_reps != self.replicates:
+            raise ValueError("Replicates mismatch with datasource metadata")
+
+        from .cache import compute_hash
+        self.id = compute_hash(self.pipeline.signature())
 
         if self.hypotheses and not self.treatments:
             raise ValueError("Cannot verify hypotheses without treatments")

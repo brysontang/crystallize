@@ -32,6 +32,7 @@ __init__(
     datasource: 'DataSource',
     pipeline: 'Pipeline',
     plugins: 'Optional[List[BasePlugin]]' = None,
+    name: 'str | None' = None,
     initial_ctx: 'Dict[str, Any] | None' = None
 ) → None
 ```
@@ -45,6 +46,7 @@ Instantiate an experiment configuration.
  - <b>`datasource`</b>:  Object that provides the initial data for each run. 
  - <b>`pipeline`</b>:  Pipeline executed for every replicate. 
  - <b>`plugins`</b>:  Optional list of plugins controlling experiment behaviour. 
+ - <b>`name`</b>:  Optional experiment name used for artifact storage. 
 
 
 ---

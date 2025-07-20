@@ -5,6 +5,20 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.11.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.10.0...crystallize-ml@v0.11.0) (2025-07-20)
+
+
+### Features
+
+* **crystallize-ml:** Add experiment name for artifact paths ([171c94f](https://github.com/brysontang/crystallize/commit/171c94f8028818021bf1ae2ce057da3318475296))
+* **crystallize-ml:** Improve artifact datasource ([844bb00](https://github.com/brysontang/crystallize/commit/844bb0079bf62eb431ec9101c5d2814aafada2fa))
+
+
+### Bug Fixes
+
+* .apply adds the step setup to ctx ([171c94f](https://github.com/brysontang/crystallize/commit/171c94f8028818021bf1ae2ce057da3318475296))
+* .apply adds the step setup to ctx ([f96ff2c](https://github.com/brysontang/crystallize/commit/f96ff2c2d55b57ed552aa096e56d910b723bf3f3))
+
 ## [0.10.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.9.0...crystallize-ml@v0.10.0) (2025-07-18)
 
 

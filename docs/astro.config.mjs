@@ -42,6 +42,10 @@ export default defineConfig({
               label: 'Creating Custom Plugins',
               slug: 'how-to/creating-plugins',
             },
+            {
+              label: 'Chaining Experiments with a DAG',
+              slug: 'how-to/dag-experiments',
+            },
           ],
         },
         {

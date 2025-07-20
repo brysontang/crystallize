@@ -5,12 +5,20 @@ from __future__ import annotations
 import inspect
 import threading
 from functools import update_wrapper
-from typing import Any, Callable, Mapping, Optional, Union, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
+from .constants import (
+    BASELINE_CONDITION,
+    CONDITION_KEY,
+    METADATA_FILENAME,
+    REPLICATE_KEY,
+    SEED_USED_KEY,
+)
 from .context import FrozenContext
-from .datasource import DataSource
+from .datasource import DataSource, MultiArtifactDataSource
 from .execution import ParallelExecution, SerialExecution
 from .experiment import Experiment
+from .experiment_graph import ExperimentGraph
 from .hypothesis import Hypothesis
 from .injection import inject_from_ctx
 from .optimizers import BaseOptimizer, Objective
@@ -18,16 +26,8 @@ from .pipeline import Pipeline
 from .pipeline_step import PipelineStep
 from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 from .result import Result
-from .constants import (
-    METADATA_FILENAME,
-    BASELINE_CONDITION,
-    REPLICATE_KEY,
-    CONDITION_KEY,
-    SEED_USED_KEY,
-)
 from .run_results import ReplicateResult
 from .treatment import Treatment
-
 
 _resource_cache = threading.local()
 
@@ -233,7 +233,9 @@ __all__ = [
     "BasePlugin",
     "BaseOptimizer",
     "DataSource",
+    "MultiArtifactDataSource",
     "Experiment",
+    "ExperimentGraph",
     "FrozenContext",
     "Hypothesis",
     "LoggingPlugin",

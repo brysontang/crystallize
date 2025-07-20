@@ -17,6 +17,7 @@ classifiers = [
 ]
 dependencies = [
     "pyyaml",
+    "networkx",
 ]
 
 [project.urls]

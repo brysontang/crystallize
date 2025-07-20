@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from .core import (
+    ExperimentGraph,
+    MultiArtifactDataSource,
     data_source,
     hypothesis,
+    inject_from_ctx,
     pipeline,
     pipeline_step,
-    inject_from_ctx,
     resource_factory,
     treatment,
     verifier,
@@ -30,4 +32,6 @@ __all__ = [
     "SeedPlugin",
     "LoggingPlugin",
     "ArtifactPlugin",
+    "ExperimentGraph",
+    "MultiArtifactDataSource",
 ]

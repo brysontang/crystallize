@@ -71,6 +71,8 @@ class Experiment:
         datasource: DataSource,
         pipeline: Pipeline,
         plugins: Optional[List[BasePlugin]] = None,
+        *,
+        name: str | None = None,
         initial_ctx: Dict[str, Any] | None = None,
     ) -> None:
         """Instantiate an experiment configuration.
@@ -79,9 +81,11 @@ class Experiment:
             datasource: Object that provides the initial data for each run.
             pipeline: Pipeline executed for every replicate.
             plugins: Optional list of plugins controlling experiment behaviour.
+            name: Optional experiment name used for artifact storage.
         """
         self.datasource = datasource
         self.pipeline = pipeline
+        self.name = name
         self.id: Optional[str] = None
 
         self._setup_ctx = FrozenContext({})
@@ -194,14 +198,27 @@ class Experiment:
             means replicates are inferred from the experiment instance.
         """
 
-        if self.id is None:
-            raise RuntimeError("Experiment has not been run yet")
-
         plugin = self.get_plugin(ArtifactPlugin)
         if plugin is None:
             raise RuntimeError("ArtifactPlugin required to load artifacts")
 
-        base = Path(plugin.root_dir) / self.id / f"v{plugin.version}"
+        if self.id is None:
+            from .cache import compute_hash
+
+            self.id = compute_hash(self.pipeline.signature())
+
+        exp_dir = self.name or self.id
+
+        version = getattr(plugin, "version", None)
+        if version is None:
+            base_dir = Path(plugin.root_dir) / exp_dir
+            versions = [
+                int(p.name[1:])
+                for p in base_dir.glob("v*")
+                if p.name.startswith("v") and p.name[1:].isdigit()
+            ]
+            version = max(versions, default=0)
+        base = Path(plugin.root_dir) / exp_dir / f"v{version}"
         meta_path = base / METADATA_FILENAME
         replicates = self.replicates
         if meta_path.exists():

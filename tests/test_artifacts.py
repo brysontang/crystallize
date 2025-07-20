@@ -57,6 +57,47 @@ def test_artifacts_saved_and_cleared(tmp_path: Path, monkeypatch):
     assert logs == [0]
 
 
+def test_artifacts_respect_experiment_name(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    pipeline = Pipeline([LogStep()])
+    ds = DummySource()
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp = Experiment(datasource=ds, pipeline=pipeline, plugins=[plugin], name="my_exp")
+    exp.validate()
+    exp.run()
+
+    expected = (
+        tmp_path
+        / "arts"
+        / "my_exp"
+        / "v0"
+        / "replicate_0"
+        / "baseline"
+        / "LogStep"
+        / "out.txt"
+    )
+    assert expected.read_text() == "hello"
+
+
+def test_artifact_datasource_before_run(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    pipeline = Pipeline([LogStep()])
+    run_plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp_run = Experiment(datasource=DummySource(), pipeline=pipeline, plugins=[run_plugin])
+    exp_run.validate()
+    exp_run.run(replicates=2)
+
+    fresh_exp = Experiment(
+        datasource=DummySource(),
+        pipeline=pipeline,
+        plugins=[ArtifactPlugin(root_dir=str(tmp_path / "arts"))],
+    )
+    fresh_exp.validate()
+    ds = fresh_exp.artifact_datasource(step="LogStep", name="out.txt")
+    assert ds.replicates == 2
+    assert ds.fetch(FrozenContext({"replicate": 1})).read_text() == "hello"
+
+
 def test_artifact_versioning(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     pipeline = Pipeline([LogStep()])

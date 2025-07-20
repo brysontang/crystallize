@@ -184,7 +184,7 @@ class ArtifactPlugin(BasePlugin):
     versioned: bool = False
 
     def before_run(self, experiment: Experiment) -> None:
-        self.experiment_id = experiment.id
+        self.experiment_id = experiment.name or experiment.id
         base = Path(self.root_dir) / self.experiment_id
         base.mkdir(parents=True, exist_ok=True)
         if self.versioned:
@@ -225,7 +225,11 @@ class ArtifactPlugin(BasePlugin):
         ctx.artifacts.clear()
 
     def after_run(self, experiment: Experiment, result: Result) -> None:
-        meta = {"replicates": experiment.replicates, "id": experiment.id}
+        meta = {
+            "replicates": experiment.replicates,
+            "id": experiment.id,
+            "name": experiment.name,
+        }
         base = Path(self.root_dir) / self.experiment_id / f"v{self.version}"
         os.makedirs(base, exist_ok=True)
         with open(base / METADATA_FILENAME, "w") as f:

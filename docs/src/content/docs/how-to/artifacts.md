@@ -33,7 +33,7 @@ exp.run()
 ```
 
 Artifacts are stored under:
-`<root>/<experiment_id>/v<run>/<replicate>/<condition>/<step>/<name>`.
+`<root>/<experiment_name_or_id>/v<run>/<replicate>/<condition>/<step>/<name>`.
 
 ## Chaining via Importable Datasources
 
@@ -55,9 +55,9 @@ from crystallize.core.pipeline import Pipeline, pipeline_step
 
 
 @pipeline_step()
-def load_json(path, ctx):
+def load_json(data, ctx):
     import json
-    return json.loads(path.read_text())
+    return json.loads(data.read_text())
 
 exp2 = Experiment(
     datasource=exp1.artifact_datasource(step="ModelStep", name="data.json"),
@@ -70,6 +70,8 @@ exp2.run()  # replicates set from metadata
 `artifact_datasource()` reads `<root>/<id>/v<version>/metadata.json` to set the
 replicate count and will raise an error if you provide a different count when
 running the new experiment.
+It works even if `exp1` hasn't been executed in this file—the experiment name or
+pipeline signature locates the correct directory.
 
 ### Loading CSV with Pandas
 
@@ -77,9 +79,9 @@ Because the datasource only yields file paths, you can load data in any format.
 
 ```python
 @pipeline_step()
-def load_csv(path, ctx):
+def load_csv(data, ctx):
     import pandas as pd
-    return pd.read_csv(path)
+    return pd.read_csv(data)
 
 exp_csv = Experiment(
     datasource=exp1.artifact_datasource(step="ModelStep", name="data.csv"),
@@ -87,5 +89,5 @@ exp_csv = Experiment(
 )
 ```
 
-Set ``require_metadata=True`` when you want to ensure metadata exists and raise
+Set `require_metadata=True` when you want to ensure metadata exists and raise
 an error if the previous run lacked `ArtifactPlugin`.

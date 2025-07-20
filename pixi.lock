@@ -1647,13 +1647,14 @@ packages:
   timestamp: 1751491581502
 - pypi: ./extras/crystallize-extras
   name: crystallize-extras
-  version: 0.3.0
-  sha256: 26a25fe81884f700bea9f376705dd887860fbb173dfa1afb04b6cf52b2f54921
+  version: 0.4.0
+  sha256: ae784eb11712d92b5dd584a28de816d9267c6aacbe0c878d29a2a8808bf7cb34
   requires_dist:
   - crystallize-ml
   - ray ; extra == 'ray'
   - vllm ; extra == 'vllm'
   - ollama ; extra == 'ollama'
+  - openai ; extra == 'openai'
   requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/ea/b4/84feac5adedf6f1a797057ba9c701a51ddf88275f2ceb4ac35856f0edaee/crystallize_ml-0.6.0-py3-none-any.whl
   name: crystallize-ml

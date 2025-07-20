@@ -15,6 +15,7 @@ dependencies = [
 ray = ["ray"]
 vllm = ["vllm"]
 ollama = ["ollama"]
+openai = ["openai"]
 
 [tool.setuptools.packages.find]
 where = ["."]

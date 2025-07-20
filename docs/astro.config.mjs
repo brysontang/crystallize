@@ -113,6 +113,7 @@ export default defineConfig({
             { label: 'RayExecution', slug: 'extras/ray' },
             { label: 'vLLM Engine', slug: 'extras/vllm' },
             { label: 'Ollama Client', slug: 'extras/ollama' },
+            { label: 'OpenAI Client', slug: 'extras/openai' },
           ],
         },
         {

@@ -5,6 +5,14 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.12.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.11.0...crystallize-ml@v0.12.0) (2025-07-20)
+
+
+### Features
+
+* **crystallize-extras:** Openai client ([57b7058](https://github.com/brysontang/crystallize/commit/57b70585d6c1c5646fae4e22ce36aef604e41473))
+* **crystallize-extras:** Openai client ([1f6c10e](https://github.com/brysontang/crystallize/commit/1f6c10eedc86a6e6e423895cf0b7a0d3af407dbe))
+
 ## [0.11.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.10.0...crystallize-ml@v0.11.0) (2025-07-20)
 
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crystallize-ml"
-version = "0.11.0"
+version = "0.12.0"
 authors = [{ name = "Bryson Tang", email = "brysontang@gmail.com" }]
 description = "A framework for reproducible experiments with pipelines, treatments, and hypotheses."
 readme = "README.md"

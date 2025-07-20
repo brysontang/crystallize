@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.4.0...crystallize-extras@v0.5.0) (2025-07-20)
+
+
+### Features
+
+* **crystallize-extras:** Openai client ([57b7058](https://github.com/brysontang/crystallize/commit/57b70585d6c1c5646fae4e22ce36aef604e41473))
+* **crystallize-extras:** Openai client ([1f6c10e](https://github.com/brysontang/crystallize/commit/1f6c10eedc86a6e6e423895cf0b7a0d3af407dbe))
+
 ## [0.4.0](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.3.0...crystallize-extras@v0.4.0) (2025-07-18)
 
 

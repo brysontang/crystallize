@@ -46,7 +46,9 @@ from crystallize.core.constants import (
 )
 
 
-def _run_replicate_remote(args: Tuple["Experiment", int, List[Treatment]]) -> ReplicateResult:
+def _run_replicate_remote(
+    args: Tuple["Experiment", int, List[Treatment]],
+) -> ReplicateResult:
     """Wrapper for parallel executor to run a single replicate."""
 
     exp, rep, treatments = args
@@ -282,7 +284,9 @@ class Experiment:
         )
         return dict(run_ctx.metrics.as_dict()), local_seed, prov
 
-    def _execute_replicate(self, rep: int, treatments: List[Treatment]) -> ReplicateResult:
+    def _execute_replicate(
+        self, rep: int, treatments: List[Treatment]
+    ) -> ReplicateResult:
         baseline_result: Optional[Mapping[str, Any]] = None
         baseline_seed: Optional[int] = None
         treatment_result: Dict[str, Mapping[str, Any]] = {}
@@ -346,14 +350,18 @@ class Experiment:
                 return plugin
         return SerialExecution()
 
-    def _aggregate_results(
-        self, results_list: List[ReplicateResult]
-    ) -> AggregateData:
+    def _aggregate_results(self, results_list: List[ReplicateResult]) -> AggregateData:
         baseline_samples: List[Mapping[str, Any]] = []
-        treatment_samples: Dict[str, List[Mapping[str, Any]]] = {t.name: [] for t in self.treatments}
+        treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
+            t.name: [] for t in self.treatments
+        }
         baseline_seeds: List[int] = []
-        treatment_seeds_agg: Dict[str, List[int]] = {t.name: [] for t in self.treatments}
-        provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = defaultdict(dict)
+        treatment_seeds_agg: Dict[str, List[int]] = {
+            t.name: [] for t in self.treatments
+        }
+        provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = (
+            defaultdict(dict)
+        )
         errors: Dict[str, Exception] = {}
 
         for rep, res in enumerate(results_list):
@@ -376,7 +384,9 @@ class Experiment:
                 provenance_runs[name][rep] = p
             errors.update(errs)
 
-        def collect_all_samples(samples: List[Mapping[str, Sequence[Any]]]) -> Dict[str, List[Any]]:
+        def collect_all_samples(
+            samples: List[Mapping[str, Sequence[Any]]],
+        ) -> Dict[str, List[Any]]:
             metrics: DefaultDict[str, List[Any]] = defaultdict(list)
             for sample in samples:
                 for metric, values in sample.items():
@@ -384,7 +394,9 @@ class Experiment:
             return dict(metrics)
 
         baseline_metrics = collect_all_samples(baseline_samples)
-        treatment_metrics_dict = {name: collect_all_samples(samp) for name, samp in treatment_samples.items()}
+        treatment_metrics_dict = {
+            name: collect_all_samples(samp) for name, samp in treatment_samples.items()
+        }
 
         return AggregateData(
             baseline_metrics=baseline_metrics,
@@ -502,7 +514,8 @@ class Experiment:
                 metrics = ExperimentMetrics(
                     baseline=TreatmentMetrics(aggregate.baseline_metrics),
                     treatments={
-                        name: TreatmentMetrics(m) for name, m in aggregate.treatment_metrics_dict.items()
+                        name: TreatmentMetrics(m)
+                        for name, m in aggregate.treatment_metrics_dict.items()
                     },
                     hypotheses=hypothesis_results,
                 )
@@ -547,7 +560,9 @@ class Experiment:
         datasource_reps = getattr(self.datasource, "replicates", None)
         replicates = datasource_reps or 1
 
-        ctx = FrozenContext({CONDITION_KEY: treatment.name if treatment else BASELINE_CONDITION})
+        ctx = FrozenContext(
+            {CONDITION_KEY: treatment.name if treatment else BASELINE_CONDITION}
+        )
         if treatment:
             treatment.apply(ctx)
 
@@ -559,7 +574,7 @@ class Experiment:
 
             try:
                 for step in self.pipeline.steps:
-                    step.setup(self._setup_ctx)
+                    step.setup(ctx)
 
                 for plugin in self.plugins:
                     if isinstance(plugin, SeedPlugin) and seed is not None:
@@ -582,7 +597,9 @@ class Experiment:
                         plugin.after_step(self, step, data, ctx)
 
                 metrics = ExperimentMetrics(
-                    baseline=TreatmentMetrics({k: list(v) for k, v in ctx.metrics.as_dict().items()}),
+                    baseline=TreatmentMetrics(
+                        {k: list(v) for k, v in ctx.metrics.as_dict().items()}
+                    ),
                     treatments={},
                     hypotheses=[],
                 )
@@ -590,7 +607,9 @@ class Experiment:
                     "pipeline_signature": self.pipeline.signature(),
                     "replicates": 1,
                     "seeds": {BASELINE_CONDITION: [ctx.get(SEED_USED_KEY, None)]},
-                    "ctx_changes": {BASELINE_CONDITION: {0: self.pipeline.get_provenance()}},
+                    "ctx_changes": {
+                        BASELINE_CONDITION: {0: self.pipeline.get_provenance()}
+                    },
                 }
                 result = Result(metrics=metrics, provenance=provenance)
             finally:
@@ -619,7 +638,9 @@ class Experiment:
                 hypotheses=[],
                 replicates=replicates_per_trial,
             )
-            objective_values = self._extract_objective_from_result(result, optimizer.objective)
+            objective_values = self._extract_objective_from_result(
+                result, optimizer.objective
+            )
             optimizer.tell(objective_values)
 
         return optimizer.get_best_treatment()
@@ -628,6 +649,8 @@ class Experiment:
         self, result: Result, objective: "Objective"
     ) -> dict[str, float]:
         treatment_name = list(result.metrics.treatments.keys())[0]
-        metric_values = result.metrics.treatments[treatment_name].metrics[objective.metric]
+        metric_values = result.metrics.treatments[treatment_name].metrics[
+            objective.metric
+        ]
         aggregated_value = sum(metric_values) / len(metric_values)
         return {objective.metric: aggregated_value}

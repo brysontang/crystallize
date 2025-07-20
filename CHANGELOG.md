@@ -5,6 +5,13 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.13.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.12.0...crystallize-ml@v0.13.0) (2025-07-20)
+
+
+### Features
+
+* **crystallize-ml:** Improve ExperimentGraph and tests ([d532e2d](https://github.com/brysontang/crystallize/commit/d532e2da72da8f2ec820c498f57a66be87d2755c))
+
 ## [0.12.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.11.0...crystallize-ml@v0.12.0) (2025-07-20)
 
 

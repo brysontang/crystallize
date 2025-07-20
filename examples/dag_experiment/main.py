@@ -28,10 +28,10 @@ def humidities(ctx: FrozenContext) -> list[float]:
 
 
 @pipeline_step()
-def average(values: list[float], ctx: FrozenContext) -> float:
+def average(data: list[float], ctx: FrozenContext) -> float:
     """Compute the average value adjusted by a ``factor`` parameter."""
     factor = ctx.get("factor", 1.0)
-    avg = sum(values) / len(values) * factor
+    avg = sum(data) / len(data) * factor
     ctx.artifacts.add(
         "average.json", json.dumps({"avg": avg}).encode()
     )
@@ -56,6 +56,7 @@ temp_exp = Experiment(
     plugins=[ArtifactPlugin(root_dir="dag_output", versioned=True)],
     name="temperature_stats",
 )
+temp_exp.validate()
 
 humidity_exp = Experiment(
     datasource=humidities(),
@@ -63,6 +64,7 @@ humidity_exp = Experiment(
     plugins=[ArtifactPlugin(root_dir="dag_output", versioned=True)],
     name="humidity_stats",
 )
+humidity_exp.validate()
 
 comfort_ds = MultiArtifactDataSource(
     temp=temp_exp.artifact_datasource(step="AverageStep", name="average.json"),
@@ -74,6 +76,7 @@ comfort_exp = Experiment(
     pipeline=Pipeline([comfort_index()]),
     name="comfort_index",
 )
+comfort_exp.validate()
 
 
 if __name__ == "__main__":

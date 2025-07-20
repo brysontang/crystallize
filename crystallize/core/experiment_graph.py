@@ -52,7 +52,11 @@ class ExperimentGraph:
 
         for name in order:
             exp: Experiment = self._graph.nodes[name]["experiment"]
-            result = exp.run(treatments=treatments, replicates=replicates)
+            result = exp.run(
+                treatments=treatments,
+                hypotheses=getattr(exp, "hypotheses", []),
+                replicates=replicates or getattr(exp, "replicates", 1),
+            )
             self._results[name] = result
 
         return self._results

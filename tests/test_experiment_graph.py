@@ -1,6 +1,9 @@
+import pytest
+
 from crystallize.core.context import FrozenContext
 from crystallize.core.datasource import DataSource, MultiArtifactDataSource
 from crystallize.core.experiment import Experiment
+from crystallize.core.hypothesis import Hypothesis
 from crystallize.core.experiment_graph import ExperimentGraph
 from crystallize.core.pipeline import Pipeline
 from crystallize.core.pipeline_step import PipelineStep
@@ -48,6 +51,30 @@ def test_experiment_graph_runs_in_order():
     assert results["c"].metrics.treatments["inc"].metrics["val"] == [1, 2]
 
 
+def test_empty_graph_runs():
+    graph = ExperimentGraph()
+    assert graph.run() == {}
+
+
+def test_hypotheses_verified():
+    exp_a = Experiment(datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="a")
+    exp_a.validate()
+    exp_b = Experiment(datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="b")
+    exp_b.validate()
+
+    hypo = Hypothesis(verifier=lambda b, t: {"diff": sum(t["val"]) - sum(b["val"])}, metrics="val")
+    exp_b.hypotheses = [hypo]
+
+    graph = ExperimentGraph()
+    graph.add_experiment(exp_a)
+    graph.add_experiment(exp_b)
+    graph.add_dependency(exp_b, exp_a)
+
+    results = graph.run(treatments=[Treatment("inc", {"increment": 1})])
+    diff = results["b"].metrics.hypotheses[0].results["inc"]["diff"]
+    assert diff == 1
+
+
 def test_experiment_graph_cycle_raises():
     exp_a = Experiment(
         datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="a"
@@ -64,12 +91,8 @@ def test_experiment_graph_cycle_raises():
     graph.add_dependency(exp_b, exp_a)
     graph.add_dependency(exp_a, exp_b)
 
-    try:
+    with pytest.raises(ValueError, match="contains cycles"):
         graph.run()
-    except ValueError:
-        assert True
-    else:
-        assert False
 
 
 def test_multi_artifact_datasource():
@@ -85,3 +108,19 @@ def test_multi_artifact_datasource():
     ctx = FrozenContext({"replicate": 0})
     assert ds.fetch(ctx) == {"first": "x", "second": "y"}
     assert ds.replicates == 2
+
+
+def test_add_experiment_requires_name():
+    graph = ExperimentGraph()
+    anon = Experiment(datasource=DummySource(), pipeline=Pipeline([PassStep()]))
+    with pytest.raises(ValueError):
+        graph.add_experiment(anon)
+
+
+def test_add_dependency_requires_added_nodes():
+    graph = ExperimentGraph()
+    exp_a = Experiment(datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="a")
+    exp_b = Experiment(datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="b")
+    graph.add_experiment(exp_a)
+    with pytest.raises(ValueError):
+        graph.add_dependency(exp_b, exp_a)

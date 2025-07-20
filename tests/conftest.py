@@ -1,3 +1,9 @@
+import sys
+import types
+
+# Provide a minimal networkx stub so tests run without the real dependency
+nx = types.ModuleType("networkx")
+
 class DiGraph:
     def __init__(self):
         self._succ = {}
@@ -52,3 +58,9 @@ def topological_sort(g: DiGraph):
         dfs(n)
 
     return order
+
+nx.DiGraph = DiGraph
+nx.is_directed_acyclic_graph = is_directed_acyclic_graph
+nx.topological_sort = topological_sort
+
+sys.modules.setdefault("networkx", nx)

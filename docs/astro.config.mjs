@@ -46,6 +46,10 @@ export default defineConfig({
               label: 'Chaining Experiments with a DAG',
               slug: 'how-to/dag-experiments',
             },
+            {
+              label: 'Viewing Provenance',
+              slug: 'how-to/view-provenance',
+            },
           ],
         },
         {

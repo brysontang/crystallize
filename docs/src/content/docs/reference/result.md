@@ -61,6 +61,10 @@ Return the :class:`HypothesisResult` with ``name`` if present.
 print_tree(fmt: 'str' = 'treatment > replicate > step') → None
 ```
 
-Print a tree summary of execution provenance. 
+Print a color-coded tree of execution provenance. The ``fmt`` string controls
+the hierarchy and may include ``"treatment"``, ``"replicate"``, ``"step`` and
+``"action"``. When ``"action"`` is present as the final token, each step lists
+the context reads, writes and metric updates. Uses ``rich`` for color if
+installed.
 
 

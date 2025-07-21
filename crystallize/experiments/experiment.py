@@ -17,6 +17,7 @@ from typing import (
 )
 
 from crystallize.utils.context import FrozenContext
+from crystallize.datasources import Output
 from crystallize.datasources.datasource import DataSource
 from crystallize.plugins.execution import VALID_EXECUTOR_TYPES, SerialExecution
 from crystallize.experiments.hypothesis import Hypothesis
@@ -77,6 +78,7 @@ class Experiment:
         *,
         name: str | None = None,
         initial_ctx: Dict[str, Any] | None = None,
+        outputs: List[Output] | None = None,
     ) -> None:
         """Instantiate an experiment configuration.
 
@@ -90,6 +92,7 @@ class Experiment:
         self.pipeline = pipeline
         self.name = name
         self.id: Optional[str] = None
+        self.outputs = outputs or []
 
         self._setup_ctx = FrozenContext({})
         if initial_ctx:
@@ -287,7 +290,11 @@ class Experiment:
         return dict(run_ctx.metrics.as_dict()), local_seed, prov
 
     def _execute_replicate(
-        self, rep: int, treatments: List[Treatment]
+        self,
+        rep: int,
+        treatments: List[Treatment],
+        *,
+        run_baseline: bool = True,
     ) -> ReplicateResult:
         baseline_result: Optional[Mapping[str, Any]] = None
         baseline_seed: Optional[int] = None
@@ -303,19 +310,20 @@ class Experiment:
                 CONDITION_KEY: BASELINE_CONDITION,
             }
         )
-        try:
-            baseline_result, baseline_seed, base_prov = self._run_condition(base_ctx)
-            provenance[BASELINE_CONDITION] = base_prov
-        except Exception as exc:  # pragma: no cover
-            rep_errors[f"baseline_rep_{rep}"] = exc
-            return ReplicateResult(
-                baseline_metrics=baseline_result,
-                baseline_seed=baseline_seed,
-                treatment_metrics=treatment_result,
-                treatment_seeds=treatment_seeds,
-                errors=rep_errors,
-                provenance=provenance,
-            )
+        if run_baseline:
+            try:
+                baseline_result, baseline_seed, base_prov = self._run_condition(base_ctx)
+                provenance[BASELINE_CONDITION] = base_prov
+            except Exception as exc:  # pragma: no cover
+                rep_errors[f"baseline_rep_{rep}"] = exc
+                return ReplicateResult(
+                    baseline_metrics=baseline_result,
+                    baseline_seed=baseline_seed,
+                    treatment_metrics=treatment_result,
+                    treatment_seeds=treatment_seeds,
+                    errors=rep_errors,
+                    provenance=provenance,
+                )
 
         for t in treatments:
             ctx = FrozenContext(
@@ -456,6 +464,7 @@ class Experiment:
         treatments: List[Treatment] | None = None,
         hypotheses: List[Hypothesis] | None = None,
         replicates: int | None = None,
+        strategy: str = "rerun",
     ) -> Result:
         """Execute the experiment and return a :class:`Result` instance.
 
@@ -493,6 +502,30 @@ class Experiment:
         if hypotheses and not treatments:
             raise ValueError("Cannot verify hypotheses without treatments")
 
+        plugin = self.get_plugin(ArtifactPlugin)
+
+        loaded_metrics: Dict[str, Dict[str, List[Any]]] = {}
+        to_run = []
+        base_dir: Optional[Path] = None
+        if strategy == "resume" and plugin is not None:
+            base_dir = Path(plugin.root_dir) / (self.name or self.id) / "v0"
+            if base_dir.exists():
+                for cond in [BASELINE_CONDITION] + [t.name for t in treatments]:
+                    res_file = base_dir / cond / "results.json"
+                    marker = base_dir / cond / ".crystallize_complete"
+                    if res_file.exists() and marker.exists():
+                        with open(res_file) as f:
+                            loaded_metrics[cond] = json.load(f).get("metrics", {})
+                    else:
+                        to_run.append(cond)
+            else:
+                to_run = [BASELINE_CONDITION] + [t.name for t in treatments]
+        else:
+            to_run = [BASELINE_CONDITION] + [t.name for t in treatments]
+
+        run_baseline = BASELINE_CONDITION in to_run
+        active_treatments = [t for t in treatments if t.name in to_run]
+
         with self._runtime_state(treatments, hypotheses, replicates):
             for plugin in self.plugins:
                 plugin.before_run(self)
@@ -502,11 +535,28 @@ class Experiment:
                     step.setup(self._setup_ctx)
 
                 execution_plugin = self._select_execution_plugin()
-                results_list = execution_plugin.run_experiment_loop(
-                    self, lambda rep: self._execute_replicate(rep, self.treatments)
-                )
+                results_list = []
+                if run_baseline or active_treatments:
+                    results_list = execution_plugin.run_experiment_loop(
+                        self,
+                        lambda rep: self._execute_replicate(
+                            rep,
+                            active_treatments,
+                            run_baseline=run_baseline,
+                        ),
+                    )
 
                 aggregate = self._aggregate_results(results_list)
+
+                # merge loaded metrics
+                for metric, vals in loaded_metrics.get(BASELINE_CONDITION, {}).items():
+                    aggregate.baseline_metrics.setdefault(metric, []).extend(vals)
+                for t_name, metrics_dict in loaded_metrics.items():
+                    if t_name == BASELINE_CONDITION:
+                        continue
+                    dest = aggregate.treatment_metrics_dict.setdefault(t_name, {})
+                    for m, vals in metrics_dict.items():
+                        dest.setdefault(m, []).extend(vals)
 
                 hypothesis_results = self._verify_hypotheses(
                     aggregate.baseline_metrics,

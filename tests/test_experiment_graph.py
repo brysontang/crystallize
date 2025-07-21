@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from crystallize.utils.context import FrozenContext
 from crystallize.datasources.datasource import DataSource, MultiArtifactDataSource
@@ -8,6 +9,8 @@ from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.experiments.treatment import Treatment
+from crystallize.datasources import Output
+from crystallize.plugins.plugins import ArtifactPlugin
 
 
 class DummySource(DataSource):
@@ -124,3 +127,49 @@ def test_add_dependency_requires_added_nodes():
     graph.add_experiment(exp_a)
     with pytest.raises(ValueError):
         graph.add_dependency(exp_b, exp_a)
+
+
+def test_graph_resume_skips_experiments(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    class CountStep(PipelineStep):
+        def __init__(self):
+            self.calls = 0
+
+        def __call__(self, data, ctx):
+            self.calls += 1
+            ctx.metrics.add("val", data)
+            return data
+
+        @property
+        def params(self):
+            return {}
+
+    step_a = CountStep()
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp_a = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([step_a]),
+        plugins=[plugin],
+        name="a",
+        outputs=[Output("x.txt")],
+    )
+    exp_a.validate()
+    graph = ExperimentGraph()
+    graph.add_experiment(exp_a)
+    graph.run()
+    assert step_a.calls == 1
+
+    step_a2 = CountStep()
+    exp_a2 = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([step_a2]),
+        plugins=[plugin],
+        name="a",
+        outputs=[Output("x.txt")],
+    )
+    exp_a2.validate()
+    graph2 = ExperimentGraph()
+    graph2.add_experiment(exp_a2)
+    graph2.run(strategy="resume")
+    assert step_a2.calls == 0

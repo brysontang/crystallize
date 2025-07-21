@@ -5,12 +5,7 @@ from types import MappingProxyType
 from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Tuple
 
 from crystallize.datasources.artifacts import ArtifactLog
-
-
-class ContextMutationError(Exception):
-    """Raised when attempting to mutate an existing key in FrozenContext."""
-
-    pass
+from crystallize.utils.exceptions import ContextMutationError
 
 
 class FrozenMetrics:

@@ -6,7 +6,7 @@ import os
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Mapping
 
 from crystallize.utils.constants import (
     REPLICATE_KEY,
@@ -234,3 +234,14 @@ class ArtifactPlugin(BasePlugin):
         os.makedirs(base, exist_ok=True)
         with open(base / METADATA_FILENAME, "w") as f:
             json.dump(meta, f)
+
+        def dump_condition(name: str, metrics: Mapping[str, Any]) -> None:
+            dest = base / name
+            os.makedirs(dest, exist_ok=True)
+            with open(dest / "results.json", "w") as f:
+                json.dump({"metrics": metrics}, f)
+            open(dest / ".crystallize_complete", "a").close()
+
+        dump_condition(BASELINE_CONDITION, result.metrics.baseline.metrics)
+        for t_name, m in result.metrics.treatments.items():
+            dump_condition(t_name, m.metrics)

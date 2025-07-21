@@ -1,3 +1,3 @@
-from .artifacts import ArtifactLog
+from .artifacts import ArtifactLog, Output
 
-__all__ = ["ArtifactLog"]
+__all__ = ["ArtifactLog", "Output"]

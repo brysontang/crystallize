@@ -10,11 +10,11 @@ title: Utils
 
 **Global Variables**
 ---------------
-- **context**
 - **exceptions**
+- **constants**
+- **context**
 - **cache**
 - **injection**
-- **constants**
 - **decorators**
 
 

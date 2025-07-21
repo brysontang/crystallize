@@ -24,7 +24,12 @@ from crystallize.utils.injection import inject_from_ctx
 from crystallize.experiments.optimizers import BaseOptimizer, Objective
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
-from crystallize.plugins.plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
+from crystallize.plugins.plugins import (
+    ArtifactPlugin,
+    BasePlugin,
+    LoggingPlugin,
+    SeedPlugin,
+)
 from crystallize.experiments.result import Result
 from crystallize.experiments.run_results import ReplicateResult
 from crystallize.experiments.treatment import Treatment
@@ -40,21 +45,32 @@ def _reconstruct_from_factory(
     return factory(**params)
 
 
+class ResourceFactoryWrapper:
+    """A picklable, callable class that wraps a resource-creating function."""
+
+    def __init__(self, fn: Callable[[FrozenContext], Any], key: str | None = None):
+        self.fn = fn
+        self.key = key
+        # Make this object look like the function it's wrapping
+        update_wrapper(self, fn)
+
+    def __call__(self, ctx: FrozenContext) -> Any:
+        # The logic from the old 'wrapper' function is now here.
+        if not hasattr(_resource_cache, "cache"):
+            _resource_cache.cache = {}
+        cache = _resource_cache.cache
+
+        cache_key = self.key if self.key is not None else hash(self.fn.__code__)
+        if cache_key not in cache:
+            cache[cache_key] = self.fn(ctx)
+        return cache[cache_key]
+
+
 def resource_factory(
     fn: Callable[[FrozenContext], Any], *, key: str | None = None
 ) -> Callable[[FrozenContext], Any]:
     """Wrap a factory so the created resource is reused per thread/process."""
-
-    def wrapper(ctx: FrozenContext) -> Any:
-        if not hasattr(_resource_cache, "cache"):
-            _resource_cache.cache = {}
-        cache = _resource_cache.cache
-        cache_key = key if key is not None else hash(fn.__code__)
-        if cache_key not in cache:
-            cache[cache_key] = fn(ctx)
-        return cache[cache_key]
-
-    return update_wrapper(wrapper, fn)
+    return ResourceFactoryWrapper(fn, key)
 
 
 def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:

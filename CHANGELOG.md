@@ -5,6 +5,27 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.15.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.14.0...crystallize-ml@v0.15.0) (2025-07-21)
+
+
+### Features
+
+* **crystallize-ml:** Add logger to context ([86b3606](https://github.com/brysontang/crystallize/commit/86b3606d9766633f34dbfcbafb0f4e4c0fe67cf1))
+* **crystallize-ml:** Add Output class and resume strategy ([60744bb](https://github.com/brysontang/crystallize/commit/60744bb610ed61547bdfef3aab651943f5bbe6ca))
+* **crystallize-ml:** Introduce Artifact and ExperimentInput ([05ee063](https://github.com/brysontang/crystallize/commit/05ee063d9423c457d6fab4459e833e4109d55ea4))
+* **crystallize-ml:** Refine resume logic ([ee6a787](https://github.com/brysontang/crystallize/commit/ee6a787e5326c6a2387be3f5ca713910272d8db2))
+
+
+### Bug Fixes
+
+* **crystallize-ml:** Resolve tests for new Artifact API ([02ec241](https://github.com/brysontang/crystallize/commit/02ec241efeb81cfe60a4c52f75b5622c5b765ca9))
+
+
+### Documentation
+
+* Auto-update generated API docs ([34375ed](https://github.com/brysontang/crystallize/commit/34375ed5296369127b220904cc4f09fdc6fa130c))
+* **crystallize-ml:** Document Result.print_tree ([28bbf3a](https://github.com/brysontang/crystallize/commit/28bbf3aaa75dd0e0056fefe2ad94bf87a1a5225f))
+
 ## [0.14.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.13.0...crystallize-ml@v0.14.0) (2025-07-21)
 
 

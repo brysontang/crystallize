@@ -15,6 +15,7 @@ from crystallize.datasources.datasource import DataSource
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints only
     from crystallize.utils.context import FrozenContext
+    from crystallize.experiments.experiment import Experiment
 
 
 @dataclass

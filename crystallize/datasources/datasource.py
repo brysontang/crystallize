@@ -1,15 +1,18 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from crystallize.utils.context import FrozenContext
-from .artifacts import Artifact
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover - for type hints only
+    from crystallize.utils.context import FrozenContext
+    from .artifacts import Artifact
 
 
 class DataSource(ABC):
     """Abstract provider of input data for an experiment."""
 
     @abstractmethod
-    def fetch(self, ctx: FrozenContext) -> Any:
+    def fetch(self, ctx: "FrozenContext") -> Any:
         """Return raw data for a single pipeline run.
 
         Implementations may load data from disk, generate synthetic samples or
@@ -36,7 +39,7 @@ class ExperimentInput(DataSource):
         self._replicates = getattr(first, "replicates", None)
         self.required_outputs = list(inputs.values())
 
-    def fetch(self, ctx: FrozenContext) -> dict[str, Any]:
+    def fetch(self, ctx: "FrozenContext") -> dict[str, Any]:
         return {name: art.fetch(ctx) for name, art in self._inputs.items()}
 
     @property

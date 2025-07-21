@@ -99,17 +99,17 @@ def test_experiment_graph_cycle_raises():
 
 
 def test_multi_artifact_datasource():
-    class PathSource(DataSource):
-        def __init__(self, path):
-            self.path = path
+    class DummyArtifact(Artifact):
+        def __init__(self, name: str, value: str) -> None:
+            super().__init__(name, loader=lambda p: value)
             self.replicates = 2
 
-        def fetch(self, ctx: FrozenContext):
-            return self.path
+        def fetch(self, ctx: FrozenContext) -> str:  # type: ignore[override]
+            return self.loader(Path())
 
-    ds = ExperimentInput(first=PathSource("x"), second=PathSource("y"))
+    ds = ExperimentInput(first=DummyArtifact("x", "X"), second=DummyArtifact("y", "Y"))
     ctx = FrozenContext({"replicate": 0})
-    assert ds.fetch(ctx) == {"first": "x", "second": "y"}
+    assert ds.fetch(ctx) == {"first": "X", "second": "Y"}
     assert ds.replicates == 2
 
 
@@ -239,8 +239,8 @@ def test_graph_resume_checks_downstream_outputs(tmp_path: Path, monkeypatch):
     exp_a2.validate()
 
     ds_b2 = ExperimentInput(
-        one=exp_a2.artifact_datasource(step="ProduceStep", name="one.txt"),
-        two=exp_a2.artifact_datasource(step="ProduceStep", name="two.txt"),
+        one=exp_a2.outputs["one.txt"],
+        two=exp_a2.outputs["two.txt"],
     )
     exp_b2 = Experiment(
         datasource=ds_b2,

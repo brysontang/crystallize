@@ -1,9 +1,9 @@
-from crystallize.core.cache import compute_hash
+from crystallize.utils.cache import compute_hash
 from typing import Any
 from concurrent.futures import ThreadPoolExecutor
-from crystallize.core.context import FrozenContext
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep
+from crystallize.utils.context import FrozenContext
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.pipelines.pipeline_step import PipelineStep
 import pytest
 import numpy as np
 

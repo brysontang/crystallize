@@ -1,6 +1,6 @@
 import pytest
 from concurrent.futures import ThreadPoolExecutor
-from crystallize.core.context import FrozenContext, ContextMutationError
+from crystallize.utils.context import FrozenContext, ContextMutationError
 
 
 def test_frozen_context_get_set():

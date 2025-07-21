@@ -1,6 +1,6 @@
 import pytest
 
-from crystallize.core.result_structs import ExperimentMetrics, TreatmentMetrics, HypothesisResult
+from crystallize.experiments.result_structs import ExperimentMetrics, TreatmentMetrics, HypothesisResult
 
 
 def make_metrics() -> ExperimentMetrics:
@@ -27,7 +27,7 @@ def test_metrics_to_dataframe():
 
 
 def test_metrics_to_df_no_pandas(monkeypatch):
-    import crystallize.core.result_structs as rs
+    import crystallize.experiments.result_structs as rs
 
     metrics = make_metrics()
     monkeypatch.setattr(rs, "pd", None)

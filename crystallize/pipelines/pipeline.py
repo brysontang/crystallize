@@ -2,12 +2,12 @@ import logging
 from typing import Any, Dict, List, Mapping, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from crystallize.core.experiment import Experiment
+    from crystallize.experiments.experiment import Experiment
 
-from crystallize.core.cache import compute_hash, load_cache, store_cache
-from crystallize.core.context import FrozenContext, LoggingContext
-from crystallize.core.exceptions import PipelineExecutionError
-from crystallize.core.pipeline_step import PipelineStep
+from crystallize.utils.cache import compute_hash, load_cache, store_cache
+from crystallize.utils.context import FrozenContext, LoggingContext
+from crystallize.utils.exceptions import PipelineExecutionError
+from crystallize.pipelines.pipeline_step import PipelineStep
 
 
 class Pipeline:

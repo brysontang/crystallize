@@ -13,7 +13,7 @@ automatically pulled from the execution context when not supplied explicitly.
 
 ```python
 from crystallize import pipeline_step
-from crystallize.core.context import FrozenContext
+from crystallize import FrozenContext
 
 @pipeline_step(cacheable=True)
 def scale_data(data: list, ctx: FrozenContext, *, factor: float = 1.0) -> list:
@@ -105,10 +105,7 @@ for examples of seeding experiments.
 
 ```python
 from functools import partial
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.context import FrozenContext
+from crystallize import ParallelExecution, Experiment, Pipeline, FrozenContext
 
 # Step definitions from above
 exp = Experiment(

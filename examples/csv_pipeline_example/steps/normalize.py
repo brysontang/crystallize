@@ -2,7 +2,7 @@ import statistics
 from typing import List
 
 from crystallize import pipeline_step
-from crystallize.core.context import FrozenContext
+from crystallize import FrozenContext
 
 
 @pipeline_step()

@@ -1,7 +1,7 @@
 import pytest
 from crystallize_extras.vllm_step.initialize import initialize_llm_engine
 
-from crystallize.core.context import FrozenContext
+from crystallize.utils.context import FrozenContext
 
 
 class DummyLLM:

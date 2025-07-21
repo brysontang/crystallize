@@ -11,10 +11,7 @@ Every call to `run()` or `apply()` is stateless—you pass treatments, hypothese
 
 Instantiate your components and pass configuration objects:
 ```python
-from crystallize.core.plugins import SeedPlugin
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
+from crystallize import SeedPlugin, ParallelExecution, Experiment, Pipeline
 from crystallize import resource_factory
 import random
 

@@ -1,5 +1,5 @@
 from typing import Any, Callable, Mapping, Union
-from crystallize.core.context import FrozenContext
+from crystallize.utils.context import FrozenContext
 
 
 class Treatment:

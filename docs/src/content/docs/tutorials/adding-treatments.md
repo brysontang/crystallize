@@ -122,8 +122,7 @@ print("Treatment metrics:", result.metrics.treatments["scale_ages_treatment"].me
 
 ```python
 from crystallize import data_source, pipeline_step, treatment
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.context import FrozenContext
+from crystallize import ParallelExecution, FrozenContext
 import pandas as pd
 import random
 from scipy.stats import skew, kurtosis

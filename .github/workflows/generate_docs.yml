@@ -3,10 +3,10 @@ name: Generate and PR Docs
 on:
   push:
     branches: [main]
-    paths: ['crystallize/core/**'] # Only trigger if core modules change (adjust paths as needed)
+    paths: ['crystallize/**'] # Trigger when library modules change
   pull_request:
     branches: [main]
-    paths: ['crystallize/core/**']
+    paths: ['crystallize/**']
 
 permissions:
   contents: write # For creating PRs

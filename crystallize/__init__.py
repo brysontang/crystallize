@@ -1,10 +1,13 @@
-"""Public convenience API."""
+"""Public convenience API for Crystallize."""
 
 from __future__ import annotations
 
-from .core import (
-    ExperimentGraph,
-    MultiArtifactDataSource,
+from crystallize.experiments.experiment_graph import ExperimentGraph
+from crystallize.experiments.experiment import Experiment
+from crystallize.datasources.datasource import DataSource, MultiArtifactDataSource
+from crystallize.experiments.treatment import Treatment
+from crystallize.utils.context import FrozenContext
+from crystallize.utils.decorators import (
     data_source,
     hypothesis,
     inject_from_ctx,
@@ -14,8 +17,8 @@ from .core import (
     treatment,
     verifier,
 )
-from .core.execution import ParallelExecution, SerialExecution
-from .core.plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
+from crystallize.plugins.execution import ParallelExecution, SerialExecution
+from crystallize.plugins.plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 
 __all__ = [
     "pipeline_step",
@@ -26,6 +29,10 @@ __all__ = [
     "verifier",
     "pipeline",
     "resource_factory",
+    "Experiment",
+    "DataSource",
+    "FrozenContext",
+    "Treatment",
     "BasePlugin",
     "SerialExecution",
     "ParallelExecution",
@@ -35,3 +42,4 @@ __all__ = [
     "ExperimentGraph",
     "MultiArtifactDataSource",
 ]
+

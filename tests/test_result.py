@@ -1,6 +1,6 @@
 import builtins
-from crystallize.core.result import Result
-from crystallize.core.result_structs import ExperimentMetrics, TreatmentMetrics
+from crystallize.experiments.result import Result
+from crystallize.experiments.result_structs import ExperimentMetrics, TreatmentMetrics
 
 
 def test_result_accessors_and_errors():

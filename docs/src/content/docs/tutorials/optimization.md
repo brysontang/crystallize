@@ -9,8 +9,8 @@ Crystallize experiments can go beyond fixed A/B tests. The `optimize()` method a
 
 ```python
 from dataclasses import dataclass
-from crystallize.core.optimizers import BaseOptimizer, Objective
-from crystallize.core.treatment import Treatment
+from crystallize.experiments.optimizers import BaseOptimizer, Objective
+from crystallize import Treatment
 
 @dataclass
 class Objective:
@@ -62,8 +62,8 @@ The optimizer cycles through the provided grid and records the metric returned f
 
 ```python
 from crystallize import data_source, pipeline_step
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
+from crystallize import Experiment
+from crystallize.pipelines.pipeline import Pipeline
 
 @data_source
 def initial_data(ctx):
@@ -91,7 +91,7 @@ best = exp.optimize(optimizer, num_trials=3)
 After finding the best parameters you can verify they beat the baseline:
 
 ```python
-from crystallize.core.hypothesis import Hypothesis
+from crystallize import Hypothesis
 
 def always_better(baseline, treatment):
     return {"p_value": 0.01, "accepted": True, "significant": True}

@@ -44,15 +44,15 @@ pixi install <not-yet-published-package>
 ### Quick Example
 
 ```python
-from crystallize.core import (
+from crystallize import (
     DataSource,
     Hypothesis,
     Pipeline,
     Treatment,
+    Experiment,
+    SeedPlugin,
+    ParallelExecution,
 )
-from crystallize.core.experiment import Experiment
-from crystallize.core.plugins import SeedPlugin
-from crystallize.core.execution import ParallelExecution
 
 # Example setup (simple)
 pipeline = Pipeline([...])
@@ -81,6 +81,25 @@ result = experiment.run(
 print(result.metrics)
 print(result.hypothesis_result)
 ```
+
+### Project Structure
+
+```
+crystallize/
+├── datasources/
+├── experiments/
+├── pipelines/
+├── plugins/
+└── utils/
+```
+
+Key classes and decorators are re-exported in :mod:`crystallize` for concise imports:
+
+```python
+from crystallize import Experiment, Pipeline, ArtifactPlugin
+```
+
+This layout keeps implementation details organized while exposing a clean, flat public API.
 
 ---
 

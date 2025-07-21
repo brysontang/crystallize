@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Union
 
-from crystallize.core.treatment import Treatment
+from crystallize.experiments.treatment import Treatment
 
 
 @dataclass

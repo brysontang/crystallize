@@ -1,13 +1,13 @@
 import pytest
 
-from crystallize.core.context import FrozenContext
-from crystallize.core.datasource import DataSource, MultiArtifactDataSource
-from crystallize.core.experiment import Experiment
-from crystallize.core.hypothesis import Hypothesis
-from crystallize.core.experiment_graph import ExperimentGraph
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.treatment import Treatment
+from crystallize.utils.context import FrozenContext
+from crystallize.datasources.datasource import DataSource, MultiArtifactDataSource
+from crystallize.experiments.experiment import Experiment
+from crystallize.experiments.hypothesis import Hypothesis
+from crystallize.experiments.experiment_graph import ExperimentGraph
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.pipelines.pipeline_step import PipelineStep
+from crystallize.experiments.treatment import Treatment
 
 
 class DummySource(DataSource):

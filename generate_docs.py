@@ -1,10 +1,10 @@
 from lazydocs import generate_docs
 import os
 import pkgutil
-import crystallize.core
+import crystallize
 import importlib
 
-paths = [f'crystallize.core.{name}' for _, name, _ in pkgutil.iter_modules(crystallize.core.__path__)]  # Modules or file paths
+paths = [f'crystallize.{name}' for _, name, _ in pkgutil.iter_modules(crystallize.__path__)]
 output_dir = './docs/src/content/docs/reference'
 os.makedirs(output_dir, exist_ok=True)
 

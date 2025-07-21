@@ -8,7 +8,7 @@ from typing import Callable, List, Any, Optional, TYPE_CHECKING
 from .plugins import BasePlugin
 
 if TYPE_CHECKING:  # pragma: no cover - for type hints
-    from .experiment import Experiment
+    from ..experiments.experiment import Experiment
 
 VALID_EXECUTOR_TYPES = {"thread", "process"}
 
@@ -46,7 +46,7 @@ class ParallelExecution(BasePlugin):
                 f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{self.executor_type}'"
             )
         if self.executor_type == "process":
-            from .experiment import _run_replicate_remote
+            from crystallize.experiments.experiment import _run_replicate_remote
 
             default_workers = max(1, (os.cpu_count() or 2) - 1)
             exec_cls = ProcessPoolExecutor

@@ -10,7 +10,7 @@ Crystallize can orchestrate complex workflows by chaining experiments in a direc
 Use `ExperimentGraph` to register each experiment and declare dependencies:
 
 ```python
-from crystallize.core import ExperimentGraph
+from crystallize import ExperimentGraph
 
 graph = ExperimentGraph()
 graph.add_experiment(exp_a)
@@ -25,7 +25,7 @@ Running `graph.run()` executes experiments in topological order.
 Combine outputs from several experiments using `MultiArtifactDataSource`:
 
 ```python
-from crystallize.core import MultiArtifactDataSource
+from crystallize import MultiArtifactDataSource
 
 ds = MultiArtifactDataSource(
     first=exp_a.artifact_datasource(step="StepA", name="output.json"),

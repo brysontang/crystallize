@@ -1,12 +1,12 @@
 import logging
 
-from crystallize.core.datasource import DataSource
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.plugins import LoggingPlugin
-from crystallize.core.result import Result
-from crystallize.core.result_structs import ExperimentMetrics, TreatmentMetrics, HypothesisResult
+from crystallize.datasources.datasource import DataSource
+from crystallize.experiments.experiment import Experiment
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.pipelines.pipeline_step import PipelineStep
+from crystallize.plugins.plugins import LoggingPlugin
+from crystallize.experiments.result import Result
+from crystallize.experiments.result_structs import ExperimentMetrics, TreatmentMetrics, HypothesisResult
 
 
 class DummySource(DataSource):

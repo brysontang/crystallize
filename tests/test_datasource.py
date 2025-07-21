@@ -1,7 +1,7 @@
 import pytest
-from crystallize.core.context import FrozenContext
-from crystallize.core.datasource import DataSource
-from crystallize.core import data_source
+from crystallize.utils.context import FrozenContext
+from crystallize.datasources.datasource import DataSource
+from crystallize import data_source
 
 
 class DummySource(DataSource):

@@ -1,7 +1,7 @@
 import pytest
-from crystallize.core.context import FrozenContext, ContextMutationError
-from crystallize.core.treatment import Treatment
-from crystallize.core import treatment
+from crystallize.utils.context import FrozenContext, ContextMutationError
+from crystallize.experiments.treatment import Treatment
+from crystallize import treatment
 
 
 def test_treatment_mapping_apply():

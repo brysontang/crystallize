@@ -46,8 +46,7 @@ from crystallize import (
     treatment,
     verifier,
 )
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.context import FrozenContext
+from crystallize import ParallelExecution, FrozenContext
 from scipy.stats import ttest_ind
 import random
 

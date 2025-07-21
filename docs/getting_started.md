@@ -18,11 +18,13 @@ from crystallize import (
     treatment,
     verifier,
 )
-from crystallize.core.plugins import SeedPlugin
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.context import FrozenContext
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
+from crystallize import (
+    SeedPlugin,
+    ParallelExecution,
+    FrozenContext,
+    Experiment,
+    Pipeline,
+)
 
 @data_source
 def dummy_data(ctx: FrozenContext):

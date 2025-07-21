@@ -16,7 +16,7 @@ Crystallize's plugin system lets you modify behavior without subclassing `Experi
 ## Example: Timer Plugin
 
 ```python
-from crystallize.core.plugins import BasePlugin
+from crystallize import BasePlugin
 import time
 
 class TimerPlugin(BasePlugin):

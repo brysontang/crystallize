@@ -15,29 +15,29 @@ from typing import (
     Tuple,
 )
 
-from crystallize.core.context import FrozenContext
-from crystallize.core.datasource import DataSource
-from crystallize.core.execution import VALID_EXECUTOR_TYPES, SerialExecution
-from crystallize.core.hypothesis import Hypothesis
-from crystallize.core.optimizers import BaseOptimizer, Objective
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.plugins import (
+from crystallize.utils.context import FrozenContext
+from crystallize.datasources.datasource import DataSource
+from crystallize.plugins.execution import VALID_EXECUTOR_TYPES, SerialExecution
+from crystallize.experiments.hypothesis import Hypothesis
+from crystallize.experiments.optimizers import BaseOptimizer, Objective
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.plugins.plugins import (
     ArtifactPlugin,
     BasePlugin,
     LoggingPlugin,
     SeedPlugin,
     default_seed_function,
 )
-from crystallize.core.result import Result
-from crystallize.core.result_structs import (
+from crystallize.experiments.result import Result
+from crystallize.experiments.result_structs import (
     ExperimentMetrics,
     HypothesisResult,
     TreatmentMetrics,
     AggregateData,
 )
-from crystallize.core.run_results import ReplicateResult
-from crystallize.core.treatment import Treatment
-from crystallize.core.constants import (
+from crystallize.experiments.run_results import ReplicateResult
+from crystallize.experiments.treatment import Treatment
+from crystallize.utils.constants import (
     METADATA_FILENAME,
     BASELINE_CONDITION,
     REPLICATE_KEY,
@@ -61,10 +61,10 @@ class Experiment:
 
     An ``Experiment`` coordinates data loading, pipeline execution, treatment
     application and hypothesis verification.  Behavior during the run is
-    extended through a list of :class:`~crystallize.core.plugins.BasePlugin`
+    extended through a list of :class:`~crystallize.plugins.plugins.BasePlugin`
     instances, allowing custom seeding strategies, logging, artifact handling
     or alternative execution loops.  All state is communicated via a
-    :class:`~crystallize.core.context.FrozenContext` instance passed through the
+    :class:`~crystallize.utils.context.FrozenContext` instance passed through the
     pipeline steps.
     """
 
@@ -205,7 +205,7 @@ class Experiment:
             raise RuntimeError("ArtifactPlugin required to load artifacts")
 
         if self.id is None:
-            from .cache import compute_hash
+            from crystallize.utils.cache import compute_hash
 
             self.id = compute_hash(self.pipeline.signature())
 
@@ -467,7 +467,7 @@ class Experiment:
            hypotheses are verified.
         4. ``after_run`` hooks for all plugins are executed.
 
-        The returned :class:`~crystallize.core.result.Result` contains aggregated
+        The returned :class:`~crystallize.experiments.result.Result` contains aggregated
         metrics, any captured errors and a provenance record of context
         mutations for every pipeline step.
         """
@@ -484,7 +484,7 @@ class Experiment:
         if datasource_reps is not None and datasource_reps != replicates:
             raise ValueError("Replicates mismatch with datasource metadata")
 
-        from .cache import compute_hash
+        from crystallize.utils.cache import compute_hash
 
         self.id = compute_hash(self.pipeline.signature())
 
@@ -553,7 +553,7 @@ class Experiment:
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
 
-        from .cache import compute_hash
+        from crystallize.utils.cache import compute_hash
 
         self.id = compute_hash(self.pipeline.signature())
 

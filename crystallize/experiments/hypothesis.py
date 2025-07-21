@@ -1,6 +1,6 @@
 from typing import Any, Callable, Dict, Mapping, Sequence, Optional
 
-from crystallize.core.exceptions import MissingMetricError
+from crystallize.utils.exceptions import MissingMetricError
 
 
 class Hypothesis:

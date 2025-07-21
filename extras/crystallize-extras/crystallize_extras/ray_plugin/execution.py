@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Callable, List
 
-from crystallize.core.plugins import BasePlugin
-from crystallize.core.experiment import Experiment
+from crystallize.plugins.plugins import BasePlugin
+from crystallize.experiments.experiment import Experiment
 
 try:
     import ray

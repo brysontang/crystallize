@@ -1,7 +1,7 @@
 import pytest
-from crystallize.core.context import FrozenContext
-from crystallize.core.injection import inject_from_ctx
-from crystallize.core import pipeline_step
+from crystallize.utils.context import FrozenContext
+from crystallize.utils.injection import inject_from_ctx
+from crystallize import pipeline_step
 import random
 
 

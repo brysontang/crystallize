@@ -4,15 +4,15 @@ import json
 from pathlib import Path
 
 from crystallize import data_source, pipeline_step
-from crystallize.core import (
+from crystallize import (
     ArtifactPlugin,
     Experiment,
     ExperimentGraph,
     MultiArtifactDataSource,
     Pipeline,
     Treatment,
+    FrozenContext,
 )
-from crystallize.core.context import FrozenContext
 
 
 @data_source

@@ -1,8 +1,8 @@
 from experiment1 import exp1
 
 from crystallize import pipeline_step
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
+from crystallize import Experiment
+from crystallize.pipelines.pipeline import Pipeline
 
 
 @pipeline_step()

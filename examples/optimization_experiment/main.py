@@ -3,11 +3,10 @@ from __future__ import annotations
 from typing import List
 
 from crystallize import data_source, pipeline_step
-from crystallize.core.context import FrozenContext
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.optimizers import BaseOptimizer, Objective
-from crystallize.core.treatment import Treatment
+from crystallize import Experiment, FrozenContext
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.experiments.optimizers import BaseOptimizer, Objective
+from crystallize import Treatment
 
 
 class GridSearchOptimizer(BaseOptimizer):

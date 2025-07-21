@@ -74,13 +74,17 @@ Once a key is set its value cannot be modified. Attempting to do so raises :clas
 **Attributes:**
  
  - <b>`metrics`</b>:  :class:`FrozenMetrics` used to accumulate lists of metric  values. 
- - <b>`artifacts`</b>:  :class:`ArtifactLog` collecting binary artifacts to be saved 
- - <b>`by `</b>: class:`~crystallize.core.plugins.ArtifactPlugin`. 
+- <b>`artifacts`</b>:  :class:`ArtifactLog` collecting binary artifacts to be saved
+- <b>`by `</b>: class:`~crystallize.core.plugins.ArtifactPlugin`.
+- <b>`logger`</b>:  :class:`logging.Logger` used for debug and info messages.
 
 ### <kbd>method</kbd> `FrozenContext.__init__`
 
 ```python
-__init__(initial: Mapping[str, Any]) → None
+__init__(
+    initial: Mapping[str, Any],
+    logger: Optional[logging.Logger] = None,
+) → None
 ```
 
 

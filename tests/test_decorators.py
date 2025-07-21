@@ -7,6 +7,7 @@ from crystallize import (
     pipeline_step,
     verifier,
     treatment,
+    ParallelExecution,
 )
 from crystallize.utils.context import ContextMutationError, FrozenContext
 from crystallize.experiments.experiment import Experiment
@@ -18,7 +19,7 @@ def add(data, ctx, value=1):
     return data + value
 
 
-@pipeline_step(cacheable=False)
+@pipeline_step()
 def metrics(data, ctx):
     ctx.metrics.add("result", data)
     return {"result": data}
@@ -123,3 +124,32 @@ def test_negative_replicates_clamped():
     exp.validate()
     exp.run(replicates=-3)
     assert exp.replicates == 1
+
+
+# Your existing decorated functions
+@pipeline_step()
+def add(data, ctx, value=1):
+    return data + value
+
+
+@data_source
+def dummy_source(ctx, value=1):
+    return value
+
+
+def test_experiment_fails_with_multiprocessing():
+    """
+    This test will fail because the decorators create unpicklable objects.
+    """
+    datasource_obj = dummy_source(value=3)
+    pipeline_obj = Pipeline([add(value=2)])
+
+    exp = Experiment(
+        datasource=datasource_obj,
+        pipeline=pipeline_obj,
+        plugins=[ParallelExecution(executor_type="process")],
+    )
+    exp.validate()
+
+    # This call will crash and cause the test to fail
+    exp.run(replicates=2)

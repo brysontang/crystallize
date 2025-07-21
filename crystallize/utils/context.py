@@ -36,17 +36,21 @@ class FrozenContext:
     :class:`ContextMutationError`. This immutability guarantees deterministic
     provenance during pipeline execution.
 
-    Attributes:
-        metrics: :class:`FrozenMetrics` used to accumulate lists of metric
+        Attributes:
+            metrics: :class:`FrozenMetrics` used to accumulate lists of metric
             values.
         artifacts: :class:`ArtifactLog` collecting binary artifacts to be saved
             by :class:`~crystallize.plugins.plugins.ArtifactPlugin`.
+        logger: :class:`logging.Logger` used for debug and info messages.
     """
 
-    def __init__(self, initial: Mapping[str, Any]) -> None:
+    def __init__(
+        self, initial: Mapping[str, Any], logger: Optional[logging.Logger] = None
+    ) -> None:
         self._data = copy.deepcopy(dict(initial))
         self.metrics = FrozenMetrics()
         self.artifacts = ArtifactLog()
+        self.logger = logger or logging.getLogger("crystallize")
 
     def __getitem__(self, key: str) -> Any:
         return copy.deepcopy(self._data[key])

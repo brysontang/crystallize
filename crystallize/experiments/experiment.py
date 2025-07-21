@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from contextlib import contextmanager
+import logging
 from pathlib import Path
 from typing import (
     Any,
@@ -257,8 +258,10 @@ class Experiment:
         Execute one pipeline run for either the baseline (treatment is None)
         or a specific treatment.
         """
-        # Clone ctx to avoid cross‐run contamination
-        run_ctx = FrozenContext(ctx.as_dict())
+        # Clone ctx to avoid cross-run contamination and attach logger
+        log_plugin = self.get_plugin(LoggingPlugin)
+        logger = logging.getLogger("crystallize") if log_plugin else logging.getLogger()
+        run_ctx = FrozenContext(ctx.as_dict(), logger=logger)
 
         # Apply treatment if present
         if treatment:
@@ -270,7 +273,6 @@ class Experiment:
         local_seed: Optional[int] = run_ctx.get(SEED_USED_KEY)
 
         data = self.datasource.fetch(run_ctx)
-        log_plugin = self.get_plugin(LoggingPlugin)
         verbose = log_plugin.verbose if log_plugin else False
         _, prov = self.pipeline.run(
             data,

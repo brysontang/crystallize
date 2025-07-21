@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from typing import Any, Dict
 
 from crystallize.utils.context import FrozenContext
@@ -21,6 +20,18 @@ def _create_openai_client(client_options: Dict[str, Any]) -> OpenAI:
     return OpenAI(**client_options)
 
 
+# FIX 1: Create a top-level, picklable class to hold the options
+class OpenAiClientFactory:
+    """A picklable callable that creates an OpenAI client."""
+
+    def __init__(self, client_options: Dict[str, Any]):
+        self.client_options = client_options
+
+    def __call__(self, ctx: FrozenContext) -> OpenAI:
+        # The logic from the lambda now lives here
+        return _create_openai_client(self.client_options)
+
+
 class InitializeOpenaiClient(PipelineStep):
     """Pipeline step that initializes an OpenAI client during setup."""
 
@@ -32,9 +43,7 @@ class InitializeOpenaiClient(PipelineStep):
         self.client_options = client_options
         self.context_key = context_key
 
-    def __call__(
-        self, data: Any, ctx: FrozenContext
-    ) -> Any:  # pragma: no cover - passthrough
+    def __call__(self, data: Any, ctx: FrozenContext) -> Any:
         return data
 
     @property
@@ -42,16 +51,15 @@ class InitializeOpenaiClient(PipelineStep):
         return {"client_options": self.client_options, "context_key": self.context_key}
 
     def setup(self, ctx: FrozenContext) -> None:
+        # FIX 2: Instantiate our new picklable factory class
+        client_factory_instance = OpenAiClientFactory(self.client_options)
+
+        # Pass the picklable instance to resource_factory
         factory = resource_factory(
-            lambda ctx, opts=self.client_options: _create_openai_client(opts),
+            client_factory_instance,
             key=self.step_hash,
         )
         ctx.add(self.context_key, factory)
-
-    def teardown(
-        self, ctx: FrozenContext
-    ) -> None:  # pragma: no cover - handled by exit
-        pass
 
 
 def initialize_openai_client(

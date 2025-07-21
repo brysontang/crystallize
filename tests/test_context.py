@@ -107,3 +107,9 @@ def test_metrics_thread_safe_adds():
 
     vals = ctx.metrics["key"]
     assert sorted(vals) == [0, 1, 2, 3, 4]
+
+
+def test_context_has_default_logger():
+    ctx = FrozenContext({})
+    assert hasattr(ctx, "logger")
+    assert ctx.logger.name == "crystallize"

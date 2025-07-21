@@ -3,15 +3,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from crystallize import data_source, pipeline_step, Artifact
 from crystallize import (
+    Artifact,
     ArtifactPlugin,
     Experiment,
     ExperimentGraph,
     ExperimentInput,
+    FrozenContext,
     Pipeline,
     Treatment,
-    FrozenContext,
+    data_source,
+    pipeline_step,
 )
 
 
@@ -82,11 +84,7 @@ comfort_exp.validate()
 
 
 if __name__ == "__main__":
-    graph = ExperimentGraph()
-    for exp in (temp_exp, humidity_exp, comfort_exp):
-        graph.add_experiment(exp)
-    graph.add_dependency(comfort_exp, temp_exp)
-    graph.add_dependency(comfort_exp, humidity_exp)
+    graph = ExperimentGraph.from_experiments([temp_exp, humidity_exp, comfort_exp])
 
     print("Baseline run:")
     base = graph.run()

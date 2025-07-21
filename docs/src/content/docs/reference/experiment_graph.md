@@ -44,7 +44,17 @@ Add an edge from ``upstream`` to ``downstream``.
 add_experiment(experiment: 'Experiment') → None
 ```
 
-Add an experiment node to the graph. 
+Add an experiment node to the graph.
+
+---
+
+### <kbd>method</kbd> `ExperimentGraph.from_experiments`
+
+```python
+from_experiments(experiments: List[Experiment]) → ExperimentGraph
+```
+
+Automatically build a dependency graph by inspecting ``ExperimentInput`` objects.
 
 ---
 

@@ -1,16 +1,17 @@
-import pytest
 from pathlib import Path
 
-from crystallize.utils.context import FrozenContext
+import pytest
+
+from crystallize.datasources import Artifact
 from crystallize.datasources.datasource import DataSource, ExperimentInput
 from crystallize.experiments.experiment import Experiment
-from crystallize.experiments.hypothesis import Hypothesis
 from crystallize.experiments.experiment_graph import ExperimentGraph
+from crystallize.experiments.hypothesis import Hypothesis
+from crystallize.experiments.treatment import Treatment
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
-from crystallize.experiments.treatment import Treatment
-from crystallize.datasources import Artifact
 from crystallize.plugins.plugins import ArtifactPlugin
+from crystallize.utils.context import FrozenContext
 
 
 class DummySource(DataSource):
@@ -60,12 +61,18 @@ def test_empty_graph_runs():
 
 
 def test_hypotheses_verified():
-    exp_a = Experiment(datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="a")
+    exp_a = Experiment(
+        datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="a"
+    )
     exp_a.validate()
-    exp_b = Experiment(datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="b")
+    exp_b = Experiment(
+        datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="b"
+    )
     exp_b.validate()
 
-    hypo = Hypothesis(verifier=lambda b, t: {"diff": sum(t["val"]) - sum(b["val"])}, metrics="val")
+    hypo = Hypothesis(
+        verifier=lambda b, t: {"diff": sum(t["val"]) - sum(b["val"])}, metrics="val"
+    )
     exp_b.hypotheses = [hypo]
 
     graph = ExperimentGraph()
@@ -122,8 +129,12 @@ def test_add_experiment_requires_name():
 
 def test_add_dependency_requires_added_nodes():
     graph = ExperimentGraph()
-    exp_a = Experiment(datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="a")
-    exp_b = Experiment(datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="b")
+    exp_a = Experiment(
+        datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="a"
+    )
+    exp_b = Experiment(
+        datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="b"
+    )
     graph.add_experiment(exp_a)
     with pytest.raises(ValueError):
         graph.add_dependency(exp_b, exp_a)
@@ -257,3 +268,99 @@ def test_graph_resume_checks_downstream_outputs(tmp_path: Path, monkeypatch):
     graph2.run(strategy="resume")
 
     assert step_a2.calls == 1
+
+
+def test_from_experiments_builds_graph():
+    out_a = Artifact("a.txt")
+    out_b = Artifact("b.txt")
+
+    class ProduceStep(PipelineStep):
+        def __init__(self, art: Artifact) -> None:
+            self.art = art
+
+        def __call__(self, data, ctx):
+            self.art.write(b"x")
+            return data
+
+        @property
+        def params(self):
+            return {}
+
+    exp_a = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([ProduceStep(out_a)]),
+        name="a",
+        outputs=[out_a],
+    )
+    exp_b = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([ProduceStep(out_b)]),
+        name="b",
+        outputs=[out_b],
+    )
+    ds_c = ExperimentInput(first=out_a, second=out_b)
+    exp_c = Experiment(datasource=ds_c, pipeline=Pipeline([PassStep()]), name="c")
+
+    for e in (exp_a, exp_b, exp_c):
+        e.validate()
+
+    graph = ExperimentGraph.from_experiments([exp_a, exp_b, exp_c])
+    results = graph.run()
+    assert set(results) == {"a", "b", "c"}
+
+
+def test_from_experiments_cycle_raises():
+    art_a = Artifact("x")
+    art_b = Artifact("y")
+    exp_a = Experiment(
+        datasource=ExperimentInput(b=art_b),
+        pipeline=Pipeline([PassStep()]),
+        name="a",
+        outputs=[art_a],
+    )
+    exp_b = Experiment(
+        datasource=ExperimentInput(a=art_a),
+        pipeline=Pipeline([PassStep()]),
+        name="b",
+        outputs=[art_b],
+    )
+    for e in (exp_a, exp_b):
+        e.validate()
+
+    with pytest.raises(ValueError, match="cycles"):
+        ExperimentGraph.from_experiments([exp_a, exp_b])
+
+
+def test_from_experiments_unused_raises():
+    exp_a = Experiment(
+        datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="a"
+    )
+    exp_b = Experiment(
+        datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="b"
+    )
+    for e in (exp_a, exp_b):
+        e.validate()
+
+    with pytest.raises(ValueError, match="Unused experiments"):
+        ExperimentGraph.from_experiments([exp_a, exp_b])
+
+
+def test_from_experiments_duplicate_artifact():
+    art = Artifact("same")
+    exp_a = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([PassStep()]),
+        name="a",
+        outputs=[art],
+    )
+    exp_b = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([PassStep()]),
+        name="b",
+        outputs=[art],
+    )
+    for e in (exp_a, exp_b):
+        e.validate()
+
+    with pytest.raises(ValueError, match="multiple experiments"):
+        ExperimentGraph.from_experiments([exp_a, exp_b])

@@ -7,15 +7,12 @@ Crystallize can orchestrate complex workflows by chaining experiments in a direc
 
 ## 1. Build a Graph
 
-Use `ExperimentGraph` to register each experiment and declare dependencies:
+Use `ExperimentGraph.from_experiments()` to automatically discover dependencies:
 
 ```python
 from crystallize import ExperimentGraph
 
-graph = ExperimentGraph()
-graph.add_experiment(exp_a)
-graph.add_experiment(exp_b)
-graph.add_dependency(exp_b, exp_a)
+graph = ExperimentGraph.from_experiments([exp_a, exp_b])
 ```
 
 Running `graph.run()` executes experiments in topological order.

@@ -126,23 +126,10 @@ def test_negative_replicates_clamped():
     assert exp.replicates == 1
 
 
-# Your existing decorated functions
-@pipeline_step()
-def add(data, ctx, value=1):
-    return data + value
-
-
-@data_source
-def dummy_source(ctx, value=1):
-    return value
-
-
-def test_experiment_fails_with_multiprocessing():
-    """
-    This test will fail because the decorators create unpicklable objects.
-    """
+def test_experiment_runs_with_multiprocessing():
+    """Ensure decorated objects are picklable for multiprocessing."""
     datasource_obj = dummy_source(value=3)
-    pipeline_obj = Pipeline([add(value=2)])
+    pipeline_obj = Pipeline([add(value=2), metrics()])
 
     exp = Experiment(
         datasource=datasource_obj,
@@ -151,5 +138,5 @@ def test_experiment_fails_with_multiprocessing():
     )
     exp.validate()
 
-    # This call will crash and cause the test to fail
-    exp.run(replicates=2)
+    result = exp.run(replicates=2)
+    assert result.metrics.baseline.metrics["result"] == [5, 5]

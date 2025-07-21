@@ -32,6 +32,14 @@ from crystallize.experiments.treatment import Treatment
 _resource_cache = threading.local()
 
 
+def _reconstruct_from_factory(
+    factory: Callable[..., Any], params: Mapping[str, Any]
+) -> Any:
+    """Helper for pickling dynamically created objects."""
+
+    return factory(**params)
+
+
 def resource_factory(
     fn: Callable[[FrozenContext], Any], *, key: str | None = None
 ) -> Callable[[FrozenContext], Any]:
@@ -88,6 +96,9 @@ def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:
                 @property
                 def params(self) -> dict:
                     return {n: params[n] for n in explicit_params}
+
+                def __reduce__(self):
+                    return _reconstruct_from_factory, (factory, params)
 
             FunctionStep.__name__ = f"{fn.__name__.title()}Step"
             return FunctionStep()
@@ -165,6 +176,9 @@ def data_source(fn: Callable[..., Any]) -> Callable[..., DataSource]:
             @property
             def params(self) -> dict:
                 return {n: params[n] for n in param_names}
+
+            def __reduce__(self):
+                return _reconstruct_from_factory, (factory, params)
 
         FunctionSource.__name__ = f"{fn.__name__.title()}Source"
         return FunctionSource()

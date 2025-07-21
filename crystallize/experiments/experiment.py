@@ -239,6 +239,7 @@ class Experiment:
         class ArtifactDataSource(DataSource):
             def __init__(self) -> None:
                 self.replicates = replicates
+                self.required_outputs = [Output(name)]
 
             def fetch(self, ctx: FrozenContext) -> Any:
                 rep = ctx.get("replicate", 0)

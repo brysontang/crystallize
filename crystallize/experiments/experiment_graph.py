@@ -57,6 +57,7 @@ class ExperimentGraph:
 
         for name in order:
             exp: Experiment = self._graph.nodes[name]["experiment"]
+            run_strategy = strategy
             if strategy == "resume":
                 plugin = exp.get_plugin(ArtifactPlugin)
                 if plugin is not None:
@@ -67,12 +68,32 @@ class ExperimentGraph:
                             all_done = False
                             break
                     if all_done:
-                        continue
+                        succ = getattr(self._graph, "_succ", {})
+                        entry = succ.get(name, {})
+                        downstream = list(entry.keys() if isinstance(entry, dict) else entry)
+                        skip = True
+                        for dn in downstream:
+                            dn_exp: Experiment = self._graph.nodes[dn]["experiment"]
+                            reqs = getattr(dn_exp.datasource, "required_outputs", [])
+                            req_names = {r.name for r in reqs}
+                            if not req_names:
+                                continue
+                            if not req_names.issubset({o.name for o in exp.outputs}):
+                                continue
+                            for out_name in req_names:
+                                if not list(base.rglob(out_name)):
+                                    skip = False
+                                    break
+                            if not skip:
+                                break
+                        if skip:
+                            continue
+                        run_strategy = "rerun"
             result = exp.run(
                 treatments=treatments,
                 hypotheses=getattr(exp, "hypotheses", []),
                 replicates=replicates or getattr(exp, "replicates", 1),
-                strategy=strategy,
+                strategy=run_strategy,
             )
             self._results[name] = result
 

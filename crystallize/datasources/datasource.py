@@ -33,6 +33,9 @@ class MultiArtifactDataSource(DataSource):
         self._sources = kwargs
         first = next(iter(kwargs.values()))
         self._replicates = getattr(first, "replicates", None)
+        self.required_outputs = []
+        for src in kwargs.values():
+            self.required_outputs.extend(getattr(src, "required_outputs", []))
 
     def fetch(self, ctx: FrozenContext) -> dict[str, Any]:
         return {name: src.fetch(ctx) for name, src in self._sources.items()}

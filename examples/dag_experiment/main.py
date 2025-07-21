@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from crystallize import data_source, pipeline_step
+from crystallize import data_source, pipeline_step, Output
 from crystallize import (
     ArtifactPlugin,
     Experiment,
@@ -28,13 +28,11 @@ def humidities(ctx: FrozenContext) -> list[float]:
 
 
 @pipeline_step()
-def average(data: list[float], ctx: FrozenContext) -> float:
+def average(data: list[float], ctx: FrozenContext, out: Output) -> float:
     """Compute the average value adjusted by a ``factor`` parameter."""
     factor = ctx.get("factor", 1.0)
     avg = sum(data) / len(data) * factor
-    ctx.artifacts.add(
-        "average.json", json.dumps({"avg": avg}).encode()
-    )
+    out.write(json.dumps({"avg": avg}).encode())
     return avg
 
 
@@ -50,19 +48,23 @@ def comfort_index(data: dict[str, Path], ctx: FrozenContext) -> float:
     return index
 
 
+out_temp = Output("average.json")
 temp_exp = Experiment(
     datasource=temperatures(),
-    pipeline=Pipeline([average()]),
+    pipeline=Pipeline([average(out=out_temp)]),
     plugins=[ArtifactPlugin(root_dir="dag_output", versioned=True)],
     name="temperature_stats",
+    outputs=[out_temp],
 )
 temp_exp.validate()
 
+out_humidity = Output("average.json")
 humidity_exp = Experiment(
     datasource=humidities(),
-    pipeline=Pipeline([average()]),
+    pipeline=Pipeline([average(out=out_humidity)]),
     plugins=[ArtifactPlugin(root_dir="dag_output", versioned=True)],
     name="humidity_stats",
+    outputs=[out_humidity],
 )
 humidity_exp.validate()
 

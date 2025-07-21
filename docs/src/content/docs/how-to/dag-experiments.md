@@ -1,6 +1,6 @@
 ---
 title: Chaining Experiments with a DAG
-description: Use ExperimentGraph and MultiArtifactDataSource to link multiple experiments together.
+description: Use ExperimentGraph and ExperimentInput to link multiple experiments together.
 ---
 
 Crystallize can orchestrate complex workflows by chaining experiments in a directed acyclic graph (DAG). Upstream experiments generate artifacts that downstream ones consume.
@@ -22,12 +22,12 @@ Running `graph.run()` executes experiments in topological order.
 
 ## 2. Consume Multiple Artifacts
 
-Combine outputs from several experiments using `MultiArtifactDataSource`:
+Combine outputs from several experiments using `ExperimentInput`:
 
 ```python
-from crystallize import MultiArtifactDataSource
+from crystallize import ExperimentInput
 
-ds = MultiArtifactDataSource(
+ds = ExperimentInput(
     first=exp_a.artifact_datasource(step="StepA", name="output.json"),
     second=exp_b.artifact_datasource(step="StepB", name="output.json"),
 )

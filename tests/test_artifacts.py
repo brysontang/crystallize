@@ -9,6 +9,8 @@ from crystallize.experiments.experiment import Experiment
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.plugins.plugins import ArtifactPlugin
+from crystallize.datasources import Artifact, ArtifactLog
+from crystallize.utils.context import ContextMutationError
 
 
 class DummySource(DataSource):
@@ -182,3 +184,39 @@ def test_artifact_datasource_require_metadata(tmp_path: Path, monkeypatch):
 
     with pytest.raises(FileNotFoundError):
         exp1.artifact_datasource(step="LogStep", name="out.txt", require_metadata=True)
+
+
+def test_output_write_and_injection(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    class WriteStep(PipelineStep):
+        def __init__(self, out: Artifact) -> None:
+            self.out = out
+
+        def __call__(self, data, ctx):
+            self.out.write(b"data")
+            return data
+
+        @property
+        def params(self):
+            return {}
+
+    out = Artifact("x.txt")
+    pipeline = Pipeline([WriteStep(out)])
+    exp = Experiment(
+        datasource=DummySource(),
+        pipeline=pipeline,
+        plugins=[ArtifactPlugin(root_dir=str(tmp_path / "arts"))],
+        outputs=[out],
+    )
+    exp.validate()
+    exp.run()
+    path = tmp_path / "arts" / exp.id / "v0" / "baseline" / "results.json"
+    assert path.exists()
+
+
+def test_artifact_log_write_once():
+    log = ArtifactLog()
+    log.add("a.txt", b"1")
+    with pytest.raises(ContextMutationError):
+        log.add("a.txt", b"2")

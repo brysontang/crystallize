@@ -15,3 +15,7 @@ class PipelineExecutionError(CrystallizeError):
     def __init__(self, step_name: str, original_exception: Exception) -> None:
         super().__init__(f"Step '{step_name}' failed: {str(original_exception)}")
         self.original_exception = original_exception
+
+
+class ContextMutationError(CrystallizeError):
+    """Raised when attempting to mutate frozen context."""

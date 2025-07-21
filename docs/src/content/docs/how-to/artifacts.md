@@ -8,24 +8,29 @@ Crystallize steps can produce files like trained models or plots. Use `ArtifactP
 ## 1. Enable the Plugin
 
 ```python
-from crystallize import Experiment, Pipeline
+from crystallize import Experiment, Pipeline, Artifact
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.plugins.plugins import ArtifactPlugin
 
 
 class ModelStep(PipelineStep):
+    def __init__(self, out: Artifact):
+        self.out = out
+
     def __call__(self, data, ctx):
-        ctx.artifacts.add("model.bin", b"binary data")
+        self.out.write(b"binary data")
         return data
 
     @property
     def params(self):
         return {}
 
+out = Artifact("model.bin")
 exp = Experiment(
     datasource=my_source(),
-    pipeline=Pipeline([ModelStep()]),
+    pipeline=Pipeline([ModelStep(out)]),
     plugins=[ArtifactPlugin(root_dir="artifacts", versioned=True)],
+    outputs=[out],
 )
 exp.validate()
 exp.run()
@@ -90,3 +95,10 @@ exp_csv = Experiment(
 
 Set `require_metadata=True` when you want to ensure metadata exists and raise
 an error if the previous run lacked `ArtifactPlugin`.
+
+## Resuming Experiments
+
+Artifacts also enable resuming long experiments. Pass `strategy="resume"` to
+`Experiment.run()` or `ExperimentGraph.run()` and Crystallize will skip any
+conditions that already wrote a completion marker. Downstream experiments are
+rerun only when their required outputs are missing.

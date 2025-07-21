@@ -2,6 +2,7 @@ import random
 import time
 import threading
 from typing import Any, List
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -14,6 +15,7 @@ from crystallize.utils.cache import compute_hash
 from crystallize.utils.context import FrozenContext
 from crystallize.datasources.datasource import DataSource
 from crystallize.experiments.experiment import Experiment
+from crystallize.datasources import Artifact
 from crystallize.experiments.hypothesis import Hypothesis
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
@@ -999,3 +1001,44 @@ def test_apply_seed_plugin_autoseed():
     exp.validate()
     exp.apply(data=1)
     assert called == [hash(7)]
+
+
+def test_experiment_resume_skips(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    class CountStep(PipelineStep):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def __call__(self, data, ctx):
+            self.calls += 1
+            ctx.metrics.add("metric", data)
+            return {"metric": data}
+
+        @property
+        def params(self):
+            return {}
+
+    step = CountStep()
+    pipeline = Pipeline([step])
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp = Experiment(
+        datasource=DummyDataSource(),
+        pipeline=pipeline,
+        plugins=[plugin],
+        outputs=[Artifact("x.txt")],
+    )
+    exp.validate()
+    exp.run()
+    assert step.calls == 1
+
+    step2 = CountStep()
+    exp2 = Experiment(
+        datasource=DummyDataSource(),
+        pipeline=Pipeline([step2]),
+        plugins=[plugin],
+        outputs=[Artifact("x.txt")],
+    )
+    exp2.validate()
+    exp2.run(strategy="resume")
+    assert step2.calls == 0

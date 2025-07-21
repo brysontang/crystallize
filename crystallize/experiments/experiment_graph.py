@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from typing import Dict, List
+from pathlib import Path
+
+from crystallize.plugins.plugins import ArtifactPlugin
+from crystallize.utils.constants import BASELINE_CONDITION
 
 import networkx as nx
 
@@ -42,6 +46,7 @@ class ExperimentGraph:
         self,
         treatments: List[Treatment] | None = None,
         replicates: int | None = None,
+        strategy: str = "rerun",
     ) -> Dict[str, Result]:
         """Execute all experiments respecting dependency order."""
         if not nx.is_directed_acyclic_graph(self._graph):
@@ -52,10 +57,43 @@ class ExperimentGraph:
 
         for name in order:
             exp: Experiment = self._graph.nodes[name]["experiment"]
+            run_strategy = strategy
+            if strategy == "resume":
+                plugin = exp.get_plugin(ArtifactPlugin)
+                if plugin is not None:
+                    base = Path(plugin.root_dir) / (exp.name or exp.id) / "v0"
+                    all_done = True
+                    for cond in [BASELINE_CONDITION] + [t.name for t in exp.treatments]:
+                        if not (base / cond / ".crystallize_complete").exists():
+                            all_done = False
+                            break
+                    if all_done:
+                        succ = getattr(self._graph, "_succ", {})
+                        entry = succ.get(name, {})
+                        downstream = list(entry.keys() if isinstance(entry, dict) else entry)
+                        skip = True
+                        for dn in downstream:
+                            dn_exp: Experiment = self._graph.nodes[dn]["experiment"]
+                            reqs = getattr(dn_exp.datasource, "required_outputs", [])
+                            req_names = {r.name for r in reqs}
+                            if not req_names:
+                                continue
+                            if not req_names.issubset(set(exp.outputs)):
+                                continue
+                            for out_name in req_names:
+                                if not list(base.rglob(out_name)):
+                                    skip = False
+                                    break
+                            if not skip:
+                                break
+                        if skip:
+                            continue
+                        run_strategy = "rerun"
             result = exp.run(
                 treatments=treatments,
                 hypotheses=getattr(exp, "hypotheses", []),
                 replicates=replicates or getattr(exp, "replicates", 1),
+                strategy=run_strategy,
             )
             self._results[name] = result
 

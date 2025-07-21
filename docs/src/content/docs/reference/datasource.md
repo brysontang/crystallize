@@ -44,13 +44,13 @@ Implementations may load data from disk, generate synthetic samples or access re
 
 ---
 
-## <kbd>class</kbd> `MultiArtifactDataSource`
-Aggregate multiple artifact datasources into one. 
+## <kbd>class</kbd> `ExperimentInput`
+Load multiple named artifacts for an experiment.
 
-### <kbd>method</kbd> `MultiArtifactDataSource.__init__`
+### <kbd>method</kbd> `ExperimentInput.__init__`
 
 ```python
-__init__(**kwargs: crystallize.core.datasource.DataSource) → None
+__init__(**inputs: crystallize.core.datasource.DataSource) → None
 ```
 
 
@@ -60,7 +60,7 @@ __init__(**kwargs: crystallize.core.datasource.DataSource) → None
 
 ---
 
-#### <kbd>property</kbd> MultiArtifactDataSource.replicates
+#### <kbd>property</kbd> ExperimentInput.replicates
 
 
 
@@ -70,7 +70,7 @@ __init__(**kwargs: crystallize.core.datasource.DataSource) → None
 
 ---
 
-### <kbd>method</kbd> `MultiArtifactDataSource.fetch`
+### <kbd>method</kbd> `ExperimentInput.fetch`
 
 ```python
 fetch(ctx: crystallize.core.context.FrozenContext) → dict[str, Any]

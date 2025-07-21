@@ -55,7 +55,7 @@ parameters. Examples include:
 
 - reading ``ctx.get('replicate')`` to know the current replicate number
 - recording metrics with ``ctx.metrics.add()``
-- saving files or other artifacts via ``ctx.artifacts.add()``
+- saving files or other artifacts via ``Artifact.write()``
 
 Use parameter injection for simple values and fall back to ``ctx`` for these
 framework features.

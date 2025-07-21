@@ -1659,8 +1659,8 @@ packages:
   timestamp: 1751491581502
 - pypi: ./extras/crystallize-extras
   name: crystallize-extras
-  version: 0.5.0
-  sha256: 90e7bee77f53b316f6742b4aafc0f1c133fbfb9210c6e620fa9ac502c176b1c7
+  version: 0.6.0
+  sha256: d7a6e8d4dc76458d2613b25ae5a769e96a77dfaa75307221c75003d2b77093de
   requires_dist:
   - crystallize-ml
   - ray ; extra == 'ray'

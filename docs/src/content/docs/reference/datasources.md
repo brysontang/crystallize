@@ -10,7 +10,7 @@ title: Datasources
 
 **Global Variables**
 ---------------
-- **artifacts**
 - **datasource**
+- **artifacts**
 
 

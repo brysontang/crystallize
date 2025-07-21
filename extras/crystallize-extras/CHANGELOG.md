@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.5.0...crystallize-extras@v0.6.0) (2025-07-21)
+
+
+### Features
+
+* **crystallize-ml:** Flatten public api ([659ca6a](https://github.com/brysontang/crystallize/commit/659ca6a467bc890eb4e37572c0b6d3fe79b983bd))
+
 ## [0.5.0](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.4.0...crystallize-extras@v0.5.0) (2025-07-20)
 
 

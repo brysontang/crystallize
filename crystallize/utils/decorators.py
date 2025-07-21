@@ -15,7 +15,7 @@ from crystallize.utils.constants import (
     SEED_USED_KEY,
 )
 from crystallize.utils.context import FrozenContext
-from crystallize.datasources.datasource import DataSource, MultiArtifactDataSource
+from crystallize.datasources.datasource import DataSource, ExperimentInput
 from crystallize.plugins.execution import ParallelExecution, SerialExecution
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -233,7 +233,7 @@ __all__ = [
     "BasePlugin",
     "BaseOptimizer",
     "DataSource",
-    "MultiArtifactDataSource",
+    "ExperimentInput",
     "Experiment",
     "ExperimentGraph",
     "FrozenContext",

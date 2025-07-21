@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.experiments.experiment import Experiment
-from crystallize.datasources.datasource import DataSource, MultiArtifactDataSource
-from crystallize.datasources import Output
+from crystallize.datasources.datasource import DataSource, ExperimentInput
+from crystallize.datasources import Artifact
 from crystallize.experiments.treatment import Treatment
 from crystallize.utils.context import FrozenContext
 from crystallize.utils.decorators import (
@@ -41,7 +41,7 @@ __all__ = [
     "LoggingPlugin",
     "ArtifactPlugin",
     "ExperimentGraph",
-    "MultiArtifactDataSource",
-    "Output",
+    "Artifact",
+    "ExperimentInput",
 ]
 

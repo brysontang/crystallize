@@ -1,4 +1,4 @@
-from crystallize import data_source, pipeline_step, Output
+from crystallize import data_source, pipeline_step, Artifact
 from crystallize import Experiment
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.plugins.plugins import ArtifactPlugin
@@ -8,7 +8,7 @@ def source(ctx):
     return [1, 2, 3]
 
 @pipeline_step()
-def save_data(data, ctx, out: Output):
+def save_data(data, ctx, out: Artifact):
     import pandas as pd
 
     df = pd.DataFrame({"values": data})
@@ -16,7 +16,7 @@ def save_data(data, ctx, out: Output):
     out.write(csv)
     return data
 
-out_file = Output("data.csv")
+out_file = Artifact("data.csv")
 exp1 = Experiment(
     datasource=source(),
     pipeline=Pipeline([save_data(out=out_file)]),

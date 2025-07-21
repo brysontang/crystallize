@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from crystallize.utils.context import FrozenContext
+from .artifacts import Artifact
 
 
 class DataSource(ABC):
@@ -24,22 +25,24 @@ class DataSource(ABC):
         raise NotImplementedError()
 
 
-class MultiArtifactDataSource(DataSource):
-    """Aggregate multiple artifact datasources into one."""
+class ExperimentInput(DataSource):
+    """Load multiple named artifacts for an experiment."""
 
-    def __init__(self, **kwargs: DataSource) -> None:
-        if not kwargs:
-            raise ValueError("At least one datasource must be provided")
-        self._sources = kwargs
-        first = next(iter(kwargs.values()))
+    def __init__(self, **inputs: "Artifact") -> None:
+        if not inputs:
+            raise ValueError("At least one input must be provided")
+        self._inputs = inputs
+        first = next(iter(inputs.values()))
         self._replicates = getattr(first, "replicates", None)
-        self.required_outputs = []
-        for src in kwargs.values():
-            self.required_outputs.extend(getattr(src, "required_outputs", []))
+        self.required_outputs = list(inputs.values())
 
     def fetch(self, ctx: FrozenContext) -> dict[str, Any]:
-        return {name: src.fetch(ctx) for name, src in self._sources.items()}
+        return {name: art.fetch(ctx) for name, art in self._inputs.items()}
 
     @property
     def replicates(self) -> int | None:
         return self._replicates
+
+
+# Backwards compatibility
+MultiArtifactDataSource = ExperimentInput

@@ -15,7 +15,7 @@ from crystallize.utils.cache import compute_hash
 from crystallize.utils.context import FrozenContext
 from crystallize.datasources.datasource import DataSource
 from crystallize.experiments.experiment import Experiment
-from crystallize.datasources import Output
+from crystallize.datasources import Artifact
 from crystallize.experiments.hypothesis import Hypothesis
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
@@ -1026,7 +1026,7 @@ def test_experiment_resume_skips(tmp_path: Path, monkeypatch):
         datasource=DummyDataSource(),
         pipeline=pipeline,
         plugins=[plugin],
-        outputs=[Output("x.txt")],
+        outputs=[Artifact("x.txt")],
     )
     exp.validate()
     exp.run()
@@ -1037,7 +1037,7 @@ def test_experiment_resume_skips(tmp_path: Path, monkeypatch):
         datasource=DummyDataSource(),
         pipeline=Pipeline([step2]),
         plugins=[plugin],
-        outputs=[Output("x.txt")],
+        outputs=[Artifact("x.txt")],
     )
     exp2.validate()
     exp2.run(strategy="resume")

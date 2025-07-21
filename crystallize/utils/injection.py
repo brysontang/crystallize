@@ -5,7 +5,7 @@ from functools import wraps
 from typing import Any, Callable
 
 from .context import FrozenContext
-from crystallize.datasources import Output
+from crystallize.datasources import Artifact
 
 
 def inject_from_ctx(fn: Callable[..., Any]) -> Callable[..., Any]:
@@ -41,7 +41,7 @@ def inject_from_ctx(fn: Callable[..., Any]) -> Callable[..., Any]:
             bound.arguments[name] = value
 
         for name, val in list(bound.arguments.items()):
-            if isinstance(val, Output) and getattr(val, "_ctx", None) is None:
+            if isinstance(val, Artifact) and getattr(val, "_ctx", None) is None:
                 bound.arguments[name] = val._clone_with_context(ctx)
         return fn(*bound.args, **bound.kwargs)
 

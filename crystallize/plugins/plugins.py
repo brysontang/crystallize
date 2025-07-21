@@ -183,6 +183,9 @@ class ArtifactPlugin(BasePlugin):
     root_dir: str = "./crystallize_artifacts"
     versioned: bool = False
 
+    def __post_init__(self) -> None:
+        self._manifest: dict[str, str] = {}
+
     def before_run(self, experiment: Experiment) -> None:
         self.experiment_id = experiment.name or experiment.id
         base = Path(self.root_dir) / self.experiment_id
@@ -196,6 +199,7 @@ class ArtifactPlugin(BasePlugin):
             self.version = max(versions, default=-1) + 1
         else:
             self.version = 0
+        self._manifest.clear()
 
     def after_step(
         self,
@@ -211,6 +215,7 @@ class ArtifactPlugin(BasePlugin):
         condition = ctx.get(CONDITION_KEY, BASELINE_CONDITION)
         for artifact in ctx.artifacts:
             artifact.step_name = step.__class__.__name__
+            self._manifest[artifact.name] = artifact.step_name
             dest = (
                 Path(self.root_dir)
                 / self.experiment_id
@@ -245,3 +250,7 @@ class ArtifactPlugin(BasePlugin):
         dump_condition(BASELINE_CONDITION, result.metrics.baseline.metrics)
         for t_name, m in result.metrics.treatments.items():
             dump_condition(t_name, m.metrics)
+
+        with open(base / "_manifest.json", "w") as f:
+            json.dump(self._manifest, f)
+        self._manifest.clear()

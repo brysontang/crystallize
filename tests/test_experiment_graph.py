@@ -2,14 +2,14 @@ import pytest
 from pathlib import Path
 
 from crystallize.utils.context import FrozenContext
-from crystallize.datasources.datasource import DataSource, MultiArtifactDataSource
+from crystallize.datasources.datasource import DataSource, ExperimentInput
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.hypothesis import Hypothesis
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.experiments.treatment import Treatment
-from crystallize.datasources import Output
+from crystallize.datasources import Artifact
 from crystallize.plugins.plugins import ArtifactPlugin
 
 
@@ -107,7 +107,7 @@ def test_multi_artifact_datasource():
         def fetch(self, ctx: FrozenContext):
             return self.path
 
-    ds = MultiArtifactDataSource(first=PathSource("x"), second=PathSource("y"))
+    ds = ExperimentInput(first=PathSource("x"), second=PathSource("y"))
     ctx = FrozenContext({"replicate": 0})
     assert ds.fetch(ctx) == {"first": "x", "second": "y"}
     assert ds.replicates == 2
@@ -152,7 +152,7 @@ def test_graph_resume_skips_experiments(tmp_path: Path, monkeypatch):
         pipeline=Pipeline([step_a]),
         plugins=[plugin],
         name="a",
-        outputs=[Output("x.txt")],
+        outputs=[Artifact("x.txt")],
     )
     exp_a.validate()
     graph = ExperimentGraph()
@@ -166,7 +166,7 @@ def test_graph_resume_skips_experiments(tmp_path: Path, monkeypatch):
         pipeline=Pipeline([step_a2]),
         plugins=[plugin],
         name="a",
-        outputs=[Output("x.txt")],
+        outputs=[Artifact("x.txt")],
     )
     exp_a2.validate()
     graph2 = ExperimentGraph()
@@ -178,11 +178,11 @@ def test_graph_resume_skips_experiments(tmp_path: Path, monkeypatch):
 def test_graph_resume_checks_downstream_outputs(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
-    out1 = Output("one.txt")
-    out2 = Output("two.txt")
+    out1 = Artifact("one.txt")
+    out2 = Artifact("two.txt")
 
     class ProduceStep(PipelineStep):
-        def __init__(self, out_a: Output, out_b: Output | None = None) -> None:
+        def __init__(self, out_a: Artifact, out_b: Artifact | None = None) -> None:
             self.out_a = out_a
             self.out_b = out_b
             self.calls = 0
@@ -238,7 +238,7 @@ def test_graph_resume_checks_downstream_outputs(tmp_path: Path, monkeypatch):
     )
     exp_a2.validate()
 
-    ds_b2 = MultiArtifactDataSource(
+    ds_b2 = ExperimentInput(
         one=exp_a2.artifact_datasource(step="ProduceStep", name="one.txt"),
         two=exp_a2.artifact_datasource(step="ProduceStep", name="two.txt"),
     )

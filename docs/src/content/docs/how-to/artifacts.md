@@ -8,13 +8,13 @@ Crystallize steps can produce files like trained models or plots. Use `ArtifactP
 ## 1. Enable the Plugin
 
 ```python
-from crystallize import Experiment, Pipeline, Output
+from crystallize import Experiment, Pipeline, Artifact
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.plugins.plugins import ArtifactPlugin
 
 
 class ModelStep(PipelineStep):
-    def __init__(self, out: Output):
+    def __init__(self, out: Artifact):
         self.out = out
 
     def __call__(self, data, ctx):
@@ -25,7 +25,7 @@ class ModelStep(PipelineStep):
     def params(self):
         return {}
 
-out = Output("model.bin")
+out = Artifact("model.bin")
 exp = Experiment(
     datasource=my_source(),
     pipeline=Pipeline([ModelStep(out)]),

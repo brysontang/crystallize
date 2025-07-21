@@ -78,7 +78,7 @@ class ExperimentGraph:
                             req_names = {r.name for r in reqs}
                             if not req_names:
                                 continue
-                            if not req_names.issubset({o.name for o in exp.outputs}):
+                            if not req_names.issubset(set(exp.outputs)):
                                 continue
                             for out_name in req_names:
                                 if not list(base.rglob(out_name)):

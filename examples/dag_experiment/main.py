@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from crystallize import data_source, pipeline_step, Output
+from crystallize import data_source, pipeline_step, Artifact
 from crystallize import (
     ArtifactPlugin,
     Experiment,
     ExperimentGraph,
-    MultiArtifactDataSource,
+    ExperimentInput,
     Pipeline,
     Treatment,
     FrozenContext,
@@ -28,7 +28,7 @@ def humidities(ctx: FrozenContext) -> list[float]:
 
 
 @pipeline_step()
-def average(data: list[float], ctx: FrozenContext, out: Output) -> float:
+def average(data: list[float], ctx: FrozenContext, out: Artifact) -> float:
     """Compute the average value adjusted by a ``factor`` parameter."""
     factor = ctx.get("factor", 1.0)
     avg = sum(data) / len(data) * factor
@@ -48,7 +48,7 @@ def comfort_index(data: dict[str, Path], ctx: FrozenContext) -> float:
     return index
 
 
-out_temp = Output("average.json")
+out_temp = Artifact("average.json")
 temp_exp = Experiment(
     datasource=temperatures(),
     pipeline=Pipeline([average(out=out_temp)]),
@@ -58,7 +58,7 @@ temp_exp = Experiment(
 )
 temp_exp.validate()
 
-out_humidity = Output("average.json")
+out_humidity = Artifact("average.json")
 humidity_exp = Experiment(
     datasource=humidities(),
     pipeline=Pipeline([average(out=out_humidity)]),
@@ -68,7 +68,7 @@ humidity_exp = Experiment(
 )
 humidity_exp.validate()
 
-comfort_ds = MultiArtifactDataSource(
+comfort_ds = ExperimentInput(
     temp=temp_exp.artifact_datasource(step="AverageStep", name="average.json"),
     humidity=humidity_exp.artifact_datasource(step="AverageStep", name="average.json"),
 )

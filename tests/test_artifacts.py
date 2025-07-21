@@ -9,7 +9,7 @@ from crystallize.experiments.experiment import Experiment
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.plugins.plugins import ArtifactPlugin
-from crystallize.datasources import Output, ArtifactLog
+from crystallize.datasources import Artifact, ArtifactLog
 from crystallize.utils.context import ContextMutationError
 
 
@@ -190,7 +190,7 @@ def test_output_write_and_injection(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     class WriteStep(PipelineStep):
-        def __init__(self, out: Output) -> None:
+        def __init__(self, out: Artifact) -> None:
             self.out = out
 
         def __call__(self, data, ctx):
@@ -201,7 +201,7 @@ def test_output_write_and_injection(tmp_path: Path, monkeypatch):
         def params(self):
             return {}
 
-    out = Output("x.txt")
+    out = Artifact("x.txt")
     pipeline = Pipeline([WriteStep(out)])
     exp = Experiment(
         datasource=DummySource(),

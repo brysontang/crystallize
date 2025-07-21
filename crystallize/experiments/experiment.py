@@ -17,7 +17,7 @@ from typing import (
 )
 
 from crystallize.utils.context import FrozenContext
-from crystallize.datasources import Output
+from crystallize.datasources import Artifact
 from crystallize.datasources.datasource import DataSource
 from crystallize.plugins.execution import VALID_EXECUTOR_TYPES, SerialExecution
 from crystallize.experiments.hypothesis import Hypothesis
@@ -78,7 +78,7 @@ class Experiment:
         *,
         name: str | None = None,
         initial_ctx: Dict[str, Any] | None = None,
-        outputs: List[Output] | None = None,
+        outputs: List[Artifact] | None = None,
     ) -> None:
         """Instantiate an experiment configuration.
 
@@ -92,7 +92,10 @@ class Experiment:
         self.pipeline = pipeline
         self.name = name
         self.id: Optional[str] = None
-        self.outputs = outputs or []
+        outputs = outputs or []
+        self.outputs: Dict[str, Artifact] = {a.name: a for a in outputs}
+        for a in outputs:
+            a._producer = self
 
         self._setup_ctx = FrozenContext({})
         if initial_ctx:
@@ -239,7 +242,7 @@ class Experiment:
         class ArtifactDataSource(DataSource):
             def __init__(self) -> None:
                 self.replicates = replicates
-                self.required_outputs = [Output(name)]
+                self.required_outputs = [Artifact(name)]
 
             def fetch(self, ctx: FrozenContext) -> Any:
                 rep = ctx.get("replicate", 0)

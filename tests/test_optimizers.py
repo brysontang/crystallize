@@ -1,8 +1,8 @@
 
-from crystallize.core.experiment import Experiment
-from crystallize.core.optimizers import BaseOptimizer, Objective
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.treatment import Treatment
+from crystallize.experiments.experiment import Experiment
+from crystallize.experiments.optimizers import BaseOptimizer, Objective
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.experiments.treatment import Treatment
 from examples.optimization_experiment import main as opt_example
 
 

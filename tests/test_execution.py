@@ -2,7 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from crystallize.core.execution import ParallelExecution, SerialExecution
+from crystallize.plugins.execution import ParallelExecution, SerialExecution
 
 
 class DummyExperiment:
@@ -49,10 +49,10 @@ def test_parallel_execution_process(monkeypatch):
 
     monkeypatch.setattr("tqdm.tqdm", fake_tqdm)
     monkeypatch.setattr(
-        "crystallize.core.execution.ProcessPoolExecutor", ThreadPoolExecutor
+        "crystallize.plugins.execution.ProcessPoolExecutor", ThreadPoolExecutor
     )
     monkeypatch.setattr(
-        "crystallize.core.experiment._run_replicate_remote", lambda args: args[1] * 3
+        "crystallize.experiments.experiment._run_replicate_remote", lambda args: args[1] * 3
     )
     exec_plugin = ParallelExecution(progress=True, executor_type="process")
     exp = DummyExperiment(3)

@@ -6,11 +6,7 @@ from crystallize import (
     treatment,
     verifier,
 )
-from crystallize.core.plugins import LoggingPlugin
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.context import FrozenContext
+from crystallize import LoggingPlugin, ParallelExecution, Experiment, Pipeline, FrozenContext
 from scipy.stats import ttest_ind
 import random
  

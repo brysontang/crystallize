@@ -1,4 +1,4 @@
-from crystallize.core.exceptions import MissingMetricError, PipelineExecutionError
+from crystallize.utils.exceptions import MissingMetricError, PipelineExecutionError
 
 
 def test_missing_metric_error_message():

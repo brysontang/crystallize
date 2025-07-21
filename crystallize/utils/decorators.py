@@ -7,27 +7,27 @@ import threading
 from functools import update_wrapper
 from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
-from .constants import (
+from crystallize.utils.constants import (
     BASELINE_CONDITION,
     CONDITION_KEY,
     METADATA_FILENAME,
     REPLICATE_KEY,
     SEED_USED_KEY,
 )
-from .context import FrozenContext
-from .datasource import DataSource, MultiArtifactDataSource
-from .execution import ParallelExecution, SerialExecution
-from .experiment import Experiment
-from .experiment_graph import ExperimentGraph
-from .hypothesis import Hypothesis
-from .injection import inject_from_ctx
-from .optimizers import BaseOptimizer, Objective
-from .pipeline import Pipeline
-from .pipeline_step import PipelineStep
-from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
-from .result import Result
-from .run_results import ReplicateResult
-from .treatment import Treatment
+from crystallize.utils.context import FrozenContext
+from crystallize.datasources.datasource import DataSource, MultiArtifactDataSource
+from crystallize.plugins.execution import ParallelExecution, SerialExecution
+from crystallize.experiments.experiment import Experiment
+from crystallize.experiments.experiment_graph import ExperimentGraph
+from crystallize.experiments.hypothesis import Hypothesis
+from crystallize.utils.injection import inject_from_ctx
+from crystallize.experiments.optimizers import BaseOptimizer, Objective
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.pipelines.pipeline_step import PipelineStep
+from crystallize.plugins.plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
+from crystallize.experiments.result import Result
+from crystallize.experiments.run_results import ReplicateResult
+from crystallize.experiments.treatment import Treatment
 
 _resource_cache = threading.local()
 

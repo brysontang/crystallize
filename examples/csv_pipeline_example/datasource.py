@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 
 from crystallize import data_source
-from crystallize.core.context import FrozenContext
+from crystallize import FrozenContext
 
 
 @data_source

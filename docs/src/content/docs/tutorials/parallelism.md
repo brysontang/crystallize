@@ -101,8 +101,7 @@ Updated `scaling_experiment.py` (from verifying_hypotheses, add scaling):
 
 ```python
 from crystallize import data_source, pipeline_step, treatment, hypothesis, verifier
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.context import FrozenContext
+from crystallize import ParallelExecution, FrozenContext
 import pandas as pd
 import random
 from scipy.stats import ttest_ind

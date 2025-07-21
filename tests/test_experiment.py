@@ -5,20 +5,20 @@ from typing import Any, List
 
 import numpy as np
 import pytest
-from crystallize.core.plugins import ArtifactPlugin, BasePlugin
-from crystallize.core.result import Result
+from crystallize.plugins.plugins import ArtifactPlugin, BasePlugin
+from crystallize.experiments.result import Result
 
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.plugins import SeedPlugin
-from crystallize.core.cache import compute_hash
-from crystallize.core.context import FrozenContext
-from crystallize.core.datasource import DataSource
-from crystallize.core.experiment import Experiment
-from crystallize.core.hypothesis import Hypothesis
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.optimizers import BaseOptimizer, Objective
-from crystallize.core.treatment import Treatment
+from crystallize.plugins.execution import ParallelExecution
+from crystallize.plugins.plugins import SeedPlugin
+from crystallize.utils.cache import compute_hash
+from crystallize.utils.context import FrozenContext
+from crystallize.datasources.datasource import DataSource
+from crystallize.experiments.experiment import Experiment
+from crystallize.experiments.hypothesis import Hypothesis
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.pipelines.pipeline_step import PipelineStep
+from crystallize.experiments.optimizers import BaseOptimizer, Objective
+from crystallize.experiments.treatment import Treatment
 
 
 class DummyDataSource(DataSource):
@@ -593,7 +593,7 @@ def test_process_pool_respects_max_workers(monkeypatch):
 
             return F()
 
-    from crystallize.core import execution
+    from crystallize.plugins import execution
 
     monkeypatch.setattr(execution, "ProcessPoolExecutor", DummyExecutor)
     monkeypatch.setattr(execution.os, "cpu_count", lambda: 4)

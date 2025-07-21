@@ -1,7 +1,7 @@
 from typing import Dict, List, Mapping
 
 from crystallize import pipeline_step
-from crystallize.core.context import FrozenContext
+from crystallize import FrozenContext
 
 
 @pipeline_step()

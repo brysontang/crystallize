@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from crystallize.core.context import FrozenContext
-from crystallize.core.datasource import DataSource
-from crystallize.core.pipeline_step import PipelineStep
+from crystallize.utils.context import FrozenContext
+from crystallize.datasources.datasource import DataSource
+from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize import verifier
 
 

@@ -2,10 +2,10 @@ from typing import Any, Mapping
 
 import pytest
 
-from crystallize.core.context import FrozenContext
-from crystallize.core.exceptions import PipelineExecutionError
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep
+from crystallize.utils.context import FrozenContext
+from crystallize.utils.exceptions import PipelineExecutionError
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.pipelines.pipeline_step import PipelineStep
 
 
 class AddStep(PipelineStep):

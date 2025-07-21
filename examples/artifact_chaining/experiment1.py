@@ -1,7 +1,7 @@
 from crystallize import data_source, pipeline_step
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.plugins import ArtifactPlugin
+from crystallize import Experiment
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.plugins.plugins import ArtifactPlugin
 
 @data_source
 def source(ctx):

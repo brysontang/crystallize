@@ -3,9 +3,8 @@ from pathlib import Path
 from scipy.stats import ttest_ind
 
 from crystallize import hypothesis, verifier, treatment
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
+from crystallize import ParallelExecution, Experiment
+from crystallize.pipelines.pipeline import Pipeline
 
 from .datasource import csv_data_source
 from .steps.metric import explained_variance

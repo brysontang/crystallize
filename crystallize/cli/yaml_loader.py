@@ -17,13 +17,13 @@ except Exception:  # pragma: no cover - fallback when PyYAML missing
         return json.loads(content)
 
 
-from crystallize.core.execution import ParallelExecution, SerialExecution
-from crystallize.core.plugins import LoggingPlugin, SeedPlugin
-from crystallize.core.experiment import Experiment
-from crystallize.core.hypothesis import Hypothesis
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.treatment import Treatment
+from crystallize.plugins.execution import ParallelExecution, SerialExecution
+from crystallize.plugins.plugins import LoggingPlugin, SeedPlugin
+from crystallize.experiments.experiment import Experiment
+from crystallize.experiments.hypothesis import Hypothesis
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.pipelines.pipeline_step import PipelineStep
+from crystallize.experiments.treatment import Treatment
 
 
 def _load_attr(path: str) -> Any:

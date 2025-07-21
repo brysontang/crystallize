@@ -1,15 +1,15 @@
 import pytest
 import numpy as np
-from crystallize.core.context import FrozenContext
-from crystallize.core.datasource import DataSource
-from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.treatment import Treatment
-from crystallize.core.experiment import Experiment
+from crystallize.utils.context import FrozenContext
+from crystallize.datasources.datasource import DataSource
+from crystallize.pipelines.pipeline_step import PipelineStep
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.experiments.treatment import Treatment
+from crystallize.experiments.experiment import Experiment
 
-from crystallize.core.exceptions import MissingMetricError
-from crystallize.core.hypothesis import Hypothesis
-from crystallize.core import verifier
+from crystallize.utils.exceptions import MissingMetricError
+from crystallize.experiments.hypothesis import Hypothesis
+from crystallize import verifier
 
 
 def make_verifier(accepted: bool):

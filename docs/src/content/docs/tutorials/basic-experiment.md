@@ -18,8 +18,7 @@ from crystallize import (
     data_source,         # Decorator for data fetchers
     pipeline_step,       # Decorator for transformation steps
 )
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.context import FrozenContext  # Immutable context
+from crystallize import ParallelExecution, FrozenContext  # Immutable context
 import pandas as pd  # For data handling (assumes pandas installed)
 ```
 
@@ -137,8 +136,7 @@ print("Baseline metrics:", result.metrics.baseline.metrics)
 
 ```python
 from crystallize import data_source, pipeline_step
-from crystallize.core.execution import ParallelExecution
-from crystallize.core.context import FrozenContext
+from crystallize import ParallelExecution, FrozenContext
 import pandas as pd
 import random  # Unused here, but for future noise
 from scipy.stats import skew, kurtosis

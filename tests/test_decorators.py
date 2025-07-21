@@ -8,9 +8,9 @@ from crystallize import (
     verifier,
     treatment,
 )
-from crystallize.core.context import ContextMutationError, FrozenContext
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
+from crystallize.utils.context import ContextMutationError, FrozenContext
+from crystallize.experiments.experiment import Experiment
+from crystallize.pipelines.pipeline import Pipeline
 
 
 @pipeline_step()

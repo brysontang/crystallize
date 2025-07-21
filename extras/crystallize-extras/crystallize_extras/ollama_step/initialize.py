@@ -3,8 +3,8 @@ from __future__ import annotations
 from functools import partial
 from typing import Any
 
-from crystallize.core.context import FrozenContext
-from crystallize.core.pipeline_step import PipelineStep
+from crystallize.utils.context import FrozenContext
+from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize import resource_factory
 
 try:

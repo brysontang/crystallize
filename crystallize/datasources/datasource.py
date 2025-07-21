@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from crystallize.core.context import FrozenContext
+from crystallize.utils.context import FrozenContext
 
 
 class DataSource(ABC):

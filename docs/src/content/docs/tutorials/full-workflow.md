@@ -17,10 +17,7 @@ First create the core experiment that stays fixed across all stages.
 
 ```python
 from crystallize import data_source, pipeline_step, resource_factory
-from crystallize.core.context import FrozenContext
-from crystallize.core.pipeline import Pipeline
-
-from crystallize.core.experiment import Experiment
+from crystallize import FrozenContext, Pipeline, Experiment
 import random
 
 @data_source
@@ -64,8 +61,8 @@ This experiment – our *machine* – will be reused for optimization, validatio
 Define a simple grid search optimizer to explore different `delta` values.
 
 ```python
-from crystallize.core.optimizers import BaseOptimizer, Objective
-from crystallize.core.treatment import Treatment
+from crystallize.experiments.optimizers import BaseOptimizer, Objective
+from crystallize import Treatment
 
 class GridSearchOptimizer(BaseOptimizer):
     def __init__(self, grid: dict, objective: Objective):

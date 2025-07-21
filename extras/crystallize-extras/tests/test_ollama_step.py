@@ -1,7 +1,7 @@
 import pytest
 from crystallize_extras.ollama_step.initialize import initialize_ollama_client
 
-from crystallize.core.context import FrozenContext
+from crystallize.utils.context import FrozenContext
 
 
 class DummyClient:

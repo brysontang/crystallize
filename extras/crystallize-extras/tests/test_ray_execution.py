@@ -1,9 +1,9 @@
 import pytest
-from crystallize.core.experiment import Experiment
-from crystallize.core.pipeline import Pipeline
-from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.datasource import DataSource
-from crystallize.core.context import FrozenContext
+from crystallize.experiments.experiment import Experiment
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.pipelines.pipeline_step import PipelineStep
+from crystallize.datasources.datasource import DataSource
+from crystallize.utils.context import FrozenContext
 
 from crystallize_extras.ray_plugin.execution import RayExecution
 

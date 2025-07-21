@@ -1,7 +1,7 @@
 import pytest
 from crystallize_extras.openai_step.initialize import initialize_openai_client
 
-from crystallize.core.context import FrozenContext
+from crystallize.utils.context import FrozenContext
 
 
 class DummyClient:

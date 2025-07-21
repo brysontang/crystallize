@@ -1,8 +1,8 @@
 import pytest
-from crystallize.core.context import FrozenContext
-from crystallize.core.pipeline_step import PipelineStep
-from crystallize.core.cache import compute_hash
-from crystallize.core import pipeline_step
+from crystallize.utils.context import FrozenContext
+from crystallize.pipelines.pipeline_step import PipelineStep
+from crystallize.utils.cache import compute_hash
+from crystallize import pipeline_step
 
 
 class AddStep(PipelineStep):

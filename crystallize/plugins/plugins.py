@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional
 
-from .constants import (
+from crystallize.utils.constants import (
     REPLICATE_KEY,
     CONDITION_KEY,
     BASELINE_CONDITION,
@@ -16,10 +16,10 @@ from .constants import (
 )
 
 if TYPE_CHECKING:
-    from crystallize.core.context import FrozenContext
-    from crystallize.core.experiment import Experiment
-    from crystallize.core.pipeline_step import PipelineStep
-    from crystallize.core.result import Result
+    from crystallize.utils.context import FrozenContext
+    from crystallize.experiments.experiment import Experiment
+    from crystallize.pipelines.pipeline_step import PipelineStep
+    from crystallize.experiments.result import Result
 
 
 def default_seed_function(seed: int) -> None:
@@ -32,7 +32,7 @@ def default_seed_function(seed: int) -> None:
 
 
 class BasePlugin(ABC):
-    """Interface for extending the :class:`~crystallize.core.experiment.Experiment` lifecycle.
+    """Interface for extending the :class:`~crystallize.experiments.experiment.Experiment` lifecycle.
 
     Subclasses can override any of the hook methods to observe or modify the
     behaviour of an experiment.  Hooks are called in a well-defined order during

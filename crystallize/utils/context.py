@@ -4,7 +4,7 @@ from collections import defaultdict
 from types import MappingProxyType
 from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Tuple
 
-from .artifacts import ArtifactLog
+from crystallize.datasources.artifacts import ArtifactLog
 
 
 class ContextMutationError(Exception):
@@ -40,7 +40,7 @@ class FrozenContext:
         metrics: :class:`FrozenMetrics` used to accumulate lists of metric
             values.
         artifacts: :class:`ArtifactLog` collecting binary artifacts to be saved
-            by :class:`~crystallize.core.plugins.ArtifactPlugin`.
+            by :class:`~crystallize.plugins.plugins.ArtifactPlugin`.
     """
 
     def __init__(self, initial: Mapping[str, Any]) -> None:

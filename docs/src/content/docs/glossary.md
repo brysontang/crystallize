@@ -17,7 +17,7 @@ Example:
 
 ```python
 from crystallize import data_source
-from crystallize.core.context import FrozenContext
+from crystallize import FrozenContext
 
 @data_source
 def csv_source(ctx: FrozenContext, path: str) -> list:

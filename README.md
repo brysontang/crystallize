@@ -80,6 +80,7 @@ result = experiment.run(
 )
 print(result.metrics)
 print(result.hypothesis_result)
+result.print_tree()
 ```
 
 ### Project Structure

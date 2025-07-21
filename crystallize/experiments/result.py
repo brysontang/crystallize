@@ -7,6 +7,7 @@ from .result_structs import ExperimentMetrics, HypothesisResult
 
 class Result:
     """Outputs of an experiment run including metrics and provenance."""
+
     def __init__(
         self,
         metrics: ExperimentMetrics,
@@ -33,7 +34,28 @@ class Result:
 
     # ------------------------------------------------------------------ #
     def print_tree(self, fmt: str = "treatment > replicate > step") -> None:
-        """Print a tree summary of execution provenance."""
+        """Print a color-coded tree of execution provenance.
+
+        The ``fmt`` string controls the hierarchy of the output.  Valid tokens
+        are ``"treatment"``, ``"replicate"``, ``"step"`` and ``"action"``.  When
+        ``"action"`` is included as the final element, each step lists the
+        values read, metrics written and context mutations that occurred.
+
+        The function uses :mod:`rich` to render a pretty tree if the package is
+        installed; otherwise a plain-text version is printed.
+
+        Parameters
+        ----------
+        fmt:
+            Format specification controlling how provenance records are grouped.
+            The default groups by treatment, replicate and step.
+
+        Raises
+        ------
+        ValueError
+            If the format specification contains unknown tokens or ``"action"``
+            is not the final element.
+        """
         tokens = [t.strip().lower() for t in fmt.split(">")]
         valid = {"treatment", "replicate", "step", "action"}
         if any(tok not in valid for tok in tokens):
@@ -79,7 +101,7 @@ class Result:
 
         root = Node("Experiment Summary", "bold")
 
-        color_order = ['bold yellow', 'green', 'cyan']
+        color_order = ["bold yellow", "green", "cyan"]
 
         def get_color(token: str) -> str:
             return color_order[tokens.index(token)]
@@ -88,7 +110,7 @@ class Result:
             "treatment": get_color("treatment"),
             "replicate": get_color("replicate"),
             "step": get_color("step"),
-        }        
+        }
 
         def add_actions(parent: Node, acts: Dict[str, Any]) -> None:
             mapping = {

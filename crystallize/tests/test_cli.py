@@ -17,6 +17,7 @@ class DummyDataSource(DataSource):
 
 class PassStep(PipelineStep):
     cacheable = False
+
     def __call__(self, data, ctx):
         ctx.metrics.add("metric", data)
         return {"metric": data}

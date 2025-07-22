@@ -50,7 +50,10 @@ def json_config(tmp_path: Path) -> Path:
             "metrics": "result",
         },
         "treatments": [
-            {"name": "inc", "apply": {"target": f"{__name__}.inc", "params": {"amount": 1}}}
+            {
+                "name": "inc",
+                "apply": {"target": f"{__name__}.inc", "params": {"amount": 1}},
+            }
         ],
         "replicates": "2",
     }
@@ -82,7 +85,11 @@ def test_load_valid_yaml_config():
     config = {
         "datasource": {"target": f"{__name__}.dummy_source", "params": {"value": 2}},
         "pipeline": [{"target": f"{__name__}.add"}],
-        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+        "hypothesis": {
+            "verifier": {"target": f"{__name__}.always_sig"},
+            "ranker": f"{__name__}.rank",
+            "metrics": "result",
+        },
         "treatments": [
             {"name": "t", "apply": {"target": f"{__name__}.inc"}},
         ],
@@ -102,17 +109,26 @@ def test_load_yaml_type_conversion_error():
     config = {
         "datasource": {"target": f"{__name__}.dummy_source"},
         "pipeline": [{"target": f"{__name__}.add"}],
-        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+        "hypothesis": {
+            "verifier": {"target": f"{__name__}.always_sig"},
+            "ranker": f"{__name__}.rank",
+            "metrics": "result",
+        },
         "replicates": "two",
     }
     with pytest.raises(ValueError):
         load_experiment(config)
 
+
 def test_step_missing_target():
     config = {
         "datasource": {"target": f"{__name__}.dummy_source"},
         "pipeline": [{}],
-        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+        "hypothesis": {
+            "verifier": {"target": f"{__name__}.always_sig"},
+            "ranker": f"{__name__}.rank",
+            "metrics": "result",
+        },
     }
     with pytest.raises(KeyError):
         load_experiment(config)
@@ -122,7 +138,11 @@ def test_treatment_bad_apply_block():
     config = {
         "datasource": {"target": f"{__name__}.dummy_source"},
         "pipeline": [{"target": f"{__name__}.add"}],
-        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+        "hypothesis": {
+            "verifier": {"target": f"{__name__}.always_sig"},
+            "ranker": f"{__name__}.rank",
+            "metrics": "result",
+        },
         "treatments": [{"name": "t", "apply": {"params": {"amount": 1}}}],
     }
     with pytest.raises(KeyError):
@@ -133,7 +153,11 @@ def test_max_workers_invalid_type():
     config = {
         "datasource": {"target": f"{__name__}.dummy_source"},
         "pipeline": [{"target": f"{__name__}.add"}],
-        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+        "hypothesis": {
+            "verifier": {"target": f"{__name__}.always_sig"},
+            "ranker": f"{__name__}.rank",
+            "metrics": "result",
+        },
         "parallel": True,
         "max_workers": "many",
     }
@@ -152,7 +176,11 @@ def test_json_fallback(monkeypatch, tmp_path):
     cfg = {
         "datasource": {"target": f"{__name__}.dummy_source"},
         "pipeline": [{"target": f"{__name__}.add"}],
-        "hypothesis": {"verifier": {"target": f"{__name__}.always_sig"}, "ranker": f"{__name__}.rank", "metrics": "result"},
+        "hypothesis": {
+            "verifier": {"target": f"{__name__}.always_sig"},
+            "ranker": f"{__name__}.rank",
+            "metrics": "result",
+        },
     }
     path = tmp_path / "cfg.json"
     path.write_text(json.dumps(cfg))

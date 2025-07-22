@@ -53,7 +53,14 @@ def test_artifacts_saved_and_cleared(tmp_path: Path, monkeypatch):
 
     exp_id = compute_hash(pipeline.signature())
     expected = (
-        tmp_path / "arts" / exp_id / "v0" / "replicate_0" / "baseline" / "LogStep" / "out.txt"
+        tmp_path
+        / "arts"
+        / exp_id
+        / "v0"
+        / "replicate_0"
+        / "baseline"
+        / "LogStep"
+        / "out.txt"
     )
     assert expected.read_text() == "hello"
     assert logs == [0]
@@ -85,7 +92,9 @@ def test_artifact_datasource_before_run(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     pipeline = Pipeline([LogStep()])
     run_plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
-    exp_run = Experiment(datasource=DummySource(), pipeline=pipeline, plugins=[run_plugin])
+    exp_run = Experiment(
+        datasource=DummySource(), pipeline=pipeline, plugins=[run_plugin]
+    )
     exp_run.validate()
     exp_run.run(replicates=2)
 
@@ -111,8 +120,26 @@ def test_artifact_versioning(tmp_path: Path, monkeypatch):
     exp.run()
 
     exp_id = compute_hash(pipeline.signature())
-    path0 = tmp_path / "arts" / exp_id / "v0" / "replicate_0" / "baseline" / "LogStep" / "out.txt"
-    path1 = tmp_path / "arts" / exp_id / "v1" / "replicate_0" / "baseline" / "LogStep" / "out.txt"
+    path0 = (
+        tmp_path
+        / "arts"
+        / exp_id
+        / "v0"
+        / "replicate_0"
+        / "baseline"
+        / "LogStep"
+        / "out.txt"
+    )
+    path1 = (
+        tmp_path
+        / "arts"
+        / exp_id
+        / "v1"
+        / "replicate_0"
+        / "baseline"
+        / "LogStep"
+        / "out.txt"
+    )
     assert path0.exists() and path1.exists()
 
 

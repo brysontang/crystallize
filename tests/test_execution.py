@@ -52,7 +52,8 @@ def test_parallel_execution_process(monkeypatch):
         "crystallize.plugins.execution.ProcessPoolExecutor", ThreadPoolExecutor
     )
     monkeypatch.setattr(
-        "crystallize.experiments.experiment._run_replicate_remote", lambda args: args[1] * 3
+        "crystallize.experiments.experiment._run_replicate_remote",
+        lambda args: args[1] * 3,
     )
     exec_plugin = ParallelExecution(progress=True, executor_type="process")
     exp = DummyExperiment(3)

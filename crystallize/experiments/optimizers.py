@@ -35,4 +35,3 @@ class BaseOptimizer(ABC):
     def get_best_treatment(self) -> Treatment:
         """Return the best treatment found after all trials."""
         raise NotImplementedError
-

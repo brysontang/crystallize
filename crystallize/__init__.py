@@ -19,7 +19,12 @@ from crystallize.utils.decorators import (
     verifier,
 )
 from crystallize.plugins.execution import ParallelExecution, SerialExecution
-from crystallize.plugins.plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
+from crystallize.plugins.plugins import (
+    ArtifactPlugin,
+    BasePlugin,
+    LoggingPlugin,
+    SeedPlugin,
+)
 
 __all__ = [
     "pipeline_step",
@@ -44,4 +49,3 @@ __all__ = [
     "Artifact",
     "ExperimentInput",
 ]
-

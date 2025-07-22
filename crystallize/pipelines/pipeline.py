@@ -103,7 +103,11 @@ class Pipeline:
                 if vals != prev:
                     metrics_diff[k] = {"before": prev, "after": vals}
 
-            reads = target_ctx.reads.copy() if verbose and isinstance(target_ctx, LoggingContext) else {}
+            reads = (
+                target_ctx.reads.copy()
+                if verbose and isinstance(target_ctx, LoggingContext)
+                else {}
+            )
             self._record_provenance(
                 provenance,
                 step,
@@ -173,7 +177,6 @@ class Pipeline:
                 },
             }
         )
-
 
     def signature(self) -> str:
         """Hash‐friendly signature for caching/provenance."""

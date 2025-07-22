@@ -316,7 +316,9 @@ class Experiment:
         )
         if run_baseline:
             try:
-                baseline_result, baseline_seed, base_prov = self._run_condition(base_ctx)
+                baseline_result, baseline_seed, base_prov = self._run_condition(
+                    base_ctx
+                )
                 provenance[BASELINE_CONDITION] = base_prov
             except Exception as exc:  # pragma: no cover
                 rep_errors[f"baseline_rep_{rep}"] = exc

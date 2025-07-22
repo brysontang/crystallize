@@ -6,7 +6,11 @@ from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.plugins.plugins import LoggingPlugin
 from crystallize.experiments.result import Result
-from crystallize.experiments.result_structs import ExperimentMetrics, TreatmentMetrics, HypothesisResult
+from crystallize.experiments.result_structs import (
+    ExperimentMetrics,
+    TreatmentMetrics,
+    HypothesisResult,
+)
 
 
 class DummySource(DataSource):

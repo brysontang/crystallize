@@ -88,7 +88,9 @@ def load_experiment(config: Mapping[str, Any]) -> Experiment:
         max_workers = int(max_workers)
     executor_type = config.get("executor_type", "thread")
     if parallel:
-        exec_plugin = ParallelExecution(max_workers=max_workers, executor_type=executor_type)
+        exec_plugin = ParallelExecution(
+            max_workers=max_workers, executor_type=executor_type
+        )
     else:
         exec_plugin = SerialExecution()
 

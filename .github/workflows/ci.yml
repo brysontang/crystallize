@@ -22,4 +22,4 @@ jobs:
           pixi-version: v0.49.0
           locked: false
       - run: pixi install -e dev
-      - run: pixi run -e dev lint-check
+      - run: pixi run -e dev lint

@@ -52,7 +52,7 @@ platforms = ["osx-arm64", "linux-64", "win-64"]
 
 [tool.pixi.feature.dev.tasks]
 test = "pytest -q"
-cov = "pytest --cov=crystallize --cov-report=term-missing"
+cov = "pytest --cov=crystallize --cov-report=xml"
 lint = "ruff check crystallize tests"
 format = "ruff format crystallize tests"
 

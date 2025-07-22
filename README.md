@@ -38,7 +38,7 @@ Crystallize revolves around several key abstractions:
 Crystallize uses `pixi` for managing dependencies and environments:
 
 ```bash
-pixi install <not-yet-published-package>
+pixi install crystallize-ml
 ```
 
 ### Quick Example

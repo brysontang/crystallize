@@ -5,6 +5,19 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.16.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.15.0...crystallize-ml@v0.16.0) (2025-07-22)
+
+
+### Features
+
+* **crystallize-ml:** Auto build experiment graph ([cc7c1b7](https://github.com/brysontang/crystallize/commit/cc7c1b78e2e16f4d962deac1ed302ebc13096168))
+
+
+### Bug Fixes
+
+* **crystallize-ml:** Allow decorated objects to be pickled ([654fc3b](https://github.com/brysontang/crystallize/commit/654fc3b8687f83ffa5b8e6b68bdfedea29bd4810))
+* **crystallize-ml:** Pickle issue ([6830ac3](https://github.com/brysontang/crystallize/commit/6830ac3bbefeb6eaf5dc6d60c611d267d89f5374))
+
 ## [0.15.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.14.0...crystallize-ml@v0.15.0) (2025-07-21)
 
 

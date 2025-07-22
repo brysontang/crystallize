@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.6.0...crystallize-extras@v0.6.1) (2025-07-22)
+
+
+### Bug Fixes
+
+* **crystallize-ml:** Pickle issue ([6830ac3](https://github.com/brysontang/crystallize/commit/6830ac3bbefeb6eaf5dc6d60c611d267d89f5374))
+
 ## [0.6.0](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.5.0...crystallize-extras@v0.6.0) (2025-07-21)
 
 

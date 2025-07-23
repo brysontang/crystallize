@@ -9,6 +9,7 @@ from crystallize.experiments.experiment import Experiment
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.plugins.plugins import ArtifactPlugin
+from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.datasources import Artifact, ArtifactLog
 from crystallize.utils.context import ContextMutationError
 
@@ -247,3 +248,76 @@ def test_artifact_log_write_once():
     log.add("a.txt", b"1")
     with pytest.raises(ContextMutationError):
         log.add("a.txt", b"2")
+
+
+def test_artifact_plugin_unwritable_directory(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    def deny_open(*args, **kwargs):
+        raise PermissionError("no write")
+
+    monkeypatch.setattr("builtins.open", deny_open)
+
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+
+    exp = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([LogStep()]),
+        plugins=[plugin],
+    )
+    exp.validate()
+    with pytest.raises(PermissionError):
+        exp.run()
+
+
+class FlakyStep(PipelineStep):
+    def __init__(self, artifact: Artifact) -> None:
+        self.artifact = artifact
+
+    def __call__(self, data, ctx):
+        # do not write artifact
+        ctx.metrics.add("val", data)
+        return data
+
+    @property
+    def params(self):
+        return {}
+
+
+class DummyPass(PipelineStep):
+    def __call__(self, data, ctx):
+        return data
+
+    @property
+    def params(self):
+        return {}
+
+
+def test_missing_upstream_artifact(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    out = Artifact("x.txt")
+    step_a = FlakyStep(out)
+    exp_a = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([step_a]),
+        plugins=[plugin],
+        name="A",
+        outputs=[out],
+    )
+    ds_b = exp_a.artifact_datasource(step="FlakyStep", name="x.txt")
+    exp_b = Experiment(
+        datasource=ds_b,
+        pipeline=Pipeline([DummyPass()]),
+        plugins=[plugin],
+        name="B",
+    )
+    for e in (exp_a, exp_b):
+        e.validate()
+    graph = ExperimentGraph()
+    graph.add_experiment(exp_a)
+    graph.add_experiment(exp_b)
+    graph.add_dependency(exp_b, exp_a)
+    res = graph.run()
+    assert any(isinstance(e, FileNotFoundError) for e in res["B"].errors.values())
+

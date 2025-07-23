@@ -1038,3 +1038,23 @@ def test_experiment_resume_skips(tmp_path: Path, monkeypatch):
     exp2.validate()
     exp2.run(strategy="resume")
     assert step2.calls == 0
+
+
+class FailingAfterTwo(DataSource):
+    def fetch(self, ctx: FrozenContext):
+        rep = ctx.get("replicate", 0)
+        if rep > 2:
+            raise ValueError("DataSource failed")
+        return rep
+
+
+def test_run_datasource_partial_failures():
+    pipeline = Pipeline([PassStep()])
+    ds = FailingAfterTwo()
+    exp = Experiment(datasource=ds, pipeline=pipeline)
+    exp.validate()
+    res = exp.run(replicates=5)
+    assert res.metrics.baseline.metrics["metric"] == [0, 1, 2]
+    assert isinstance(res.errors.get("baseline_rep_3"), ValueError)
+    assert isinstance(res.errors.get("baseline_rep_4"), ValueError)
+

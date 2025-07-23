@@ -1,5 +1,5 @@
 import pytest
-from crystallize.cli import main
+from crystallize.yaml_cli import main
 
 
 def test_cli_missing_file(tmp_path):

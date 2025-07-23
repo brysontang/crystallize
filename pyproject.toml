@@ -20,6 +20,7 @@ dependencies = [
     "networkx >=3.4.2,<4",
     "tqdm",
     "rich >=13.8.1,<14",
+    "simple-term-menu >=1.6.6,<2",
 ]
 
 [project.optional-dependencies]
@@ -31,6 +32,9 @@ vllm = ["vllm"]
 [project.urls]
 Homepage = "https://github.com/brysontang/crystallize"
 Documentation = "https://github.com/brysontang/crystallize/tree/main/docs"
+
+[project.scripts]
+crystallize = "crystallize.cli:run"
 
 [tool.setuptools.packages.find]
 where = ["."]

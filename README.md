@@ -90,6 +90,22 @@ print(result.hypothesis_result)
 result.print_tree()
 ```
 
+### Command Line Interface
+
+Crystallize ships with an interactive CLI for discovering and executing
+experiments or experiment graphs.
+
+```bash
+# Discover and run a single experiment
+crystallize run experiment
+
+# Discover and run a graph from a specific directory
+crystallize run graph --path ./my_project/experiments
+
+# Preview actions without executing
+crystallize run graph --dry-run
+```
+
 ### Project Structure
 
 ```

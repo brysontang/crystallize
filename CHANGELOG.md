@@ -5,6 +5,19 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.19.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.18.0...crystallize-ml@v0.19.0) (2025-07-23)
+
+
+### Features
+
+* **crystallize-ml:** Add per-experiment replicate counts and fix DAG execution ([db13a4c](https://github.com/brysontang/crystallize/commit/db13a4cbdaf9b51c62618f63f274380cd0f1fdc6))
+
+
+### Documentation
+
+* Add best practices guide ([ece0573](https://github.com/brysontang/crystallize/commit/ece057343bd99d731c76184d7686de3d8d2e6c58))
+* **crystallize-ml:** Add advanced caching and seed plugin guides ([eb0ca47](https://github.com/brysontang/crystallize/commit/eb0ca47c80f6fd143e8d34e3ffe2d3f3ecc9e466))
+
 ## [0.18.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.17.1...crystallize-ml@v0.18.0) (2025-07-23)
 
 

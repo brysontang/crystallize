@@ -54,7 +54,14 @@ def test_print_tree_without_rich(monkeypatch, capsys):
     )
     prov = {
         "ctx_changes": {
-            "baseline": {0: [{"step": "AddStep", "ctx_changes": {"reads": {"x": 1}, "wrote": {}, "metrics": {}}}]}
+            "baseline": {
+                0: [
+                    {
+                        "step": "AddStep",
+                        "ctx_changes": {"reads": {"x": 1}, "wrote": {}, "metrics": {}},
+                    }
+                ]
+            }
         }
     }
     r = Result(metrics=metrics, provenance=prov)

@@ -53,8 +53,7 @@ class ParallelExecution(BasePlugin):
             submit_target = _run_replicate_remote
             treatments = getattr(experiment, "treatments", [])
             arg_list = [
-                (experiment, rep, treatments)
-                for rep in range(experiment.replicates)
+                (experiment, rep, treatments) for rep in range(experiment.replicates)
             ]
         else:
             default_workers = os.cpu_count() or 8

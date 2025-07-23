@@ -1,6 +1,10 @@
 import pytest
 
-from crystallize.experiments.result_structs import ExperimentMetrics, TreatmentMetrics, HypothesisResult
+from crystallize.experiments.result_structs import (
+    ExperimentMetrics,
+    TreatmentMetrics,
+    HypothesisResult,
+)
 
 
 def make_metrics() -> ExperimentMetrics:

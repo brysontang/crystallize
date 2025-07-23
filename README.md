@@ -1,5 +1,11 @@
 # Crystallize 🧪✨
 
+[![Test](https://github.com/brysontang/crystallize/actions/workflows/test.yml/badge.svg)](https://github.com/brysontang/crystallize/actions/workflows/test.yml)
+[![Lint](https://github.com/brysontang/crystallize/actions/workflows/lint.yml/badge.svg)](https://github.com/brysontang/crystallize/actions/workflows/lint.yml)
+[![PyPI Version](https://badge.fury.io/py/crystallize-ml.svg)](https://pypi.org/project/crystallize-ml/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/brysontang/crystallize/blob/main/LICENSE)
+[![Codecov](https://codecov.io/gh/brysontang/crystallize/branch/main/graph/badge.svg)](https://codecov.io/gh/brysontang/crystallize)
+
 ⚠️ Pre-Alpha Notice  
 This project is in an early experimental phase. Breaking changes may occur at any time. Use at your own risk.
 
@@ -38,7 +44,7 @@ Crystallize revolves around several key abstractions:
 Crystallize uses `pixi` for managing dependencies and environments:
 
 ```bash
-pixi install <not-yet-published-package>
+pixi install crystallize-ml
 ```
 
 ### Quick Example

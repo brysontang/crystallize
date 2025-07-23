@@ -516,9 +516,7 @@ def test_apply_with_treatment_and_exit():
     pipeline = Pipeline([IdentityStep(), PassStep()])
     datasource = DummyDataSource()
     treatment = Treatment("inc", {"increment": 2})
-    experiment = Experiment(
-        datasource=datasource, pipeline=pipeline
-    )
+    experiment = Experiment(datasource=datasource, pipeline=pipeline)
     experiment.validate()
     output = experiment.apply(treatment=treatment, data=5)
     assert output == {"metric": 5}
@@ -564,7 +562,6 @@ def test_multiple_hypotheses_partial_failure():
     exp.validate()
     with pytest.raises(Exception):
         exp.run(treatments=[Treatment("t", {"increment": 1})], hypotheses=[good, bad])
-
 
 
 def test_process_pool_respects_max_workers(monkeypatch):
@@ -656,9 +653,7 @@ def test_treatment_failure_recorded():
     pipeline = Pipeline([PassStep()])
     ds = DummyDataSource()
     failing = Treatment("boom", lambda ctx: (_ for _ in ()).throw(RuntimeError("bad")))
-    exp = Experiment(
-        datasource=ds, pipeline=pipeline
-    )
+    exp = Experiment(datasource=ds, pipeline=pipeline)
     exp.validate()
     result = exp.run(treatments=[failing], replicates=2)
     assert "boom_rep_0" in result.errors
@@ -800,6 +795,7 @@ def test_apply_seed_function_called():
     exp.validate()
     exp.apply(data=1, seed=5)
     assert called == [5]
+
 
 class CountingOptimizer(BaseOptimizer):
     def __init__(self) -> None:

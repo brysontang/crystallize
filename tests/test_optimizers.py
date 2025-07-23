@@ -1,4 +1,3 @@
-
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.optimizers import BaseOptimizer, Objective
 from crystallize.pipelines.pipeline import Pipeline
@@ -51,5 +50,3 @@ def test_mock_optimizer_counts_calls() -> None:
 
     assert optimizer.ask_count == 5
     assert optimizer.tell_count == 5
-
-

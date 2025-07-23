@@ -8,7 +8,10 @@ class Hypothesis:
 
     def __init__(
         self,
-        verifier: Callable[[Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]],
+        verifier: Callable[
+            [Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]],
+            Mapping[str, Any],
+        ],
         metrics: str | Sequence[str] | Sequence[Sequence[str]] | None = None,
         ranker: Callable[[Mapping[str, Any]], float] | None = None,
         name: Optional[str] = None,
@@ -40,7 +43,10 @@ class Hypothesis:
             The output of the ``verifier`` callable. When multiple metric groups
             are specified the result is a list of outputs in the same order.
         """
-        def subset(keys: Sequence[str]) -> tuple[Dict[str, Sequence[Any]], Dict[str, Sequence[Any]]]:
+
+        def subset(
+            keys: Sequence[str],
+        ) -> tuple[Dict[str, Sequence[Any]], Dict[str, Sequence[Any]]]:
             b: Dict[str, Sequence[Any]] = {}
             t: Dict[str, Sequence[Any]] = {}
             for k in keys:
@@ -56,7 +62,11 @@ class Hypothesis:
             groups = [list(baseline_metrics.keys())]
         elif isinstance(spec, str):
             groups = [[spec]]
-        elif spec and isinstance(spec[0], Sequence) and not isinstance(spec[0], (str, bytes)):  # type: ignore[index]
+        elif (
+            spec
+            and isinstance(spec[0], Sequence)
+            and not isinstance(spec[0], (str, bytes))
+        ):  # type: ignore[index]
             groups = [list(g) for g in spec]  # type: ignore[arg-type]
         else:
             groups = [list(spec)]  # type: ignore[arg-type]

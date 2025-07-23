@@ -26,6 +26,7 @@ class Treatment:
         if callable(apply):
             self._apply_fn = apply
         else:
+
             def _apply_fn(ctx: FrozenContext, items=apply) -> None:
                 for k, v in items.items():
                     ctx.add(k, v)

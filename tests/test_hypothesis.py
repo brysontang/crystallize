@@ -20,24 +20,35 @@ def make_verifier(accepted: bool):
 
 
 def test_verify_returns_result():
-    hyp = Hypothesis(verifier=make_verifier(True), metrics="metric", ranker=lambda r: 0.0)
+    hyp = Hypothesis(
+        verifier=make_verifier(True), metrics="metric", ranker=lambda r: 0.0
+    )
     result = hyp.verify({"metric": [1, 2]}, {"metric": [3, 4]})
     assert result["accepted"] is True
 
 
 def test_missing_metric_error():
-    hyp = Hypothesis(verifier=make_verifier(True), metrics="metric", ranker=lambda r: 0.0)
+    hyp = Hypothesis(
+        verifier=make_verifier(True), metrics="metric", ranker=lambda r: 0.0
+    )
     with pytest.raises(MissingMetricError):
         hyp.verify({"other": [1]}, {"metric": [2]})
 
 
 def test_name_defaults_to_metric():
-    hyp = Hypothesis(verifier=make_verifier(True), metrics="metric", ranker=lambda r: 0.0)
+    hyp = Hypothesis(
+        verifier=make_verifier(True), metrics="metric", ranker=lambda r: 0.0
+    )
     assert hyp.name == "<lambda>"
 
 
 def test_custom_name():
-    hyp = Hypothesis(verifier=make_verifier(True), metrics="metric", ranker=lambda r: 0.0, name="custom")
+    hyp = Hypothesis(
+        verifier=make_verifier(True),
+        metrics="metric",
+        ranker=lambda r: 0.0,
+        name="custom",
+    )
     assert hyp.name == "custom"
 
 
@@ -58,18 +69,20 @@ def test_grouped_metrics_return_list():
         key = next(iter(baseline))
         return {"diff": sum(treatment[key]) - sum(baseline[key])}
 
-    hyp = Hypothesis(verifier=verifier, metrics=[["x"], ["y"]], ranker=lambda r: r.get("diff", 0))
+    hyp = Hypothesis(
+        verifier=verifier, metrics=[["x"], ["y"]], ranker=lambda r: r.get("diff", 0)
+    )
     out = hyp.verify({"x": [1], "y": [10]}, {"x": [2], "y": [20]})
     assert isinstance(out, list) and len(out) == 2
 
 
 def test_rank_treatments_with_custom_ranker():
-    hyp = Hypothesis(verifier=make_verifier(True), metrics="m", ranker=lambda r: r["score"])
+    hyp = Hypothesis(
+        verifier=make_verifier(True), metrics="m", ranker=lambda r: r["score"]
+    )
     results = {"t1": {"score": 3}, "t2": {"score": 1}}
     ranking = hyp.rank_treatments(results)
     assert ranking["best"] == "t2"
-
-
 
 
 def test_hypothesis_verifier_fuzz_no_crash():
@@ -78,14 +91,20 @@ def test_hypothesis_verifier_fuzz_no_crash():
     st = hyp_lib.strategies
 
     @given(
-        st.dictionaries(st.text(min_size=1), st.lists(st.floats(allow_nan=False, allow_infinity=False), min_size=1)),
-        st.dictionaries(st.text(min_size=1), st.lists(st.floats(allow_nan=False, allow_infinity=False), min_size=1)),
+        st.dictionaries(
+            st.text(min_size=1),
+            st.lists(st.floats(allow_nan=False, allow_infinity=False), min_size=1),
+        ),
+        st.dictionaries(
+            st.text(min_size=1),
+            st.lists(st.floats(allow_nan=False, allow_infinity=False), min_size=1),
+        ),
     )
     def run(baseline, treatment):
         # Ensure both dictionaries have at least one matching key
         if not baseline or not treatment:
             return
-        
+
         common_key = next(iter(baseline))
         treatment[common_key] = treatment.get(common_key, baseline[common_key])
 
@@ -116,7 +135,9 @@ def test_full_experiment_with_scipy_verifier():
         )
         return {"p_value": p_value, "significant": p_value < alpha}
 
-    hyp = Hypothesis(verifier=welch_t_test(), metrics="data", ranker=lambda r: r["p_value"])
+    hyp = Hypothesis(
+        verifier=welch_t_test(), metrics="data", ranker=lambda r: r["p_value"]
+    )
 
     class CollectStep(PipelineStep):
         def __call__(self, data, ctx):
@@ -149,4 +170,3 @@ def test_verifier_factory_params_and_missing():
     assert v2({"a": [1]}, {"a": [6]})["above"] is False
     with pytest.raises(TypeError):
         param_verifier(missing=1)
-

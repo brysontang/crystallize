@@ -1,8 +1,8 @@
-name: CI
+name: lint
 on: [push, pull_request]
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -11,5 +11,4 @@ jobs:
           pixi-version: v0.49.0
           locked: false
       - run: pixi install -e dev
-      - run: pixi run lint
-      - run: pixi run test
+      - run: pixi run -e dev lint

@@ -42,9 +42,7 @@ class ArtifactLog:
             data: Raw bytes to be written to disk by ``ArtifactPlugin``.
         """
         if name in self._names:
-            raise ContextMutationError(
-                f"Artifact '{name}' already written in this run"
-            )
+            raise ContextMutationError(f"Artifact '{name}' already written in this run")
         self._names.add(name)
         self._items.append(ArtifactRecord(name=name, data=data, step_name=""))
 
@@ -92,7 +90,11 @@ class Artifact(DataSource):
         plugin = self._producer.get_plugin(ArtifactPlugin)
         if plugin is None:
             raise RuntimeError("ArtifactPlugin required to load artifacts")
-        return Path(plugin.root_dir) / (self._producer.name or self._producer.id) / f"v{plugin.version}"
+        return (
+            Path(plugin.root_dir)
+            / (self._producer.name or self._producer.id)
+            / f"v{plugin.version}"
+        )
 
     def _load_manifest(self) -> None:
         if self._manifest is not None:

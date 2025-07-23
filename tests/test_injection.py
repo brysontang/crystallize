@@ -23,6 +23,7 @@ def test_pipeline_step_inject():
     ctx = FrozenContext({"delta": 3})
     assert step(2, ctx) == 5
 
+
 def test_inject_missing_ctx():
     @inject_from_ctx
     def fn(data: int, ctx: FrozenContext, *, val: int = 0) -> int:

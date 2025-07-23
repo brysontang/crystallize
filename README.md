@@ -124,7 +124,7 @@ Contributions are very welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) fo
 Use [`code2prompt`](https://github.com/mufeedvh/code2prompt) to generate LLM-powered docs:
 
 ```bash
-code2prompt crystallize --exclude="*.lock" --exclude="**/docs/src/content/docs/reference/*" --exclude="**package-lock.json"
+code2prompt crystallize --exclude="*.lock" --exclude="**/docs/src/content/docs/reference/*" --exclude="**package-lock.json" --exclude="**CHANGELOG.md"
 ```
 
 ---

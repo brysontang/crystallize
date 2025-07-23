@@ -79,6 +79,9 @@ class Experiment:
         name: str | None = None,
         initial_ctx: Dict[str, Any] | None = None,
         outputs: List[Artifact] | None = None,
+        treatments: List[Treatment] | None = None,
+        hypotheses: List[Hypothesis] | None = None,
+        replicates: int = 1,
     ) -> None:
         """Instantiate an experiment configuration.
 
@@ -91,6 +94,9 @@ class Experiment:
         self.datasource = datasource
         self.pipeline = pipeline
         self.name = name
+        self.treatments = treatments or []
+        self.hypotheses = hypotheses or []
+        self.replicates = replicates
         self.id: Optional[str] = None
         outputs = outputs or []
         self.outputs: Dict[str, Artifact] = {a.name: a for a in outputs}
@@ -320,7 +326,7 @@ class Experiment:
                     base_ctx
                 )
                 provenance[BASELINE_CONDITION] = base_prov
-            except Exception as exc:  # pragma: no cover
+            except Exception as exc:
                 rep_errors[f"baseline_rep_{rep}"] = exc
                 return ReplicateResult(
                     baseline_metrics=baseline_result,
@@ -345,7 +351,7 @@ class Experiment:
                 if seed is not None:
                     treatment_seeds[t.name] = seed
                 provenance[t.name] = prov
-            except Exception as exc:  # pragma: no cover
+            except Exception as exc:
                 rep_errors[f"{t.name}_rep_{rep}"] = exc
 
         return ReplicateResult(
@@ -368,13 +374,10 @@ class Experiment:
 
     def _aggregate_results(self, results_list: List[ReplicateResult]) -> AggregateData:
         baseline_samples: List[Mapping[str, Any]] = []
-        treatment_samples: Dict[str, List[Mapping[str, Any]]] = {
-            t.name: [] for t in self.treatments
-        }
+        treatment_samples: Dict[str, List[Mapping[str, Any]]] = defaultdict(list)
         baseline_seeds: List[int] = []
-        treatment_seeds_agg: Dict[str, List[int]] = {
-            t.name: [] for t in self.treatments
-        }
+        treatment_seeds_agg: Dict[str, List[int]] = defaultdict(list)
+
         provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = (
             defaultdict(dict)
         )
@@ -491,12 +494,12 @@ class Experiment:
         if not self._validated:
             raise RuntimeError("Experiment must be validated before execution")
 
-        treatments = treatments or []
-        hypotheses = hypotheses or []
+        run_treatments = treatments if treatments is not None else self.treatments
+        run_hypotheses = hypotheses if hypotheses is not None else self.hypotheses
 
         datasource_reps = getattr(self.datasource, "replicates", None)
         if replicates is None:
-            replicates = datasource_reps or 1
+            replicates = datasource_reps or self.replicates
         replicates = max(1, replicates)
         if datasource_reps is not None and datasource_reps != replicates:
             raise ValueError("Replicates mismatch with datasource metadata")
@@ -505,7 +508,7 @@ class Experiment:
 
         self.id = compute_hash(self.pipeline.signature())
 
-        if hypotheses and not treatments:
+        if run_hypotheses and not run_treatments:
             raise ValueError("Cannot verify hypotheses without treatments")
 
         plugin = self.get_plugin(ArtifactPlugin)
@@ -516,7 +519,7 @@ class Experiment:
         if strategy == "resume" and plugin is not None:
             base_dir = Path(plugin.root_dir) / (self.name or self.id) / "v0"
             if base_dir.exists():
-                for cond in [BASELINE_CONDITION] + [t.name for t in treatments]:
+                for cond in [BASELINE_CONDITION] + [t.name for t in run_treatments]:
                     res_file = base_dir / cond / "results.json"
                     marker = base_dir / cond / ".crystallize_complete"
                     if res_file.exists() and marker.exists():
@@ -525,14 +528,14 @@ class Experiment:
                     else:
                         to_run.append(cond)
             else:
-                to_run = [BASELINE_CONDITION] + [t.name for t in treatments]
+                to_run = [BASELINE_CONDITION] + [t.name for t in run_treatments]
         else:
-            to_run = [BASELINE_CONDITION] + [t.name for t in treatments]
+            to_run = [BASELINE_CONDITION] + [t.name for t in run_treatments]
 
         run_baseline = BASELINE_CONDITION in to_run
-        active_treatments = [t for t in treatments if t.name in to_run]
+        active_treatments = [t for t in run_treatments if t.name in to_run]
 
-        with self._runtime_state(treatments, hypotheses, replicates):
+        with self._runtime_state(run_treatments, run_hypotheses, replicates):
             for plugin in self.plugins:
                 plugin.before_run(self)
 
@@ -595,6 +598,7 @@ class Experiment:
             return result
 
     # ------------------------------------------------------------------ #
+
     def apply(
         self,
         treatment: Treatment | None = None,

@@ -2,6 +2,18 @@ from typing import Any, Callable, Mapping, Union
 from crystallize.utils.context import FrozenContext
 
 
+# Add this helper class at the top of the file
+class _MappingApplier:
+    """A picklable callable that applies a mapping to a context."""
+
+    def __init__(self, items: Mapping[str, Any]):
+        self.items = items
+
+    def __call__(self, ctx: FrozenContext) -> None:
+        for k, v in self.items.items():
+            ctx.add(k, v)
+
+
 class Treatment:
     """Set up initial context values for a replicate.
 
@@ -27,11 +39,7 @@ class Treatment:
             self._apply_fn = apply
         else:
 
-            def _apply_fn(ctx: FrozenContext, items=apply) -> None:
-                for k, v in items.items():
-                    ctx.add(k, v)
-
-            self._apply_fn = _apply_fn
+            self._apply_fn = _MappingApplier(apply)
 
     # ---- framework use --------------------------------------------------
 

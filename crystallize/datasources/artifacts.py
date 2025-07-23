@@ -129,9 +129,24 @@ class Artifact(DataSource):
         step_name = self._manifest.get(self.name)
         if step_name is None:
             raise FileNotFoundError(f"Manifest missing entry for {self.name}")
-        rep = ctx.get("replicate", 0)
-        cond = ctx.get("condition", BASELINE_CONDITION)
-        path = base / f"replicate_{rep}" / cond / step_name / self.name
+
+        consumer_rep = ctx.get("replicate", 0)
+        rep_to_load = consumer_rep
+
+        if self.replicates and self.replicates > 0:
+            rep_to_load = consumer_rep % self.replicates
+
+        cond = ctx.get("condition")
+        path = base / f"replicate_{rep_to_load}" / cond / step_name / self.name
+
+        if not path.exists() and cond != BASELINE_CONDITION:
+            path = (
+                base
+                / f"replicate_{rep_to_load}"
+                / BASELINE_CONDITION
+                / step_name
+                / self.name
+            )
         if not path.exists():
             raise FileNotFoundError(f"Artifact {path} not found")
         return self.loader(path)

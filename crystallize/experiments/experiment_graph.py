@@ -126,15 +126,34 @@ class ExperimentGraph:
         for name in order:
             exp: Experiment = self._graph.nodes[name]["experiment"]
             run_strategy = strategy
+
             if strategy == "resume":
                 plugin = exp.get_plugin(ArtifactPlugin)
                 if plugin is not None:
                     base = Path(plugin.root_dir) / (exp.name or exp.id) / "v0"
+
+                    run_treatments = treatments or []
+                    exp_treatments_on_obj = getattr(exp, "treatments", [])
+                    if exp_treatments_on_obj:
+                        existing_names = {t.name for t in run_treatments}
+                        run_treatments.extend(
+                            [
+                                t
+                                for t in exp_treatments_on_obj
+                                if t.name not in existing_names
+                            ]
+                        )
+
+                    conditions_to_check = [BASELINE_CONDITION] + [
+                        t.name for t in run_treatments
+                    ]
+
                     all_done = True
-                    for cond in [BASELINE_CONDITION] + [t.name for t in exp.treatments]:
+                    for cond in conditions_to_check:
                         if not (base / cond / ".crystallize_complete").exists():
                             all_done = False
                             break
+
                     if all_done:
                         succ = getattr(self._graph, "_succ", {})
                         entry = succ.get(name, {})
@@ -146,16 +165,13 @@ class ExperimentGraph:
                             dn_exp: Experiment = self._graph.nodes[dn]["experiment"]
                             reqs = getattr(dn_exp.datasource, "required_outputs", [])
                             req_names = {r.name for r in reqs}
-                            # Find the specific artifacts this downstream experiment needs from the current one.
                             relevant_artifacts_to_check = req_names.intersection(
                                 set(exp.outputs)
                             )
 
-                            # If there's no overlap, this dependency is irrelevant, so we can skip to the next one.
                             if not relevant_artifacts_to_check:
                                 continue
 
-                            # Now, only check for the existence of the relevant files.
                             for out_name in relevant_artifacts_to_check:
                                 if not list(base.rglob(out_name)):
                                     skip = False
@@ -189,8 +205,13 @@ class ExperimentGraph:
                             self._results[name] = Result(metrics=metrics)
                             continue
                         run_strategy = "rerun"
+
+            final_treatments_for_exp = (
+                treatments if treatments is not None else getattr(exp, "treatments", [])
+            )
+
             result = exp.run(
-                treatments=treatments,
+                treatments=final_treatments_for_exp,
                 hypotheses=getattr(exp, "hypotheses", []),
                 replicates=replicates or getattr(exp, "replicates", 1),
                 strategy=run_strategy,

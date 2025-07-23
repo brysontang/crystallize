@@ -110,7 +110,21 @@ class ExperimentGraph:
         self._graph.add_edge(up_name, down_name)
 
     # ------------------------------------------------------------------ #
+
     def run(
+        self,
+        treatments: List[Treatment] | None = None,
+        replicates: int | None = None,
+        strategy: str = "rerun",
+    ) -> Dict[str, Result]:
+        """Synchronous wrapper for the async arun method."""
+        import asyncio
+
+        return asyncio.run(
+            self.arun(treatments=treatments, replicates=replicates, strategy=strategy)
+        )
+
+    async def arun(
         self,
         treatments: List[Treatment] | None = None,
         replicates: int | None = None,
@@ -210,7 +224,7 @@ class ExperimentGraph:
                 treatments if treatments is not None else getattr(exp, "treatments", [])
             )
 
-            result = exp.run(
+            result = await exp.arun(
                 treatments=final_treatments_for_exp,
                 hypotheses=getattr(exp, "hypotheses", []),
                 replicates=replicates or getattr(exp, "replicates", 1),

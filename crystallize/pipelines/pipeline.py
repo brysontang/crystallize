@@ -1,5 +1,6 @@
 import logging
 from typing import Any, Dict, List, Mapping, Optional, Tuple, TYPE_CHECKING
+import inspect
 
 if TYPE_CHECKING:
     from crystallize.experiments.experiment import Experiment
@@ -20,7 +21,7 @@ class Pipeline:
 
     # ------------------------------------------------------------------ #
 
-    def run(
+    async def run(
         self,
         data: Any,
         ctx: FrozenContext,
@@ -75,7 +76,11 @@ class Pipeline:
                     cache_hit = True
                 except (FileNotFoundError, IOError):
                     try:
-                        data = step(data, target_ctx)
+                        result = step(data, target_ctx)
+                        if inspect.isawaitable(result):
+                            data = await result
+                        else:
+                            data = result
                     except Exception as exc:
                         raise PipelineExecutionError(
                             step.__class__.__name__, exc
@@ -84,7 +89,11 @@ class Pipeline:
                     cache_hit = False
             else:
                 try:
-                    data = step(data, target_ctx)
+                    result = step(data, target_ctx)
+                    if inspect.isawaitable(result):
+                        data = await result
+                    else:
+                        data = result
                 except Exception as exc:
                     raise PipelineExecutionError(step.__class__.__name__, exc) from exc
                 cache_hit = False

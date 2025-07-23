@@ -109,6 +109,10 @@ def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:
                     kwargs = {n: params[n] for n in explicit_params}
                     return injected_fn(data, ctx, **kwargs)
 
+                async def __acall__(self, data: Any, ctx: FrozenContext) -> Any:
+                    kwargs = {n: params[n] for n in explicit_params}
+                    return await injected_fn(data, ctx, **kwargs)
+
                 @property
                 def params(self) -> dict:
                     return {n: params[n] for n in explicit_params}

@@ -15,6 +15,7 @@ from typing import (
     Sequence,
     Tuple,
 )
+import inspect
 
 from crystallize.utils.context import FrozenContext
 from crystallize.datasources import Artifact
@@ -269,7 +270,7 @@ class Experiment:
 
     # ------------------------------------------------------------------ #
 
-    def _run_condition(
+    async def _run_condition(
         self, ctx: FrozenContext, treatment: Optional[Treatment] = None
     ) -> Tuple[Mapping[str, Any], Optional[int], List[Mapping[str, Any]]]:
         """
@@ -292,7 +293,7 @@ class Experiment:
 
         data = self.datasource.fetch(run_ctx)
         verbose = log_plugin.verbose if log_plugin else False
-        _, prov = self.pipeline.run(
+        _, prov = await self.pipeline.run(
             data,
             run_ctx,
             verbose=verbose,
@@ -304,7 +305,7 @@ class Experiment:
         )
         return dict(run_ctx.metrics.as_dict()), local_seed, prov
 
-    def _execute_replicate(
+    async def _execute_replicate(
         self,
         rep: int,
         treatments: List[Treatment],
@@ -327,7 +328,7 @@ class Experiment:
         )
         if run_baseline:
             try:
-                baseline_result, baseline_seed, base_prov = self._run_condition(
+                baseline_result, baseline_seed, base_prov = await self._run_condition(
                     base_ctx
                 )
                 provenance[BASELINE_CONDITION] = base_prov
@@ -351,7 +352,7 @@ class Experiment:
                 }
             )
             try:
-                result, seed, prov = self._run_condition(ctx, t)
+                result, seed, prov = await self._run_condition(ctx, t)
                 treatment_result[t.name] = result
                 if seed is not None:
                     treatment_seeds[t.name] = seed
@@ -480,6 +481,26 @@ class Experiment:
         replicates: int | None = None,
         strategy: str = "rerun",
     ) -> Result:
+        """Synchronous wrapper for the async run method. Convenient for tests and scripts."""
+        import asyncio
+
+        return asyncio.run(
+            self.arun(
+                treatments=treatments,
+                hypotheses=hypotheses,
+                replicates=replicates,
+                strategy=strategy,
+            )
+        )
+
+    async def arun(
+        self,
+        *,
+        treatments: List[Treatment] | None = None,
+        hypotheses: List[Hypothesis] | None = None,
+        replicates: int | None = None,
+        strategy: str = "rerun",
+    ) -> Result:
         """Execute the experiment and return a :class:`Result` instance.
 
         The lifecycle proceeds as follows:
@@ -551,14 +572,21 @@ class Experiment:
                 execution_plugin = self._select_execution_plugin()
                 results_list = []
                 if run_baseline or active_treatments:
-                    results_list = execution_plugin.run_experiment_loop(
-                        self,
-                        lambda rep: self._execute_replicate(
+
+                    async def replicate_fn(rep):
+                        return await self._execute_replicate(
                             rep,
                             active_treatments,
                             run_baseline=run_baseline,
-                        ),
+                        )
+
+                    loop_result = execution_plugin.run_experiment_loop(
+                        self, replicate_fn
                     )
+                    if inspect.isawaitable(loop_result):
+                        results_list = await loop_result
+                    else:
+                        results_list = loop_result
 
                 aggregate = self._aggregate_results(results_list)
 
@@ -690,7 +718,7 @@ class Experiment:
 
     # ------------------------------------------------------------------ #
 
-    def optimize(
+    async def optimize(
         self,
         optimizer: "BaseOptimizer",
         num_trials: int,
@@ -700,7 +728,7 @@ class Experiment:
 
         for _ in range(num_trials):
             treatments_for_trial = optimizer.ask()
-            result = self.run(
+            result = await self.run(
                 treatments=treatments_for_trial,
                 hypotheses=[],
                 replicates=replicates_per_trial,

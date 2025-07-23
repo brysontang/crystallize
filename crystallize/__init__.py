@@ -8,6 +8,8 @@ from crystallize.datasources.datasource import DataSource, ExperimentInput
 from crystallize.datasources import Artifact
 from crystallize.experiments.treatment import Treatment
 from crystallize.utils.context import FrozenContext
+from crystallize.pipelines.pipeline import PipelineStep
+from crystallize.pipelines.pipeline import Pipeline
 from crystallize.utils.decorators import (
     data_source,
     hypothesis,
@@ -18,7 +20,11 @@ from crystallize.utils.decorators import (
     treatment,
     verifier,
 )
-from crystallize.plugins.execution import ParallelExecution, SerialExecution
+from crystallize.plugins.execution import (
+    AsyncExecution,
+    ParallelExecution,
+    SerialExecution,
+)
 from crystallize.plugins.plugins import (
     ArtifactPlugin,
     BasePlugin,
@@ -35,6 +41,8 @@ __all__ = [
     "verifier",
     "pipeline",
     "resource_factory",
+    "PipelineStep",
+    "Pipeline",
     "Experiment",
     "DataSource",
     "FrozenContext",
@@ -42,6 +50,7 @@ __all__ = [
     "BasePlugin",
     "SerialExecution",
     "ParallelExecution",
+    "AsyncExecution",
     "SeedPlugin",
     "LoggingPlugin",
     "ArtifactPlugin",

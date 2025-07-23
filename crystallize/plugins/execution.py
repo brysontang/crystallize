@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 import os
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
@@ -84,3 +85,21 @@ class ParallelExecution(BasePlugin):
                 idx = future_map[fut]
                 results[idx] = fut.result()
         return results
+
+
+@dataclass
+class AsyncExecution(BasePlugin):
+    """Run async replicates concurrently using asyncio.gather."""
+
+    progress: bool = False
+
+    async def run_experiment_loop(
+        self, experiment: "Experiment", replicate_fn: Callable[[int], Any]
+    ) -> List[Any]:
+        tasks = [replicate_fn(rep) for rep in range(experiment.replicates)]
+
+        if self.progress and experiment.replicates > 1:
+            from tqdm.asyncio import tqdm
+
+            return await tqdm.gather(*tasks, desc="Replicates")
+        return await asyncio.gather(*tasks)

@@ -47,6 +47,10 @@ export default defineConfig({
               slug: 'how-to/dag-experiments',
             },
             {
+              label: 'Advanced DAG Caching & Execution',
+              slug: 'how-to/advanced-dag-strategies',
+            },
+            {
               label: 'Viewing Provenance',
               slug: 'how-to/view-provenance',
             },
@@ -100,6 +104,10 @@ export default defineConfig({
             {
               label: 'Extending Crystallize',
               slug: 'explanation/extending',
+            },
+            {
+              label: 'Design Patterns & Best Practices',
+              slug: 'explanation/best-practices',
             },
             {
               label: 'How Crystallize Compares to Other Tools',

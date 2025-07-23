@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.6.1...crystallize-extras@v0.7.0) (2025-07-23)
+
+
+### Features
+
+* **crystallize-extras:** Added async openai extra ([fdb697a](https://github.com/brysontang/crystallize/commit/fdb697abe31f3b4dcc1b0ae20ae7a251ac5ccd49))
+
 ## [0.6.1](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.6.0...crystallize-extras@v0.6.1) (2025-07-22)
 
 

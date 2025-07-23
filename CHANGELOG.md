@@ -5,6 +5,19 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.19.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.19.0...crystallize-ml@v0.19.1) (2025-07-23)
+
+
+### Bug Fixes
+
+* **crystallize-ml:** Restore sync wrappers and async support ([f9dc241](https://github.com/brysontang/crystallize/commit/f9dc2418a5e5f7123b5f0d7ca5598ebd2632762e))
+* **crystallize-ml:** Simplify async execution ([9b2ca76](https://github.com/brysontang/crystallize/commit/9b2ca76d7ec581d030a50d08844ab45b536cfd15))
+
+
+### Documentation
+
+* **crystallize-ml:** Document async pipeline steps ([afab757](https://github.com/brysontang/crystallize/commit/afab757194ddfb278a0f2b502400bc0333e6f7ab))
+
 ## [0.19.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.18.0...crystallize-ml@v0.19.0) (2025-07-23)
 
 

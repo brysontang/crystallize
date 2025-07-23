@@ -1,4 +1,8 @@
-import argparse
+"""Textual-based CLI for crystallize.
+"""
+
+from __future__ import annotations
+
 import asyncio
 import importlib.util
 import inspect
@@ -10,16 +14,31 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
 from rich.console import Console
 from rich.table import Table
 from simple_term_menu import TerminalMenu
+from textual.app import App, ComposeResult
+from textual.containers import Container
+from textual.widgets import Footer, ListItem, ListView, LoadingIndicator, Static
 
-from .experiments.experiment import Experiment
-from .experiments.experiment_graph import ExperimentGraph
-from .plugins.plugins import ArtifactPlugin
+from crystallize.experiments.experiment import Experiment
+from crystallize.experiments.experiment_graph import ExperimentGraph
+from crystallize.plugins.plugins import ArtifactPlugin
+
 
 OBJ_TYPES = {
     "experiment": Experiment,
     "graph": ExperimentGraph,
 }
 
+ASCII_ART = r"""
+                       _        _ _ _
+   ___ _ __ _   _ ___| |_ __ _| | (_)_______
+  / __| '__| | | / __| __/ _` | | | |_  / _ \
+ | (__| |  | |_| \__ \ || (_| | | | |/ /  __/
+  \___|_|   \__, |___/\__\__,_|_|_|_/___\___|
+            |___/
+"""
+
+
+# Discovery helpers copied from the original CLI
 
 def _import_module(file_path: Path, root_path: Path) -> Optional[Any]:
     """Import ``file_path`` as a module relative to ``root_path``."""
@@ -30,7 +49,7 @@ def _import_module(file_path: Path, root_path: Path) -> Optional[Any]:
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
             try:
-                spec.loader.exec_module(module)
+                spec.loader.exec_module(module)  # type: ignore[arg-type]
                 return module
             except Exception:
                 return None
@@ -41,14 +60,12 @@ def _import_module(file_path: Path, root_path: Path) -> Optional[Any]:
     try:
         if str(root_path) not in sys.path:
             sys.path.insert(0, str(root_path))
-
         return importlib.import_module(module_name)
     except Exception:
         return None
 
 
 def discover_objects(directory: Path, obj_type: Type[Any]) -> Dict[str, Any]:
-    # Use the current working directory as the root for module paths
     abs_directory = directory.resolve()
     root_path = Path.cwd()
     found: Dict[str, Any] = {}
@@ -132,19 +149,11 @@ def _print_summary(result: Any) -> None:
         _print_experiment_summary(result)
 
 
-async def run_async(args: argparse.Namespace) -> None:
-    console = Console()
-    obj_type = OBJ_TYPES[args.type]
-    objects = discover_objects(Path(args.path), obj_type)
-    if not objects:
-        console.print("No objects found")
-        return
-    labels = list(objects.keys())
-    idx = _select_from_menu(labels, f"Select {args.type}")
-    if idx is None:
-        return
-    selected = objects[labels[idx]]
+# Interactive run logic reused from the original CLI
 
+def _run_interactive(obj: Any) -> None:
+    console = Console()
+    selected = obj
     if isinstance(selected, ExperimentGraph):
         deletable: List[Tuple[str, Path]] = []
         for node in selected._graph.nodes:
@@ -156,78 +165,94 @@ async def run_async(args: argparse.Namespace) -> None:
             if base.exists():
                 deletable.append((node, base))
         if deletable:
-            # Add an explicit option to skip deletion
             options = ["[ SKIP DELETION AND CONTINUE ]"] + [
                 f"{name}: {path}" for name, path in deletable
             ]
-            title = "Select data to DELETE (space to select, enter to confirm)"
+            title = "Select data to DELETE (Space to select, Enter to confirm)"
             selected_indices = _multi_select(options, title)
-
             if not selected_indices:
                 console.print(
                     "[yellow]No data selected for deletion. Continuing...[/yellow]"
                 )
-            # If user selected the SKIP option (index 0)
             elif 0 in selected_indices:
                 console.print("[green]Keeping all data. Continuing...[/green]")
             else:
-                # Adjust indices back by 1 since we added the SKIP option at the start
                 paths_to_delete = [deletable[i - 1][1] for i in selected_indices]
                 console.print(
                     "\n[bold yellow]The following directories will be PERMANENTLY DELETED:[/bold yellow]"
                 )
                 for p in paths_to_delete:
                     console.print(f"- {p}")
-
                 if _confirm("\nAre you sure you want to proceed?"):
                     for p in paths_to_delete:
-                        if args.dry_run:
+                        try:
+                            shutil.rmtree(p)
+                            console.print(f"[green]Deleted: {p}[/green]")
+                        except OSError as e:
                             console.print(
-                                f"[cyan]DRY RUN: Would delete directory {p}[/cyan]"
+                                f"[bold red]Error deleting {p}: {e}[/bold red]"
                             )
-                        else:
-                            try:
-                                shutil.rmtree(p)
-                                console.print(f"[green]Deleted: {p}[/green]")
-                            except OSError as e:
-                                console.print(
-                                    f"[bold red]Error deleting {p}: {e}[/bold red]"
-                                )
                 else:
                     console.print("[red]Deletion cancelled by user. Exiting.[/red]")
                     return
-
     strat_idx = _select_from_menu(["rerun", "resume"], "Execution strategy")
     if strat_idx is None:
         return
     strategy = ["rerun", "resume"][strat_idx]
-
-    if args.dry_run:
-        console.print(f"Would run {labels[idx]} with strategy {strategy}")
-        return
-
-    result = await _run_object(selected, strategy, args.replicates)
+    result = asyncio.run(_run_object(selected, strategy, None))
     _print_summary(result)
 
 
-def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="crystallize")
-    sub = parser.add_subparsers(dest="command", required=True)
-    run_p = sub.add_parser("run", help="Run experiment or graph")
-    run_p.add_argument("type", choices=list(OBJ_TYPES), help="Object type")
-    run_p.add_argument("--path", default=".", help="Search path")
-    run_p.add_argument("--dry-run", action="store_true", help="Perform a dry run")
-    run_p.add_argument(
-        "--replicates", type=int, default=None, help="Override replicates"
-    )
-    return parser.parse_args(argv)
+class CrystallizeApp(App):
+    """Textual application for running crystallize objects."""
+
+    BINDINGS = [("q", "quit", "Quit")]
+
+    def __init__(self, path: str = ".", **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.path = Path(path)
+        self.list_view: ListView | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Static(ASCII_ART)
+        self.main = Container()
+        yield self.main
+        yield Footer()
+
+    async def on_mount(self) -> None:
+        self.loading = LoadingIndicator()
+        self.loading_text = Static("Scanning for experiments and graphs...")
+        await self.main.mount(self.loading)
+        await self.main.mount(self.loading_text)
+        asyncio.create_task(self._discover())
+
+    async def _discover(self) -> None:
+        graphs = discover_objects(self.path, ExperimentGraph)
+        experiments = discover_objects(self.path, Experiment)
+        await self.loading.remove()
+        await self.loading_text.remove()
+        self.list_view = ListView()
+        await self.main.mount(Static("Select an object to run:"))
+        await self.main.mount(self.list_view)
+        for label, obj in graphs.items():
+            item = ListItem(Static(f"[Graph] {label}"))
+            item.data = obj
+            await self.list_view.append(item)
+        for label, obj in experiments.items():
+            item = ListItem(Static(f"[Experiment] {label}"))
+            item.data = obj
+            await self.list_view.append(item)
+
+    async def on_list_view_selected(self, event: ListView.Selected) -> None:
+        obj = event.item.data
+        async with self.app.suspend():
+            _run_interactive(obj)
+        await self.action_quit()
 
 
-def run(argv: Optional[Sequence[str]] = None) -> None:
-    args = parse_args(argv)
-    if args.command == "run":
-        asyncio.run(run_async(args))
+def run() -> None:
+    CrystallizeApp().run()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover - manual run
     run()

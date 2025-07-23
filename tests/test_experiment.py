@@ -596,6 +596,15 @@ def test_process_pool_respects_max_workers(monkeypatch):
 
     monkeypatch.setattr(execution, "ProcessPoolExecutor", DummyExecutor)
     monkeypatch.setattr(execution.os, "cpu_count", lambda: 4)
+    from crystallize.experiments.run_results import ReplicateResult
+
+    def dummy_remote(args):
+        return ReplicateResult(None, None, {}, {}, {}, {})
+
+    monkeypatch.setattr(
+        "crystallize.experiments.experiment._run_replicate_remote",
+        dummy_remote,
+    )
 
     pipeline = Pipeline([PassStep()])
     ds = DummyDataSource()

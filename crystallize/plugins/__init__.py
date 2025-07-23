@@ -1,5 +1,5 @@
 from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
-from .execution import ParallelExecution, SerialExecution
+from .execution import AsyncExecution, ParallelExecution, SerialExecution
 
 __all__ = [
     "ArtifactPlugin",
@@ -8,4 +8,5 @@ __all__ = [
     "SeedPlugin",
     "ParallelExecution",
     "SerialExecution",
+    "AsyncExecution",
 ]

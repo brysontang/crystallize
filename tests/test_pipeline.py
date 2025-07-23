@@ -1,4 +1,5 @@
 from typing import Any, Mapping
+import asyncio
 
 import pytest
 
@@ -66,3 +67,23 @@ def test_pipeline_execution_mid_chain():
     prov = pipeline.get_provenance()
     assert len(prov) == 3
     assert prov[1]["step"] == "AddStep"
+
+
+class AsyncAddStep(PipelineStep):
+    def __init__(self, value: int):
+        self.value = value
+
+    async def __call__(self, data: Any, ctx: FrozenContext) -> Any:
+        await asyncio.sleep(0)
+        return data + self.value
+
+    @property
+    def params(self) -> dict:
+        return {"value": self.value}
+
+
+def test_async_pipeline_step_runs():
+    pipeline = Pipeline([AsyncAddStep(5), MetricsStep()])
+    ctx = FrozenContext({})
+    result = pipeline.run(1, ctx)
+    assert result == {"result": 6}

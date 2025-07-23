@@ -144,16 +144,20 @@ class ExperimentGraph:
                             dn_exp: Experiment = self._graph.nodes[dn]["experiment"]
                             reqs = getattr(dn_exp.datasource, "required_outputs", [])
                             req_names = {r.name for r in reqs}
-                            if not req_names:
+                            # Find the specific artifacts this downstream experiment needs from the current one.
+                            relevant_artifacts_to_check = req_names.intersection(
+                                set(exp.outputs)
+                            )
+
+                            # If there's no overlap, this dependency is irrelevant, so we can skip to the next one.
+                            if not relevant_artifacts_to_check:
                                 continue
-                            if not req_names.issubset(set(exp.outputs)):
-                                continue
-                            for out_name in req_names:
+
+                            # Now, only check for the existence of the relevant files.
+                            for out_name in relevant_artifacts_to_check:
                                 if not list(base.rglob(out_name)):
                                     skip = False
                                     break
-                            if not skip:
-                                break
                         if skip:
                             continue
                         run_strategy = "rerun"

@@ -90,11 +90,21 @@ class Artifact(DataSource):
         plugin = self._producer.get_plugin(ArtifactPlugin)
         if plugin is None:
             raise RuntimeError("ArtifactPlugin required to load artifacts")
-        return (
-            Path(plugin.root_dir)
-            / (self._producer.name or self._producer.id)
-            / f"v{plugin.version}"
-        )
+        # This logic is now self-sufficient and doesn't rely on plugin.version
+        exp_dir = Path(plugin.root_dir) / (self._producer.name or self._producer.id)
+
+        # Find the latest version by looking at the directories on disk
+        if plugin.versioned:
+            versions = [
+                int(p.name[1:])
+                for p in exp_dir.glob("v*")
+                if p.name.startswith("v") and p.name[1:].isdigit()
+            ]
+            latest_version = max(versions, default=0)
+        else:
+            latest_version = 0
+
+        return exp_dir / f"v{latest_version}"
 
     def _load_manifest(self) -> None:
         if self._manifest is not None:

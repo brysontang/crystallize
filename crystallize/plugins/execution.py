@@ -21,43 +21,24 @@ class SerialExecution(BasePlugin):
 
     progress: bool = False
 
-    def run_experiment_loop(
+    async def run_experiment_loop(
         self, experiment: "Experiment", replicate_fn: Callable[[int], Any]
-    ) -> List[Any] | asyncio.Future:
+    ) -> List[Any]:
         reps = range(experiment.replicates)
         if self.progress and experiment.replicates > 1:
             from tqdm import tqdm  # type: ignore
 
             reps = tqdm(reps, desc="Replicates")
 
-        if asyncio.iscoroutinefunction(replicate_fn):
-            async def run_all() -> List[Any]:
-                return [await replicate_fn(rep) for rep in reps]
-
-            try:
-                asyncio.get_running_loop()
-                return run_all()
-            except RuntimeError:  # no running loop
-                return asyncio.run(run_all())
-
         results = []
         for rep in reps:
-            res = replicate_fn(rep)
-            if inspect.isawaitable(res):
-                try:
-                    asyncio.get_running_loop()
-                    raise RuntimeError(
-                        "Async replicate_fn must be awaited in running loop"
-                    )
-                except RuntimeError:
-                    res = asyncio.run(res)
-            results.append(res)
+            results.append(await replicate_fn(rep))
         return results
 
 
 @dataclass
 class ParallelExecution(BasePlugin):
-    """Run replicates concurrently using ``ThreadPoolExecutor`` or ``ProcessPoolExecutor``."""
+    """Run SYNC replicates concurrently using ThreadPoolExecutor or ProcessPoolExecutor."""
 
     max_workers: Optional[int] = None
     executor_type: str = "thread"
@@ -66,54 +47,33 @@ class ParallelExecution(BasePlugin):
     def run_experiment_loop(
         self, experiment: "Experiment", replicate_fn: Callable[[int], Any]
     ) -> List[Any]:
+        # This plugin is for SYNC tasks. If given an ASYNC task, raise a clear error.
+        if inspect.iscoroutinefunction(replicate_fn):
+            raise TypeError(
+                "ParallelExecution with Thread/Process pools cannot run async tasks. "
+                "Use the AsyncExecution plugin for I/O-bound concurrency."
+            )
+
         if self.executor_type not in VALID_EXECUTOR_TYPES:
             raise ValueError(
                 f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{self.executor_type}'"
             )
-        async_fn = asyncio.iscoroutinefunction(replicate_fn)
         if self.executor_type == "process":
             from crystallize.experiments.experiment import _run_replicate_remote
 
             default_workers = max(1, (os.cpu_count() or 2) - 1)
             exec_cls = ProcessPoolExecutor
-            actual_process = exec_cls.__name__ == "ProcessPoolExecutor"
-            if actual_process:
-                submit_target = _run_replicate_remote
-                treatments = getattr(experiment, "treatments", [])
-                arg_list = [
-                    (experiment, rep, treatments)
-                    for rep in range(experiment.replicates)
-                ]
-            else:
-                worker_count = self.max_workers or default_workers
-                treatments = getattr(experiment, "treatments", [])
-                with ProcessPoolExecutor(max_workers=worker_count) as executor:
-                    future_map = {
-                        executor.submit(
-                            _run_replicate_remote,
-                            (experiment, rep, treatments),
-                        ): rep
-                        for rep in range(experiment.replicates)
-                    }
-                    futures = as_completed(future_map)
-                    if self.progress and experiment.replicates > 1:
-                        from tqdm import tqdm  # type: ignore
-
-                        futures = tqdm(futures, total=len(future_map), desc="Replicates")
-                    results = [None] * experiment.replicates
-                    for fut in futures:
-                        idx = future_map[fut]
-                        results[idx] = fut.result()
-                return results
-        else:
+            submit_target = _run_replicate_remote
+            treatments = getattr(experiment, "treatments", [])
+            arg_list = [
+                (experiment, rep, treatments) for rep in range(experiment.replicates)
+            ]
+        else:  # 'thread'
             default_workers = os.cpu_count() or 8
             exec_cls = ThreadPoolExecutor
-            if async_fn:
-                def submit_target(rep):
-                    return asyncio.run(replicate_fn(rep))
-            else:
-                submit_target = replicate_fn
+            submit_target = replicate_fn
             arg_list = list(range(experiment.replicates))
+
         worker_count = self.max_workers or min(experiment.replicates, default_workers)
         results: List[Any] = [None] * experiment.replicates
         with exec_cls(max_workers=worker_count) as executor:

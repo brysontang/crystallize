@@ -20,7 +20,11 @@ import inspect
 from crystallize.utils.context import FrozenContext
 from crystallize.datasources import Artifact
 from crystallize.datasources.datasource import DataSource
-from crystallize.plugins.execution import VALID_EXECUTOR_TYPES, SerialExecution
+from crystallize.plugins.execution import (
+    VALID_EXECUTOR_TYPES,
+    SerialExecution,
+    ParallelExecution,
+)
 from crystallize.experiments.hypothesis import Hypothesis
 from crystallize.experiments.optimizers import BaseOptimizer, Objective
 from crystallize.pipelines.pipeline import Pipeline
@@ -55,7 +59,9 @@ def _run_replicate_remote(
     """Wrapper for parallel executor to run a single replicate."""
 
     exp, rep, treatments = args
-    return exp._execute_replicate_sync(rep, treatments)
+    import asyncio
+
+    return asyncio.run(exp._execute_replicate(rep, treatments))
 
 
 class Experiment:
@@ -369,29 +375,6 @@ class Experiment:
             provenance=provenance,
         )
 
-    def _execute_replicate_sync(
-        self,
-        rep: int,
-        treatments: List[Treatment],
-        *,
-        run_baseline: bool = True,
-    ) -> ReplicateResult:
-        import asyncio
-
-        loop = asyncio.new_event_loop()
-        try:
-            old_loop = asyncio.events._get_running_loop()
-            asyncio.events._set_running_loop(None)
-            return loop.run_until_complete(
-                self._execute_replicate(
-                    rep,
-                    treatments,
-                    run_baseline=run_baseline,
-                )
-            )
-        finally:
-            asyncio.events._set_running_loop(old_loop)
-            loop.close()
 
     def _select_execution_plugin(self) -> BasePlugin:
         for plugin in reversed(self.plugins):
@@ -597,12 +580,24 @@ class Experiment:
                 results_list = []
                 if run_baseline or active_treatments:
 
-                    async def replicate_fn(rep):
-                        return await self._execute_replicate(
-                            rep,
-                            active_treatments,
-                            run_baseline=run_baseline,
-                        )
+                    if isinstance(execution_plugin, ParallelExecution):
+                        def replicate_fn(rep: int) -> ReplicateResult:
+                            import asyncio
+
+                            return asyncio.run(
+                                self._execute_replicate(
+                                    rep,
+                                    active_treatments,
+                                    run_baseline=run_baseline,
+                                )
+                            )
+                    else:
+                        async def replicate_fn(rep: int) -> ReplicateResult:
+                            return await self._execute_replicate(
+                                rep,
+                                active_treatments,
+                                run_baseline=run_baseline,
+                            )
 
                     loop_result = execution_plugin.run_experiment_loop(
                         self, replicate_fn

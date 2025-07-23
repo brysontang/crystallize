@@ -55,7 +55,7 @@ def _run_replicate_remote(
     """Wrapper for parallel executor to run a single replicate."""
 
     exp, rep, treatments = args
-    return exp._execute_replicate(rep, treatments)
+    return exp._execute_replicate_sync(rep, treatments)
 
 
 class Experiment:
@@ -293,7 +293,7 @@ class Experiment:
 
         data = self.datasource.fetch(run_ctx)
         verbose = log_plugin.verbose if log_plugin else False
-        _, prov = await self.pipeline.run(
+        _, prov = await self.pipeline.arun(
             data,
             run_ctx,
             verbose=verbose,
@@ -368,6 +368,30 @@ class Experiment:
             errors=rep_errors,
             provenance=provenance,
         )
+
+    def _execute_replicate_sync(
+        self,
+        rep: int,
+        treatments: List[Treatment],
+        *,
+        run_baseline: bool = True,
+    ) -> ReplicateResult:
+        import asyncio
+
+        loop = asyncio.new_event_loop()
+        try:
+            old_loop = asyncio.events._get_running_loop()
+            asyncio.events._set_running_loop(None)
+            return loop.run_until_complete(
+                self._execute_replicate(
+                    rep,
+                    treatments,
+                    run_baseline=run_baseline,
+                )
+            )
+        finally:
+            asyncio.events._set_running_loop(old_loop)
+            loop.close()
 
     def _select_execution_plugin(self) -> BasePlugin:
         for plugin in reversed(self.plugins):
@@ -718,7 +742,25 @@ class Experiment:
 
     # ------------------------------------------------------------------ #
 
-    async def optimize(
+    def optimize(
+        self,
+        optimizer: "BaseOptimizer",
+        num_trials: int,
+        replicates_per_trial: int = 1,
+    ) -> Treatment:
+        """Synchronous wrapper for :meth:`aoptimize`."""
+
+        import asyncio
+
+        return asyncio.run(
+            self.aoptimize(
+                optimizer,
+                num_trials,
+                replicates_per_trial,
+            )
+        )
+
+    async def aoptimize(
         self,
         optimizer: "BaseOptimizer",
         num_trials: int,
@@ -728,7 +770,7 @@ class Experiment:
 
         for _ in range(num_trials):
             treatments_for_trial = optimizer.ask()
-            result = await self.run(
+            result = await self.arun(
                 treatments=treatments_for_trial,
                 hypotheses=[],
                 replicates=replicates_per_trial,

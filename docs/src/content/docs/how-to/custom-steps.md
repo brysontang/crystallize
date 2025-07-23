@@ -101,6 +101,23 @@ for library-specific RNGs. See
 [Tutorial: Basic Experiment](../tutorials/basic-experiment.md#step-4-assemble-and-run)
 for examples of seeding experiments.
 
+## 6. Asynchronous Steps
+
+Steps can also be defined as ``async`` functions when they perform I/O bound work
+like network requests. Decorate the async function with ``@pipeline_step`` and
+Crystallize will ``await`` it automatically during asynchronous experiment runs.
+Synchronous code can still call :class:`Pipeline.run`, which wraps the async
+execution internally.
+
+```python
+import asyncio
+
+@pipeline_step()
+async def fetch_remote(data: str, ctx: FrozenContext) -> str:
+    await asyncio.sleep(0.1)
+    return data + "!"
+```
+
 ## Example: Putting It Together
 
 ```python

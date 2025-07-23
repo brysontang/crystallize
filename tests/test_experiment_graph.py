@@ -182,7 +182,8 @@ def test_graph_resume_skips_experiments(tmp_path: Path, monkeypatch):
     exp_a2.validate()
     graph2 = ExperimentGraph()
     graph2.add_experiment(exp_a2)
-    graph2.run(strategy="resume")
+    res = graph2.run(strategy="resume")
+    assert res["a"].metrics.baseline.metrics["val"] == [0]
     assert step_a2.calls == 0
 
 

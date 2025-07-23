@@ -2,6 +2,7 @@
 
 from .ollama_step.initialize import initialize_ollama_client
 from .openai_step.initialize import initialize_openai_client
+from .openai_step.initialize_async import initialize_async_openai_client
 from .ray_plugin.execution import RayExecution
 from .vllm_step.initialize import initialize_llm_engine
 
@@ -10,4 +11,5 @@ __all__ = [
     "initialize_llm_engine",
     "initialize_ollama_client",
     "initialize_openai_client",
+    "initialize_async_openai_client",
 ]

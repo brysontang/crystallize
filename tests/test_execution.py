@@ -3,7 +3,11 @@ import asyncio
 
 import pytest
 
-from crystallize.plugins.execution import ParallelExecution, SerialExecution
+from crystallize.plugins.execution import (
+    ParallelExecution,
+    SerialExecution,
+    AsyncExecution,
+)
 
 
 class DummyExperiment:
@@ -70,3 +74,47 @@ def test_parallel_execution_invalid_type():
     exec_plugin = ParallelExecution(executor_type="bad")
     with pytest.raises(ValueError):
         exec_plugin.run_experiment_loop(DummyExperiment(1), lambda i: i)
+
+
+def test_async_execution_progress(monkeypatch):
+    called = []
+
+    async def fake_gather(*tasks, **kwargs):
+        called.append(kwargs.get("desc"))
+        return await asyncio.gather(*tasks)
+
+    monkeypatch.setattr("tqdm.asyncio.tqdm.gather", fake_gather)
+    exec_plugin = AsyncExecution(progress=True)
+    exp = DummyExperiment(3)
+
+    async def rep_fn(i: int) -> int:
+        await asyncio.sleep(0)
+        return i
+
+    result = asyncio.run(exec_plugin.run_experiment_loop(exp, rep_fn))
+    assert result == [0, 1, 2]
+    assert called == ["Replicates"]
+
+
+def test_async_execution_falls_back_to_asyncio(monkeypatch):
+    called = []
+    real_gather = asyncio.gather
+
+    async def fake_asyncio_gather(*tasks, **kwargs):
+        called.append(True)
+        return await real_gather(*tasks, **kwargs)
+
+    async def fail(*_args, **_kwargs):
+        raise RuntimeError("tqdm gather should not be called")
+
+    monkeypatch.setattr(asyncio, "gather", fake_asyncio_gather)
+    monkeypatch.setattr("tqdm.asyncio.tqdm.gather", fail)
+    exec_plugin = AsyncExecution(progress=True)
+    exp = DummyExperiment(1)
+
+    async def rep_fn(i: int) -> int:
+        return i
+
+    result = asyncio.run(exec_plugin.run_experiment_loop(exp, rep_fn))
+    assert result == [0]
+    assert called == [True]

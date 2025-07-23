@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 
 from crystallize import (
     data_source,
@@ -140,3 +141,20 @@ def test_experiment_runs_with_multiprocessing():
 
     result = exp.run(replicates=2)
     assert result.metrics.baseline.metrics["result"] == [5, 5]
+
+
+@pipeline_step()
+async def async_add(data, ctx, *, delta: int = 0):
+    await asyncio.sleep(0)
+    return data + delta
+
+
+def test_async_acall_injection_and_overrides():
+    ctx = FrozenContext({"delta": 3})
+    step = async_add()
+    result = asyncio.run(step.__acall__(2, ctx))
+    assert result == 5
+
+    step_override = async_add(delta=1)
+    result_override = asyncio.run(step_override.__acall__(2, ctx))
+    assert result_override == 3

@@ -47,6 +47,14 @@ export default defineConfig({
               slug: 'how-to/dag-experiments',
             },
             {
+              label: 'Advanced DAG Caching & Execution',
+              slug: 'how-to/advanced-dag-strategies',
+            },
+            {
+              label: 'Seed Plugin Reproducibility',
+              slug: 'how-to/seed-plugin-reproducibility',
+            },
+            {
               label: 'Viewing Provenance',
               slug: 'how-to/view-provenance',
             },

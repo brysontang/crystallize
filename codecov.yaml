@@ -1,0 +1,12 @@
+coverage:
+  status:
+    patch:
+      default:
+        target: 80%
+    project:
+      default:
+        target: 90%
+
+comment:
+  layout: 'reach,diff,flags,files'
+  behavior: default

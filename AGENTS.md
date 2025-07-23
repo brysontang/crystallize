@@ -48,6 +48,8 @@ For any change:
 2. **Run & Fix Tests**: Execute `pixi run test`. Fix broken code first; only update tests if they're outdated (don't refactor tests to mask code issues).
 3. **Add New Tests**: Write tests for new features/behaviors to capture them fully.
 4. **Validate**: Run `pixi run lint` and `pixi run test`—all must pass.
+5. **Run Coverage**: Run `pixi run cov` to check coverage (codecov requires a 90% project coverage for the PR to pass).
+6. **Run Diff Coverage**: Run `pixi run diff-cov` to check diff coverage (codecov requires a 80% patch coverage for the PR to pass).
 
 ---
 

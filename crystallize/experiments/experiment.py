@@ -83,6 +83,7 @@ class Experiment:
         pipeline: Pipeline,
         plugins: Optional[List[BasePlugin]] = None,
         *,
+        description: str | None = None,
         name: str | None = None,
         initial_ctx: Dict[str, Any] | None = None,
         outputs: List[Artifact] | None = None,
@@ -96,11 +97,13 @@ class Experiment:
             datasource: Object that provides the initial data for each run.
             pipeline: Pipeline executed for every replicate.
             plugins: Optional list of plugins controlling experiment behaviour.
+            description: Optional text describing this experiment.
             name: Optional experiment name used for artifact storage.
         """
         self.datasource = datasource
         self.pipeline = pipeline
         self.name = name
+        self.description = description
         self.treatments = treatments or []
         self.hypotheses = hypotheses or []
         self.replicates = replicates
@@ -375,7 +378,6 @@ class Experiment:
             provenance=provenance,
         )
 
-
     def _select_execution_plugin(self) -> BasePlugin:
         for plugin in reversed(self.plugins):
             if (
@@ -579,8 +581,8 @@ class Experiment:
                 execution_plugin = self._select_execution_plugin()
                 results_list = []
                 if run_baseline or active_treatments:
-
                     if isinstance(execution_plugin, ParallelExecution):
+
                         def replicate_fn(rep: int) -> ReplicateResult:
                             import asyncio
 
@@ -592,6 +594,7 @@ class Experiment:
                                 )
                             )
                     else:
+
                         async def replicate_fn(rep: int) -> ReplicateResult:
                             return await self._execute_replicate(
                                 rep,

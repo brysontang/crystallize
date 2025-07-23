@@ -22,20 +22,28 @@ OBJ_TYPES = {
 
 
 def _import_module(file_path: Path, root_path: Path) -> Optional[Any]:
-    """Imports a module from its file path relative to a root path."""
-    # Determine the module's dot-separated path from the root
-    relative_path = file_path.relative_to(root_path)
+    """Import ``file_path`` as a module relative to ``root_path``."""
+    try:
+        relative_path = file_path.relative_to(root_path)
+    except ValueError:
+        spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
+        if spec and spec.loader:
+            module = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(module)
+                return module
+            except Exception:
+                return None
+        return None
+
     module_name = ".".join(relative_path.with_suffix("").parts)
 
     try:
-        # Add root to sys.path if not already there to ensure imports work
         if str(root_path) not in sys.path:
             sys.path.insert(0, str(root_path))
 
         return importlib.import_module(module_name)
-    except Exception as e:
-        # Silently fail if a file cannot be imported
-        # print(f"Could not import {module_name}: {e}") # Uncomment for debugging
+    except Exception:
         return None
 
 
@@ -49,8 +57,11 @@ def discover_objects(directory: Path, obj_type: Type[Any]) -> Dict[str, Any]:
         if not mod:
             continue
         for name, obj in inspect.getmembers(mod, lambda x: isinstance(x, obj_type)):
-            relative_path = file.relative_to(root_path)
-            found[f"{relative_path}:{name}"] = obj
+            try:
+                rel = file.relative_to(root_path)
+            except ValueError:
+                rel = file
+            found[f"{rel}:{name}"] = obj
     return found
 
 

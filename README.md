@@ -30,7 +30,8 @@ Crystallize is an elegant, lightweight Python framework designed to help data sc
 Crystallize revolves around several key abstractions:
 
 - **DataSource**: Flexible data fetching and generation.
-- **Pipeline & PipelineSteps**: Deterministic data transformations.
+- **Pipeline & PipelineSteps**: Deterministic data transformations. Steps may be
+  synchronous or ``async`` functions and are awaited automatically.
 - **Hypothesis & Treatments**: Quantifiable assertions and experimental variations.
 - **Statistical Tests**: Built-in support for rigorous validation of experiment results.
 - **Optimizer**: Iterative search over treatments using an ask/tell loop.

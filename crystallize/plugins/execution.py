@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from dataclasses import dataclass
 import os
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
@@ -20,7 +21,7 @@ class SerialExecution(BasePlugin):
 
     progress: bool = False
 
-    def run_experiment_loop(
+    async def run_experiment_loop(
         self, experiment: "Experiment", replicate_fn: Callable[[int], Any]
     ) -> List[Any]:
         reps = range(experiment.replicates)
@@ -28,12 +29,16 @@ class SerialExecution(BasePlugin):
             from tqdm import tqdm  # type: ignore
 
             reps = tqdm(reps, desc="Replicates")
-        return [replicate_fn(rep) for rep in reps]
+
+        results = []
+        for rep in reps:
+            results.append(await replicate_fn(rep))
+        return results
 
 
 @dataclass
 class ParallelExecution(BasePlugin):
-    """Run replicates concurrently using ``ThreadPoolExecutor`` or ``ProcessPoolExecutor``."""
+    """Run SYNC replicates concurrently using ThreadPoolExecutor or ProcessPoolExecutor."""
 
     max_workers: Optional[int] = None
     executor_type: str = "thread"
@@ -42,6 +47,13 @@ class ParallelExecution(BasePlugin):
     def run_experiment_loop(
         self, experiment: "Experiment", replicate_fn: Callable[[int], Any]
     ) -> List[Any]:
+        # This plugin is for SYNC tasks. If given an ASYNC task, raise a clear error.
+        if inspect.iscoroutinefunction(replicate_fn):
+            raise TypeError(
+                "ParallelExecution with Thread/Process pools cannot run async tasks. "
+                "Use the AsyncExecution plugin for I/O-bound concurrency."
+            )
+
         if self.executor_type not in VALID_EXECUTOR_TYPES:
             raise ValueError(
                 f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{self.executor_type}'"
@@ -56,11 +68,12 @@ class ParallelExecution(BasePlugin):
             arg_list = [
                 (experiment, rep, treatments) for rep in range(experiment.replicates)
             ]
-        else:
+        else:  # 'thread'
             default_workers = os.cpu_count() or 8
             exec_cls = ThreadPoolExecutor
             submit_target = replicate_fn
             arg_list = list(range(experiment.replicates))
+
         worker_count = self.max_workers or min(experiment.replicates, default_workers)
         results: List[Any] = [None] * experiment.replicates
         with exec_cls(max_workers=worker_count) as executor:

@@ -20,7 +20,11 @@ import inspect
 from crystallize.utils.context import FrozenContext
 from crystallize.datasources import Artifact
 from crystallize.datasources.datasource import DataSource
-from crystallize.plugins.execution import VALID_EXECUTOR_TYPES, SerialExecution
+from crystallize.plugins.execution import (
+    VALID_EXECUTOR_TYPES,
+    SerialExecution,
+    ParallelExecution,
+)
 from crystallize.experiments.hypothesis import Hypothesis
 from crystallize.experiments.optimizers import BaseOptimizer, Objective
 from crystallize.pipelines.pipeline import Pipeline
@@ -55,7 +59,9 @@ def _run_replicate_remote(
     """Wrapper for parallel executor to run a single replicate."""
 
     exp, rep, treatments = args
-    return exp._execute_replicate(rep, treatments)
+    import asyncio
+
+    return asyncio.run(exp._execute_replicate(rep, treatments))
 
 
 class Experiment:
@@ -293,7 +299,7 @@ class Experiment:
 
         data = self.datasource.fetch(run_ctx)
         verbose = log_plugin.verbose if log_plugin else False
-        _, prov = await self.pipeline.run(
+        _, prov = await self.pipeline.arun(
             data,
             run_ctx,
             verbose=verbose,
@@ -368,6 +374,7 @@ class Experiment:
             errors=rep_errors,
             provenance=provenance,
         )
+
 
     def _select_execution_plugin(self) -> BasePlugin:
         for plugin in reversed(self.plugins):
@@ -573,12 +580,24 @@ class Experiment:
                 results_list = []
                 if run_baseline or active_treatments:
 
-                    async def replicate_fn(rep):
-                        return await self._execute_replicate(
-                            rep,
-                            active_treatments,
-                            run_baseline=run_baseline,
-                        )
+                    if isinstance(execution_plugin, ParallelExecution):
+                        def replicate_fn(rep: int) -> ReplicateResult:
+                            import asyncio
+
+                            return asyncio.run(
+                                self._execute_replicate(
+                                    rep,
+                                    active_treatments,
+                                    run_baseline=run_baseline,
+                                )
+                            )
+                    else:
+                        async def replicate_fn(rep: int) -> ReplicateResult:
+                            return await self._execute_replicate(
+                                rep,
+                                active_treatments,
+                                run_baseline=run_baseline,
+                            )
 
                     loop_result = execution_plugin.run_experiment_loop(
                         self, replicate_fn
@@ -718,7 +737,25 @@ class Experiment:
 
     # ------------------------------------------------------------------ #
 
-    async def optimize(
+    def optimize(
+        self,
+        optimizer: "BaseOptimizer",
+        num_trials: int,
+        replicates_per_trial: int = 1,
+    ) -> Treatment:
+        """Synchronous wrapper for :meth:`aoptimize`."""
+
+        import asyncio
+
+        return asyncio.run(
+            self.aoptimize(
+                optimizer,
+                num_trials,
+                replicates_per_trial,
+            )
+        )
+
+    async def aoptimize(
         self,
         optimizer: "BaseOptimizer",
         num_trials: int,
@@ -728,7 +765,7 @@ class Experiment:
 
         for _ in range(num_trials):
             treatments_for_trial = optimizer.ask()
-            result = await self.run(
+            result = await self.arun(
                 treatments=treatments_for_trial,
                 hypotheses=[],
                 replicates=replicates_per_trial,

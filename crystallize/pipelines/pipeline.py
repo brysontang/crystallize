@@ -21,7 +21,7 @@ class Pipeline:
 
     # ------------------------------------------------------------------ #
 
-    async def run(
+    async def arun(
         self,
         data: Any,
         ctx: FrozenContext,
@@ -144,6 +144,39 @@ class Pipeline:
         if return_provenance:
             return data, [dict(p) for p in final_provenance]
         return data
+
+    # ------------------------------------------------------------------ #
+
+    def run(
+        self,
+        data: Any,
+        ctx: FrozenContext,
+        *,
+        verbose: bool = False,
+        progress: bool = False,
+        rep: Optional[int] = None,
+        condition: Optional[str] = None,
+        logger: Optional[logging.Logger] = None,
+        return_provenance: bool = False,
+        experiment: Optional["Experiment"] = None,
+    ) -> Any | Tuple[Any, List[Mapping[str, Any]]]:
+        """Synchronous wrapper around :meth:`arun`."""
+
+        import asyncio
+
+        return asyncio.run(
+            self.arun(
+                data,
+                ctx,
+                verbose=verbose,
+                progress=progress,
+                rep=rep,
+                condition=condition,
+                logger=logger,
+                return_provenance=return_provenance,
+                experiment=experiment,
+            )
+        )
 
     def _record_provenance(
         self,

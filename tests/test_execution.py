@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+import asyncio
 
 import pytest
 
@@ -20,7 +21,10 @@ def test_serial_execution_progress(monkeypatch):
     monkeypatch.setattr("tqdm.tqdm", fake_tqdm)
     exec_plugin = SerialExecution(progress=True)
     exp = DummyExperiment(3)
-    result = exec_plugin.run_experiment_loop(exp, lambda i: i)
+    async def rep_fn(i: int) -> int:
+        return i
+
+    result = asyncio.run(exec_plugin.run_experiment_loop(exp, rep_fn))
     assert result == [0, 1, 2]
     assert called == ["Replicates"]
 

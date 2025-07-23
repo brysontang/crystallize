@@ -114,6 +114,11 @@ class Experiment:
 
         self._validated = False
 
+        if not isinstance(self.replicates, int):
+            raise TypeError(
+                f"replicates must be an integer, but got {type(self.replicates).__name__}"
+            )
+
     # ------------------------------------------------------------------ #
 
     def validate(self) -> None:

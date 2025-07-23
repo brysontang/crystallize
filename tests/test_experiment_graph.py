@@ -187,6 +187,65 @@ def test_graph_resume_skips_experiments(tmp_path: Path, monkeypatch):
     assert step_a2.calls == 0
 
 
+def test_graph_resume_loads_treatments_and_hypotheses(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    class CountStep(PipelineStep):
+        def __init__(self):
+            self.calls = 0
+
+        def __call__(self, data, ctx):
+            self.calls += 1
+            ctx.metrics.add("val", data + ctx.get("increment", 0))
+            return data
+
+        @property
+        def params(self):
+            return {}
+
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    treatment = Treatment("inc", {"increment": 1})
+    hypo = Hypothesis(
+        verifier=lambda b, t: {"diff": sum(t["val"]) - sum(b["val"])}, metrics="val"
+    )
+
+    step1 = CountStep()
+    exp1 = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([step1]),
+        plugins=[plugin],
+        name="a",
+        outputs=[Artifact("x.txt")],
+    )
+    exp1.hypotheses = [hypo]
+    exp1.treatments = [treatment]
+    exp1.validate()
+    graph = ExperimentGraph()
+    graph.add_experiment(exp1)
+    graph.run(treatments=[treatment])
+    assert step1.calls == 2
+
+    step2 = CountStep()
+    exp2 = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([step2]),
+        plugins=[plugin],
+        name="a",
+        outputs=[Artifact("x.txt")],
+    )
+    exp2.hypotheses = [hypo]
+    exp2.treatments = [treatment]
+    exp2.validate()
+    graph2 = ExperimentGraph()
+    graph2.add_experiment(exp2)
+    res = graph2.run(strategy="resume", treatments=[treatment])
+
+    assert step2.calls == 0
+    assert res["a"].metrics.baseline.metrics["val"] == [0]
+    assert res["a"].metrics.treatments["inc"].metrics["val"] == [1]
+    assert res["a"].metrics.hypotheses[0].results["inc"]["diff"] == 1
+
+
 def test_graph_resume_checks_downstream_outputs(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 

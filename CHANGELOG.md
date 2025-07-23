@@ -5,6 +5,18 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.18.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.17.1...crystallize-ml@v0.18.0) (2025-07-23)
+
+
+### Features
+
+* **crystallize-ml:** Load metrics on resumed skip ([2440f0e](https://github.com/brysontang/crystallize/commit/2440f0e8e2e1f23aa41ad7a0f6a0fd7557c6537a))
+
+
+### Bug Fixes
+
+* Looks for the specific file needed ([0da24b7](https://github.com/brysontang/crystallize/commit/0da24b7e471bb49295b1d357b1950d7a92c5c56e))
+
 ## [0.17.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.17.0...crystallize-ml@v0.17.1) (2025-07-23)
 
 

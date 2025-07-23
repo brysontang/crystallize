@@ -1067,3 +1067,11 @@ def test_run_datasource_partial_failures():
     assert isinstance(res.errors.get("baseline_rep_3"), ValueError)
     assert isinstance(res.errors.get("baseline_rep_4"), ValueError)
 
+
+def test_experiment_description_attribute():
+    exp = Experiment(
+        datasource=DummyDataSource(),
+        pipeline=Pipeline([PassStep()]),
+        description="my experiment",
+    )
+    assert exp.description == "my experiment"

@@ -364,3 +364,28 @@ def test_from_experiments_duplicate_artifact():
 
     with pytest.raises(ValueError, match="multiple experiments"):
         ExperimentGraph.from_experiments([exp_a, exp_b])
+
+
+def test_from_experiments_handles_single_artifact_datasource():
+    """Tests graph builder with datasource as a single Artifact."""
+    out_a = Artifact("a.txt")
+
+    exp_a = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([PassStep()]),
+        name="a",
+        outputs=[out_a],
+    )
+
+    exp_b = Experiment(
+        datasource=exp_a.outputs["a.txt"],
+        pipeline=Pipeline([PassStep()]),
+        name="b",
+    )
+
+    for e in (exp_a, exp_b):
+        e.validate()
+
+    graph = ExperimentGraph.from_experiments([exp_a, exp_b])
+
+    assert "b" in graph._graph._succ.get("a", set())

@@ -56,14 +56,20 @@ class ExperimentGraph:
 
         for exp in experiments:
             ds = exp.datasource
+
+            required_artifacts = []
             if isinstance(ds, ExperimentInput):
-                for art in getattr(ds, "required_outputs", []):
-                    parent = artifact_map.get(art)
-                    if parent is None:
-                        raise ValueError(
-                            f"Artifact '{art.name}' has no producing experiment"
-                        )
-                    graph.add_edge(parent.name, exp.name)
+                required_artifacts = getattr(ds, "required_outputs", [])
+            elif isinstance(ds, Artifact):
+                required_artifacts = [ds]
+
+            for art in required_artifacts:
+                parent = artifact_map.get(art)
+                if parent is None:
+                    raise ValueError(
+                        f"Artifact '{art.name}' has no producing experiment"
+                    )
+                graph.add_edge(parent.name, exp.name)
 
         if not nx.is_directed_acyclic_graph(graph):
             raise ValueError("Experiment graph contains cycles")

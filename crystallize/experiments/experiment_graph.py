@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
+import json
 
 import networkx as nx
 
@@ -14,6 +15,7 @@ from crystallize.utils.constants import BASELINE_CONDITION
 
 from .experiment import Experiment
 from .result import Result
+from .result_structs import ExperimentMetrics, TreatmentMetrics
 from .treatment import Treatment
 
 
@@ -159,6 +161,32 @@ class ExperimentGraph:
                                     skip = False
                                     break
                         if skip:
+                            loaded_baseline: Dict[str, List[Any]] = {}
+                            loaded_treatments: Dict[str, Dict[str, List[Any]]] = {}
+                            for cond in [BASELINE_CONDITION] + [
+                                t.name for t in exp.treatments
+                            ]:
+                                res_path = base / cond / "results.json"
+                                if not res_path.exists():
+                                    continue
+                                with open(res_path) as f:
+                                    data = json.load(f).get("metrics", {})
+                                if cond == BASELINE_CONDITION:
+                                    loaded_baseline = data
+                                else:
+                                    loaded_treatments[cond] = data
+                            metrics = ExperimentMetrics(
+                                baseline=TreatmentMetrics(loaded_baseline),
+                                treatments={
+                                    n: TreatmentMetrics(m)
+                                    for n, m in loaded_treatments.items()
+                                },
+                                hypotheses=exp._verify_hypotheses(
+                                    loaded_baseline,
+                                    loaded_treatments,
+                                ),
+                            )
+                            self._results[name] = Result(metrics=metrics)
                             continue
                         run_strategy = "rerun"
             result = exp.run(

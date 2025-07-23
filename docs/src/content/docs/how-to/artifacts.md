@@ -100,5 +100,6 @@ an error if the previous run lacked `ArtifactPlugin`.
 
 Artifacts also enable resuming long experiments. Pass `strategy="resume"` to
 `Experiment.run()` or `ExperimentGraph.run()` and Crystallize will skip any
-conditions that already wrote a completion marker. Downstream experiments are
-rerun only when their required outputs are missing.
+conditions that already wrote a completion marker. Metrics from the previous
+run are loaded so the results dictionary is fully populated. Downstream
+experiments are rerun only when their required outputs are missing.

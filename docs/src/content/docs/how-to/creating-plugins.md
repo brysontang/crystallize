@@ -39,3 +39,7 @@ exp = Experiment(
 exp.validate()
 exp.run()
 ```
+
+## CLIStatusPlugin
+
+The interactive CLI injects a small `CLIStatusPlugin` into your experiments when running them. This plugin reports the current replicate, step and overall progress back to the UI so the header can display live status information. The CLI first checks whether your experiment already includes this plugin before adding it. You normally don't need to use it directly, but it demonstrates how plugins can communicate runtime events back to external tools.

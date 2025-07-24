@@ -34,7 +34,7 @@ Homepage = "https://github.com/brysontang/crystallize"
 Documentation = "https://github.com/brysontang/crystallize/tree/main/docs"
 
 [project.scripts]
-crystallize = "cli.main:run"
+crystallize = "cli.app:run"
 
 [tool.setuptools.packages.find]
 where = ["."]

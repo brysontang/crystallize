@@ -4,13 +4,11 @@ from typing import Any
 
 import pytest
 
-from cli.main import (
+from cli.discovery import _import_module, _run_object, discover_objects
+from cli.utils import (
     _build_experiment_table,
-    _import_module,
-    _run_object,
     _write_experiment_summary,
     _write_summary,
-    discover_objects,
 )
 from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment

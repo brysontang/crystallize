@@ -273,8 +273,6 @@ async def _run_object(obj: Any, strategy: str, replicates: Optional[int]) -> Any
 
 def _build_experiment_table(result: Any) -> Table:
     metrics = result.metrics
-    if not metrics:
-        return
     treatments = list(metrics.treatments.keys())
     table = Table(title="Metrics", border_style="bright_magenta", expand=True)
     table.add_column("Metric", style="cyan")
@@ -282,6 +280,8 @@ def _build_experiment_table(result: Any) -> Table:
     for t in treatments:
         table.add_column(t, style="green")
     metric_names = set(metrics.baseline.metrics)
+    if not metric_names:
+        return None
     for t in treatments:
         metric_names.update(metrics.treatments[t].metrics)
     for name in sorted(metric_names):
@@ -294,7 +294,8 @@ def _build_experiment_table(result: Any) -> Table:
 
 def _write_experiment_summary(log: RichLog, result: Any) -> None:
     table = _build_experiment_table(result)
-    log.write(table)
+    if table:
+        log.write(table)
     if result.errors:
         log.write("[bold red]Errors occurred[/]")
         for cond, err in result.errors.items():
@@ -304,8 +305,12 @@ def _write_experiment_summary(log: RichLog, result: Any) -> None:
 def _write_summary(log: RichLog, result: Any) -> None:
     if isinstance(result, dict):
         for name, res in result.items():
-            log.write(f"[bold underline]{name}[/]")
-            _write_experiment_summary(log, res)
+            has_table = _build_experiment_table(res) is not None
+            has_errors = bool(res.errors)
+
+            if has_table or has_errors:
+                log.write(Text(name, style="bold underline"))
+                _write_experiment_summary(log, res)
     else:
         _write_experiment_summary(log, result)
 
@@ -594,7 +599,6 @@ class RunScreen(ModalScreen[None]):
         try:
             # log = self.query_one("#live_log", RichLog)
             if self._result is not None:
-                # _write_summary(log, self._result)
                 self.open_summary_screen(self._result)
 
             self.query_one("#close_run").remove_class("hidden")
@@ -656,7 +660,11 @@ class CrystallizeApp(App):
     """Textual application for running crystallize objects."""
 
     CSS = CSS
-    BINDINGS = [("q", "quit", "Quit"), ("ctrl+c", "quit", "Quit")]
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("r", "refresh", "Refresh"),
+        ("ctrl+c", "quit", "Quit"),
+    ]
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -669,6 +677,10 @@ class CrystallizeApp(App):
 
     async def on_mount(self) -> None:
         """Called when the app is mounted. Kicks off discovery."""
+        self.run_worker(self._discover)
+
+    def action_refresh(self) -> None:
+        """Refresh the app."""
         self.run_worker(self._discover)
 
     def _discover_sync(self) -> Tuple[Dict[str, Any], Dict[str, Any]]:

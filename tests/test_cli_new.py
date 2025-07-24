@@ -1,7 +1,7 @@
 import asyncio
 from pathlib import Path
 
-from cli.main import _run_object, discover_objects
+from crystallize.cli.discovery import _run_object, discover_objects
 from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph

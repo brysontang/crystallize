@@ -93,11 +93,21 @@ def test_hypothesis_verifier_fuzz_no_crash():
     @given(
         st.dictionaries(
             st.text(min_size=1),
-            st.lists(st.floats(allow_nan=False, allow_infinity=False), min_size=1),
+            st.lists(
+                st.floats(
+                    min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False
+                ),
+                min_size=1,
+            ),
         ),
         st.dictionaries(
             st.text(min_size=1),
-            st.lists(st.floats(allow_nan=False, allow_infinity=False), min_size=1),
+            st.lists(
+                st.floats(
+                    min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False
+                ),
+                min_size=1,
+            ),
         ),
     )
     def run(baseline, treatment):

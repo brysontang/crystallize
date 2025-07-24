@@ -5,6 +5,36 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.20.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.19.1...crystallize-ml@v0.20.0) (2025-07-24)
+
+
+### Features
+
+* **crystallize-ml:** Add description param ([01fb8a2](https://github.com/brysontang/crystallize/commit/01fb8a27773156c177ab7250a079290e0bf1f95f))
+* **crystallize-ml:** Add interactive CLI ([3d1e8af](https://github.com/brysontang/crystallize/commit/3d1e8afbf21ead49ea14653e873a2e5546a7e3af))
+* **crystallize-ml:** Rebuild interactive cli using textual ([c2bc34f](https://github.com/brysontang/crystallize/commit/c2bc34f38f7ef4892bb548f5e277ac39a20872b8))
+* **crystallize-ml:** Refactor CLI to Textual app ([f864d55](https://github.com/brysontang/crystallize/commit/f864d5587516430d961c172d9af5f70f366b02fa))
+* Display current experiment if running experiment graph ([bb55d47](https://github.com/brysontang/crystallize/commit/bb55d47d923d7303b421aa251a121b8ac34d7e13))
+* Random ascii art ([4b51cab](https://github.com/brysontang/crystallize/commit/4b51cab6f78170eebd90009a0fe2edea8d628405))
+
+
+### Bug Fixes
+
+* Cleaned up ui ([6fa524e](https://github.com/brysontang/crystallize/commit/6fa524e56e68017effaa920d43123da57ab8d037))
+* Cli for better delete and folder management ([c3e9733](https://github.com/brysontang/crystallize/commit/c3e97334b1889dd62b8c2e982d798fb01d5e67ad))
+* Cli running graph ([f20a2a9](https://github.com/brysontang/crystallize/commit/f20a2a90b2256f71e41cb0ffb59ef30a8a69c429))
+* Ctrl+c goes back ([79b8a8d](https://github.com/brysontang/crystallize/commit/79b8a8df3c4ecdd4106d6cc18d7308079b2cf430))
+* Experiment graphs now have names ([f20a2a9](https://github.com/brysontang/crystallize/commit/f20a2a90b2256f71e41cb0ffb59ef30a8a69c429))
+* Experiment selection not working ([839ad16](https://github.com/brysontang/crystallize/commit/839ad161c65e33b48e3a85fe0bf1bc083f7f2540))
+* Failing tests ([e091fc1](https://github.com/brysontang/crystallize/commit/e091fc182a8a25e81d2e8c56e1e664dea4dd4542))
+* Logs not print ([79b8a8d](https://github.com/brysontang/crystallize/commit/79b8a8df3c4ecdd4106d6cc18d7308079b2cf430))
+* Missing tests ([821e51b](https://github.com/brysontang/crystallize/commit/821e51bb1e787cd036e5cffd80ca965de36d49cc))
+* Progress updates from experiment graph ([0c1c46c](https://github.com/brysontang/crystallize/commit/0c1c46cd8ecd736551ded9f34261a91ebdf68699))
+* Show error in thread ([a00f6ff](https://github.com/brysontang/crystallize/commit/a00f6ff560cd94a80ba2d31207e465c904867551))
+* Summary only shows tables that have data ([8f0315a](https://github.com/brysontang/crystallize/commit/8f0315ae72ef61593e0f0815be7fba8c6118a590))
+* Summary screen back ([4b51cab](https://github.com/brysontang/crystallize/commit/4b51cab6f78170eebd90009a0fe2edea8d628405))
+* Test warnings ([821e51b](https://github.com/brysontang/crystallize/commit/821e51bb1e787cd036e5cffd80ca965de36d49cc))
+
 ## [0.19.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.19.0...crystallize-ml@v0.19.1) (2025-07-23)
 
 

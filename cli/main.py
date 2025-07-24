@@ -25,6 +25,7 @@ from textual.widgets import (
     SelectionList,
     Static,
 )
+from textual.widgets.selection_list import Selection
 from textual.screen import ModalScreen
 
 from crystallize.experiments.experiment import Experiment
@@ -92,8 +93,6 @@ def discover_objects(directory: Path, obj_type: Type[Any]) -> Dict[str, Any]:
     return found
 
 
-
-
 async def _run_object(obj: Any, strategy: str, replicates: Optional[int]) -> Any:
     if isinstance(obj, ExperimentGraph):
         return await obj.arun(strategy=strategy, replicates=replicates)
@@ -154,7 +153,8 @@ class DeleteDataScreen(ModalScreen[tuple[int, ...] | None]):
         yield Static("Select data to DELETE (space to toggle)")
         self.list = SelectionList[int]()
         for idx, (name, path) in enumerate(self._deletable):
-            self.list.add_option(f"{name}: {path}", idx)
+            # FIX: Wrap the prompt and value in a Selection object
+            self.list.add_option(Selection(f"{name}: {path}", idx))
         yield self.list
         yield Horizontal(
             Button("Confirm", id="confirm"),
@@ -185,15 +185,15 @@ class StrategyScreen(ModalScreen[str | None]):
     def compose(self) -> ComposeResult:
         yield Static("Execution strategy")
         self.options = OptionList()
-        self.options.add_option("rerun", "rerun")
-        self.options.add_option("resume", "resume")
+        self.options.add_option(Selection("rerun", "rerun", id="rerun"))
+        self.options.add_option(Selection("resume", "resume", id="resume"))
         yield self.options
         yield Button("Cancel", id="cancel")
 
     def on_option_list_option_selected(
         self, message: OptionList.OptionSelected
     ) -> None:
-        self.dismiss(message.option.value)
+        self.dismiss(message.option.id)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss(None)
@@ -205,12 +205,12 @@ class SummaryScreen(ModalScreen[None]):
         self._result = result
 
     def compose(self) -> ComposeResult:
-        self.log = RichLog()
-        yield self.log
+        self.log_widget = RichLog()
+        yield self.log_widget
         yield Button("Close", id="close")
 
     async def on_mount(self) -> None:
-        _write_summary(self.log, self._result)
+        _write_summary(self.log_widget, self._result)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss(None)
@@ -304,10 +304,15 @@ class CrystallizeApp(App):
 
         list_view.focus()
 
-    async def on_list_view_selected(self, event: ListView.Selected) -> None:
-        obj = event.item.data["obj"]
+    async def _run_interactive_and_exit(self, obj: Any) -> None:
+        """Worker to run the interactive flow and then exit the app."""
         await _run_interactive(self, obj)
         self.exit()
+
+    async def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Handle item selection by running the interactive flow in a worker."""
+        obj = event.item.data["obj"]
+        self.run_worker(self._run_interactive_and_exit(obj))
 
 
 def run() -> None:

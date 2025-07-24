@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Callable, Awaitable
 import json
 
 import networkx as nx
@@ -133,6 +133,7 @@ class ExperimentGraph:
         treatments: List[Treatment] | None = None,
         replicates: int | None = None,
         strategy: str = "rerun",
+        progress_callback: Callable[[str, str], Awaitable[None]] | None = None,
     ) -> Dict[str, Result]:
         """Execute all experiments respecting dependency order."""
         if not nx.is_directed_acyclic_graph(self._graph):
@@ -221,8 +222,13 @@ class ExperimentGraph:
                                 ),
                             )
                             self._results[name] = Result(metrics=metrics)
+                            if progress_callback:
+                                await progress_callback("completed", name)
                             continue
                         run_strategy = "rerun"
+
+            if progress_callback:
+                await progress_callback("running", name)
 
             final_treatments_for_exp = (
                 treatments if treatments is not None else getattr(exp, "treatments", [])
@@ -235,5 +241,8 @@ class ExperimentGraph:
                 strategy=run_strategy,
             )
             self._results[name] = result
+
+            if progress_callback:
+                await progress_callback("completed", name)
 
         return self._results

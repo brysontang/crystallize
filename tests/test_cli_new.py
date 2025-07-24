@@ -6,7 +6,7 @@ from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.pipelines.pipeline import Pipeline
 
-from crystallize.cli import discover_objects, _run_object
+from cli.main import discover_objects, _run_object
 
 
 @data_source

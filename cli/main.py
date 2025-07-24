@@ -1,5 +1,4 @@
-"""Textual-based CLI for crystallize.
-"""
+"""Textual-based CLI for crystallize."""
 
 from __future__ import annotations
 
@@ -12,7 +11,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
 
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
+from rich.text import Text
 from simple_term_menu import TerminalMenu
 from textual.app import App, ComposeResult
 from textual.containers import Container
@@ -29,7 +30,7 @@ OBJ_TYPES = {
 }
 
 ASCII_ART = r"""
-                       _        _ _ _
+                      _        _ _
    ___ _ __ _   _ ___| |_ __ _| | (_)_______
   / __| '__| | | / __| __/ _` | | | |_  / _ \
  | (__| |  | |_| \__ \ || (_| | | | |/ /  __/
@@ -39,6 +40,7 @@ ASCII_ART = r"""
 
 
 # Discovery helpers copied from the original CLI
+
 
 def _import_module(file_path: Path, root_path: Path) -> Optional[Any]:
     """Import ``file_path`` as a module relative to ``root_path``."""
@@ -151,7 +153,8 @@ def _print_summary(result: Any) -> None:
 
 # Interactive run logic reused from the original CLI
 
-def _run_interactive(obj: Any) -> None:
+
+async def _run_interactive(obj: Any) -> None:
     console = Console()
     selected = obj
     if isinstance(selected, ExperimentGraph):
@@ -199,7 +202,7 @@ def _run_interactive(obj: Any) -> None:
     if strat_idx is None:
         return
     strategy = ["rerun", "resume"][strat_idx]
-    result = asyncio.run(_run_object(selected, strategy, None))
+    result = await _run_object(selected, strategy, None)
     _print_summary(result)
 
 
@@ -208,46 +211,57 @@ class CrystallizeApp(App):
 
     BINDINGS = [("q", "quit", "Quit")]
 
-    def __init__(self, path: str = ".", **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.path = Path(path)
-        self.list_view: ListView | None = None
-
     def compose(self) -> ComposeResult:
+        """Create child widgets for the app."""
         yield Static(ASCII_ART)
-        self.main = Container()
-        yield self.main
+        yield Container(
+            LoadingIndicator(),
+            Static("Scanning for experiments and graphs...", id="loading-text"),
+            id="main-container",
+        )
         yield Footer()
 
     async def on_mount(self) -> None:
-        self.loading = LoadingIndicator()
-        self.loading_text = Static("Scanning for experiments and graphs...")
-        await self.main.mount(self.loading)
-        await self.main.mount(self.loading_text)
-        asyncio.create_task(self._discover())
+        """Called when the app is mounted. Kicks off discovery."""
+        self.run_worker(self._discover)
+
+    def _discover_sync(self) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """Synchronous discovery function to run in a thread."""
+        path = Path(".")
+        graphs = discover_objects(path, ExperimentGraph)
+        experiments = discover_objects(path, Experiment)
+        return graphs, experiments
 
     async def _discover(self) -> None:
-        graphs = discover_objects(self.path, ExperimentGraph)
-        experiments = discover_objects(self.path, Experiment)
-        await self.loading.remove()
-        await self.loading_text.remove()
-        self.list_view = ListView()
-        await self.main.mount(Static("Select an object to run:"))
-        await self.main.mount(self.list_view)
+        """Discover experiments and graphs and populate the list view."""
+        worker = self.run_worker(self._discover_sync, thread=True)
+        graphs, experiments = await worker.wait()
+
+        main_container = self.query_one("#main-container")
+        await main_container.remove_children()  # Clear "Loading..."
+
+        list_view = ListView(initial_index=0)
+        await main_container.mount(Static("Select an object to run:"))
+        await main_container.mount(list_view)
+
         for label, obj in graphs.items():
-            item = ListItem(Static(f"[Graph] {label}"))
-            item.data = obj
-            await self.list_view.append(item)
+            escaped_label = Text(f"[Graph] {label}")
+            item = ListItem(Static(escaped_label))
+            item.data = {"obj": obj, "type": "Graph"}
+            list_view.append(item)
         for label, obj in experiments.items():
-            item = ListItem(Static(f"[Experiment] {label}"))
-            item.data = obj
-            await self.list_view.append(item)
+            escaped_label = Text(f"[Experiment] {label}")
+            item = ListItem(Static(escaped_label))
+            item.data = {"obj": obj, "type": "Experiment"}
+            list_view.append(item)
+
+        list_view.focus()
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
-        obj = event.item.data
-        async with self.app.suspend():
-            _run_interactive(obj)
-        await self.action_quit()
+        obj = event.item.data["obj"]
+        with self.suspend():
+            await _run_interactive(obj)
+        self.exit()
 
 
 def run() -> None:

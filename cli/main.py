@@ -16,7 +16,6 @@ from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, VerticalScroll
 from textual.css.query import NoMatches
-from textual.reactive import reactive
 from textual.widgets import (
     Button,
     Footer,
@@ -31,6 +30,7 @@ from textual.widgets import (
 )
 from textual.widgets.selection_list import Selection
 from textual.screen import ModalScreen
+from textual.message import Message
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -111,6 +111,25 @@ DeleteDataScreen Container {
     padding: 1;
 }
 
+.confirm-delete-container {
+    width: 80%;
+    height: auto;
+    max-height: 80%;
+    border: round $error;
+    background: $panel;
+    padding: 1;
+}
+
+.path-list {
+    background: $surface;
+    border: round $primary;
+    margin: 1 0;
+    padding: 1;
+    height: auto;
+    max-height: 10; /* Makes the list scrollable if it's long */
+}
+
+
 SelectionList {
     height: 1fr;
     width: 100%;
@@ -146,21 +165,24 @@ LoadingIndicator {
 
 
 class WidgetWriter:
-    """A thread-safe, file-like object that writes to a Textual widget."""
+    """A thread-safe, file-like object that writes to a RichLog widget and forces a refresh."""
 
     def __init__(self, widget: RichLog, app: App):
         self.widget = widget
         self.app = app
 
     def write(self, message: str) -> None:
-        self.app.call_from_thread(self.widget.write, message)
+        if message:
+            # Schedule the write operation
+            self.app.call_from_thread(self.widget.write, message)
+            # CRITICAL: Also schedule a refresh to force the widget to repaint
+            self.app.call_from_thread(self.widget.refresh)
 
     def flush(self) -> None:
-        # File-like objects need a flush method.
         pass
 
     def isatty(self) -> bool:
-        return True  # Fake TTY to enable line buffering for live output
+        return True
 
 
 # Discovery helpers copied from the original CLI
@@ -259,45 +281,119 @@ def _write_summary(log: RichLog, result: Any) -> None:
 # Interactive run logic reused from the original CLI
 
 
+class ActionableSelectionList(SelectionList):
+    """A SelectionList that triggers a custom message on Enter."""
+
+    # Define a custom message that this widget can send
+    class Submitted(Message):
+        def __init__(self, selected: tuple[Any, ...]) -> None:
+            self.selected = selected
+            super().__init__()
+
+    # Override the default bindings
+    BINDINGS = [("enter", "submit", "Submit")]
+
+    def action_submit(self) -> None:
+        """Called when the user presses Enter."""
+        # Get all selected values that are actual items (integers)
+        selected_indices = tuple(
+            value for value in self.selected if isinstance(value, int)
+        )
+        # Post our custom message with the selected items
+        self.post_message(self.Submitted(selected_indices))
+
+
 class DeleteDataScreen(ModalScreen[tuple[int, ...] | None]):
+    BINDINGS = [("ctrl+c", "cancel_and_exit", "Cancel")]
+
     def __init__(self, deletable: List[Tuple[str, Path]]) -> None:
         super().__init__()
         self._deletable = deletable
 
     def compose(self) -> ComposeResult:
         with Container():
-            yield Static("Select data to DELETE (space to toggle)", id="modal-title")
-            self.list = SelectionList[int]()
-            for idx, (name, path) in enumerate(self._deletable):
-                self.list.add_option(Selection(f"{name}: {path}", idx))
-            yield self.list
-            yield Horizontal(
-                Button("Confirm", id="confirm"),
-                Button("Skip", id="skip"),
+            yield Static(
+                "Use space to toggle, enter to confirm.",
+                id="modal-title",
             )
+            # Use our new ActionableSelectionList instead of the default one
+            self.list = ActionableSelectionList()
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "confirm":
-            self.dismiss(tuple(self.list.selected))
-        else:
-            self.dismiss(None)
+            # Add the deletable files
+            for idx, (name, path) in enumerate(self._deletable):
+                self.list.add_option(Selection(f"  {name}: {path}", idx))
+
+            yield self.list
+
+    def on_mount(self) -> None:
+        """Set focus to the selection list when the screen is mounted."""
+        self.query_one(ActionableSelectionList).focus()
+
+    # Add this new handler for our custom message
+    def on_actionable_selection_list_submitted(
+        self, message: ActionableSelectionList.Submitted
+    ) -> None:
+        """Handles when the user presses Enter in the list."""
+        self.dismiss(message.selected)
+
+    def action_cancel_and_exit(self) -> None:
+        """Called when the user presses Ctrl+C. Closes the modal."""
+        self.dismiss(None)
+
+    def action_cancel_and_exit(self) -> None:
+        """Called when the user presses Ctrl+C."""
+        self.dismiss(None)
 
 
 class ConfirmScreen(ModalScreen[bool]):
-    def __init__(self, msg: str) -> None:
+    BINDINGS = [
+        ("ctrl+c", "cancel_and_exit", "Cancel"),
+        ("y", "confirm_and_exit", "Confirm"),
+        ("n", "cancel_and_exit", "Cancel"),
+    ]
+
+    def __init__(self, paths_to_delete: list[Path]) -> None:
         super().__init__()
-        self._msg = msg
+        self._paths = paths_to_delete
 
     def compose(self) -> ComposeResult:
-        with Container():
-            yield Static(self._msg, id="modal-title")
-            yield Horizontal(Button("Yes", id="yes"), Button("No", id="no"))
+        with Container(classes="confirm-delete-container"):
+            yield Static(
+                "[bold red]The following will be permanently deleted:[/bold red]"
+            )
+
+            with VerticalScroll(classes="path-list"):
+                if not self._paths:
+                    yield Static("  (Nothing selected)")
+                for path in self._paths:
+                    yield Static(f"• {path}")
+
+            yield Static("\nAre you sure you want to proceed? (y/n)")
+
+            yield Horizontal(
+                Button("Yes, Delete", variant="error", id="yes"),
+                Button("No, Cancel", variant="primary", id="no"),
+            )
+
+    def on_mount(self) -> None:
+        # Focus the "No" button by default as a safety measure
+        self.query_one("#no", Button).focus()
+
+    def action_confirm_and_exit(self) -> None:
+        """Called when the user presses y."""
+        self.dismiss(True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss(event.button.id == "yes")
 
+    def action_cancel_and_exit(self) -> None:
+        """Called when the user presses Ctrl+C."""
+        self.dismiss(False)  # Ctrl+C is the same as cancelling
+
 
 class StrategyScreen(ModalScreen[str | None]):
+    BINDINGS = [("ctrl+c", "cancel_and_exit", "Cancel")]
+
     def compose(self) -> ComposeResult:
         with Container():
             yield Static("Execution strategy", id="modal-title")
@@ -315,9 +411,20 @@ class StrategyScreen(ModalScreen[str | None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss(None)
 
+    def action_cancel_and_exit(self) -> None:
+        """Called when the user presses Ctrl+C."""
+        self.dismiss(None)
+
 
 class RunScreen(ModalScreen[None]):
     """A screen to display the live output of a running experiment."""
+
+    class ExperimentComplete(Message):
+        """Posted when the experiment worker finishes."""
+
+        def __init__(self, result: Any) -> None:
+            self.result = result
+            super().__init__()
 
     BINDINGS = [("ctrl+c", "cancel_and_exit", "Cancel and Go Back")]
 
@@ -326,71 +433,66 @@ class RunScreen(ModalScreen[None]):
         self._obj = obj
         self._strategy = strategy
         self._replicates = replicates
+        self._result: Any = None  # To store the result for the button
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="run-container"):
+            yield Header(show_clock=True)
             yield Static(f"⚡ Running: {self._obj.name}", id="modal-title")
-            yield RichLog(highlight=True, markup=True)
-            yield LoadingIndicator()
+            yield RichLog(highlight=True, markup=True, id="live_log")
+            # Add a new "View Summary" button, also hidden
+            yield Button("View Summary", id="view_summary", classes="hidden")
+            yield Button("Close", id="close_run", classes="hidden")
 
     def on_mount(self) -> None:
-        log = self.query_one(RichLog)
+        # This method can be restored from our last working version
+        log = self.query_one("#live_log", RichLog)
 
-        def run_experiment_sync() -> Any:
+        def run_experiment_sync() -> None:
+            original_stdout = sys.stdout
+            sys.stdout = WidgetWriter(log, self.app)
             result = None
             try:
-                with redirect_stdout(WidgetWriter(log, self.app)):
-                    # Run the async _run_object in a new event loop within this thread.
-                    # This assumes obj.arun() doesn't depend on the main app's event loop.
-                    result = asyncio.run(
-                        _run_object(self._obj, self._strategy, self._replicates)
-                    )
-            except Exception as e:
-                self.app.call_from_thread(
-                    log.write,
-                    f"[bold red]An unexpected error occurred during the run:\n{e}[/bold red]",
+                result = asyncio.run(
+                    _run_object(self._obj, self._strategy, self._replicates)
                 )
-            return result
+            except Exception as e:
+                print(f"[bold red]An error occurred in the worker:\n{e}[/bold red]")
+            finally:
+                sys.stdout = original_stdout
+
+                self.on_experiment_complete(self.ExperimentComplete(result))
 
         self.worker = self.run_worker(run_experiment_sync, thread=True)
-        asyncio.create_task(self._wait_for_worker())
 
-    async def _wait_for_worker(self) -> None:
-        result = await self.worker.wait()
-        log = self.query_one(RichLog)
-        self.query_one(LoadingIndicator).remove()
-        if result is not None:
-            _write_summary(log, result)
-            self.app.push_screen(SummaryScreen(result))
+    def on_experiment_complete(self, message: ExperimentComplete) -> None:
+        """Called when the ExperimentComplete message is received."""
+        # Store the result so the button's action can use it
+        self._result = message.result
+        try:
+            log = self.query_one("#live_log", RichLog)
+            print(self._result)
+            if self._result is not None:
+                # Also write the summary to the main log so it's visible here too
+                _write_summary(log, self._result)
+
+            # Show both buttons
+            self.query_one("#view_summary").remove_class("hidden")
+            self.query_one("#close_run").remove_class("hidden")
+        except NoMatches:
+            pass
 
     def action_cancel_and_exit(self) -> None:
-        """Called when the user presses Ctrl+C."""
         if self.worker and not self.worker.is_finished:
             self.worker.cancel()
         self.app.pop_screen()
 
-
-class SummaryScreen(ModalScreen[None]):
-    """A screen to display the summary of a run."""
-
-    BINDINGS = [("ctrl+c", "close", "Close")]
-
-    def __init__(self, result: Any) -> None:
-        super().__init__()
-        self._result = result
-
-    def compose(self) -> ComposeResult:
-        with Container():
-            yield Static("Execution Summary", id="modal-title")
-            self.log_widget = RichLog()
-            yield self.log_widget
-            yield Button("Close", id="close")
-
-    async def on_mount(self) -> None:
-        _write_summary(self.log_widget, self._result)
-
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.dismiss(None)
+        """Handle button presses."""
+        if event.button.id == "view_summary" and self._result is not None:
+            self.app.push_screen(SummaryScreen(self._result))
+        elif event.button.id == "close_run":
+            self.app.pop_screen()
 
 
 async def _launch_run(app: App, obj: Any) -> None:
@@ -405,13 +507,18 @@ async def _launch_run(app: App, obj: Any) -> None:
             base = Path(plugin.root_dir) / exp.name
             if base.exists():
                 deletable.append((node, base))
+
         if deletable:
             idxs = await app.push_screen_wait(DeleteDataScreen(deletable))
-            if idxs:
+
+            # If the user cancelled or skipped the delete screen, stop here.
+            if idxs is None:
+                return
+
+            # This part only runs if the user clicked "Confirm".
+            if idxs:  # Check if they actually selected anything
                 paths_to_delete = [deletable[i][1] for i in idxs]
-                confirm = await app.push_screen_wait(
-                    ConfirmScreen("Are you sure you want to proceed?")
-                )
+                confirm = await app.push_screen_wait(ConfirmScreen(paths_to_delete))
                 if confirm:
                     for p in paths_to_delete:
                         try:
@@ -419,11 +526,42 @@ async def _launch_run(app: App, obj: Any) -> None:
                         except OSError:
                             pass
                 else:
-                    return
+                    return  # Stop if they cancel the confirmation
+
     strategy = await app.push_screen_wait(StrategyScreen())
     if strategy is None:
         return
     await app.push_screen(RunScreen(selected, strategy, None))
+
+
+class SummaryScreen(ModalScreen[None]):
+    """A screen to display the summary of a run."""
+
+    BINDINGS = [("escape", "close_screen", "Close")]
+
+    def __init__(self, result: Any) -> None:
+        super().__init__()
+        self._result = result
+
+    def compose(self) -> ComposeResult:
+        with Container(id="summary-container"):
+            yield Static("Execution Summary", id="modal-title")
+            # Assign the widget to an instance attribute
+            self.log_widget = RichLog(highlight=True, markup=True)
+            yield self.log_widget
+            yield Button("Close", id="close_summary")
+
+    def on_mount(self) -> None:
+        """This method is called after the screen's widgets are ready."""
+        # This is the correct place to write the summary to the log widget
+        _write_summary(self.log_widget, self._result)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "close_summary":
+            self.app.pop_screen()
+
+    def action_close_screen(self) -> None:
+        self.app.pop_screen()
 
 
 class CrystallizeApp(App):

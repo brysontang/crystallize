@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import threading
 from functools import update_wrapper
-from typing import Any, Callable, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 from crystallize.utils.constants import (
     BASELINE_CONDITION,
@@ -164,9 +164,12 @@ def hypothesis(
     """Decorate a ranker function and produce a :class:`Hypothesis`."""
 
     def decorator(fn: Callable[[Mapping[str, Any]], float]) -> Hypothesis:
-        return Hypothesis(
-            verifier=verifier, metrics=metrics, ranker=fn, name=name or fn.__name__
-        )
+        def factory() -> Hypothesis:
+            return Hypothesis(
+                verifier=verifier, metrics=metrics, ranker=fn, name=name or fn.__name__
+            )
+
+        return update_wrapper(factory, fn)
 
     return decorator
 
@@ -204,6 +207,25 @@ def data_source(fn: Callable[..., Any]) -> Callable[..., DataSource]:
         return FunctionSource()
 
     return update_wrapper(factory, fn)
+
+
+class VerifierCallable:
+    """A picklable callable that wraps the verifier function with fixed parameters."""
+
+    def __init__(
+        self, fn: Callable[..., Any], params: Dict[str, Any], param_names: List[str]
+    ):
+        self.fn = fn
+        self.params = params
+        self.param_names = param_names
+
+    def __call__(
+        self,
+        baseline_samples: Mapping[str, Sequence[Any]],
+        treatment_samples: Mapping[str, Sequence[Any]],
+    ) -> Mapping[str, Any]:
+        kwargs = {n: self.params[n] for n in self.param_names}
+        return self.fn(baseline_samples, treatment_samples, **kwargs)
 
 
 def verifier(
@@ -244,14 +266,7 @@ def verifier(
         if missing:
             raise TypeError(f"Missing parameters: {', '.join(missing)}")
 
-        def wrapped(
-            baseline_samples: Mapping[str, Sequence[Any]],
-            treatment_samples: Mapping[str, Sequence[Any]],
-        ) -> Mapping[str, Any]:
-            kwargs = {n: params[n] for n in param_names}
-            return fn(baseline_samples, treatment_samples, **kwargs)
-
-        return wrapped
+        return VerifierCallable(fn, params, param_names)
 
     return update_wrapper(factory, fn)
 

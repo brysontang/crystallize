@@ -22,9 +22,10 @@ from .treatment import Treatment
 class ExperimentGraph:
     """Manage and run a directed acyclic graph of experiments."""
 
-    def __init__(self) -> None:
+    def __init__(self, name: str | None = None) -> None:
         self._graph = nx.DiGraph()
         self._results: Dict[str, Result] = {}
+        self._name = name
 
     # ------------------------------------------------------------------ #
     @classmethod
@@ -86,7 +87,10 @@ class ExperimentGraph:
                 "Unused experiments detected: " + ", ".join(str(u) for u in unused)
             )
 
-        obj = cls()
+        # Try to infer a name if not explicitly given, e.g., from the final node
+        final_nodes = [n for n, d in graph.out_degree() if d == 0]
+        graph_name = final_nodes[0] if len(final_nodes) == 1 else "ExperimentGraph"
+        obj = cls(name=graph_name)
         obj._graph = graph
         return obj
 

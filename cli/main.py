@@ -8,6 +8,7 @@ import inspect
 import shutil
 import sys
 from pathlib import Path
+from contextlib import redirect_stdout
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
 
 from rich.table import Table
@@ -91,11 +92,10 @@ ListItem.selected {
 }
 
 .experiment-item > Static {
-    color: green;
 }
 
 .graph-item > Static {
-    color: blue;
+    text-style: bold italic;
 }
 
 ModalScreen {
@@ -143,6 +143,23 @@ LoadingIndicator {
     color: $accent;
 }
 """
+
+
+class WidgetWriter:
+    """A thread-safe, file-like object that writes to a Textual widget."""
+
+    def __init__(self, widget: RichLog, app: App):
+        self.widget = widget
+        self.app = app
+
+    def write(self, message: str) -> None:
+        # Use call_from_thread to safely schedule the widget update
+        # on the main application thread.
+        self.app.call_from_thread(self.widget.write, message)
+
+    def flush(self) -> None:
+        # File-like objects need a flush method.
+        pass
 
 
 # Discovery helpers copied from the original CLI
@@ -298,7 +315,58 @@ class StrategyScreen(ModalScreen[str | None]):
         self.dismiss(None)
 
 
+class RunScreen(ModalScreen[None]):
+    """A screen to display the live output of a running experiment."""
+
+    BINDINGS = [("ctrl+c", "cancel_and_exit", "Cancel and Go Back")]
+
+    def __init__(self, obj: Any, strategy: str, replicates: int | None) -> None:
+        super().__init__()
+        self._obj = obj
+        self._strategy = strategy
+        self._replicates = replicates
+
+    def compose(self) -> ComposeResult:
+        with VerticalScroll(id="run-container"):
+            yield Static(f"⚡ Running: {self._obj.name}", id="modal-title")
+            yield RichLog(highlight=True, markup=True)
+            yield LoadingIndicator()
+
+    def on_mount(self) -> None:
+        """Start the experiment in a background thread."""
+        self.worker = self.run_worker(self._run_experiment, thread=True)
+
+    async def _run_experiment(self) -> None:
+        """The worker thread that runs the experiment."""
+        log = self.query_one(RichLog)
+        result = None
+        try:
+            # Use the standard library's redirect_stdout with our custom writer
+            with redirect_stdout(WidgetWriter(log, self.app)):
+                result = await _run_object(self._obj, self._strategy, self._replicates)
+                _write_summary(log, result)
+        except Exception as e:
+            log.write(
+                f"[bold red]An unexpected error occurred during the run:\n{e}[/bold red]"
+            )
+        finally:
+            self.query_one(LoadingIndicator).remove()
+            # Safely interact with the UI from the worker thread
+            if result is not None:
+                self.app.call_from_thread(self.app.push_screen, SummaryScreen(result))
+
+    def action_cancel_and_exit(self) -> None:
+        """Called when the user presses Ctrl+C."""
+        if self.worker and not self.worker.is_finished:
+            self.worker.cancel()
+        self.app.pop_screen()
+
+
 class SummaryScreen(ModalScreen[None]):
+    """A screen to display the summary of a run."""
+
+    BINDINGS = [("ctrl+c", "close", "Close")]
+
     def __init__(self, result: Any) -> None:
         super().__init__()
         self._result = result
@@ -317,7 +385,7 @@ class SummaryScreen(ModalScreen[None]):
         self.dismiss(None)
 
 
-async def _run_interactive(app: App, obj: Any) -> None:
+async def _launch_run(app: App, obj: Any) -> None:
     selected = obj
     if isinstance(selected, ExperimentGraph):
         deletable: List[Tuple[str, Path]] = []
@@ -347,8 +415,7 @@ async def _run_interactive(app: App, obj: Any) -> None:
     strategy = await app.push_screen_wait(StrategyScreen())
     if strategy is None:
         return
-    result = await _run_object(selected, strategy, None)
-    await app.push_screen_wait(SummaryScreen(result))
+    await app.push_screen(RunScreen(selected, strategy, None))
 
 
 class CrystallizeApp(App):
@@ -404,8 +471,7 @@ class CrystallizeApp(App):
 
     async def _run_interactive_and_exit(self, obj: Any) -> None:
         """Worker to run the interactive flow and then exit the app."""
-        await _run_interactive(self, obj)
-        self.exit()
+        await _launch_run(self, obj)
 
     async def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         if event.item is not None:

@@ -28,6 +28,7 @@ extras = ["crystallize-extras"]
 ray = ["ray"]
 vllm = ["vllm"]
 cli = ["textual"]
+all = ["crystallize-extras", "ray", "vllm", "textual"]
 
 [project.urls]
 Homepage = "https://github.com/brysontang/crystallize"

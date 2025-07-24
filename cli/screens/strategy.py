@@ -1,4 +1,5 @@
 """Screen for selecting execution strategy."""
+
 from __future__ import annotations
 
 from textual.app import ComposeResult
@@ -9,7 +10,10 @@ from textual.screen import ModalScreen
 
 
 class StrategyScreen(ModalScreen[str | None]):
-    BINDINGS = [("ctrl+c", "cancel_and_exit", "Cancel")]
+    BINDINGS = [
+        ("ctrl+c", "cancel_and_exit", "Cancel"),
+        ("q", "cancel_and_exit", "Close"),
+    ]
 
     def compose(self) -> ComposeResult:
         with Container():

@@ -1,4 +1,5 @@
 """Screen for displaying run summaries."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -14,7 +15,7 @@ from ..utils import _write_summary
 class SummaryScreen(ModalScreen[None]):
     """Display the summary of an experiment run."""
 
-    BINDINGS = [("ctrl+c", "close", "Close")]
+    BINDINGS = [("ctrl+c", "close", "Close"), ("q", "close", "Close")]
 
     def __init__(self, result: Any) -> None:
         super().__init__()

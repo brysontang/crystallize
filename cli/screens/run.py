@@ -1,4 +1,5 @@
 """Screen for running experiments and graphs."""
+
 from __future__ import annotations
 
 import asyncio
@@ -23,7 +24,9 @@ from crystallize.plugins.plugins import ArtifactPlugin
 from ..status_plugin import CLIStatusPlugin
 
 
-def _inject_status_plugin(obj: Any, callback: Callable[[str, dict[str, Any]], None]) -> None:
+def _inject_status_plugin(
+    obj: Any, callback: Callable[[str, dict[str, Any]], None]
+) -> None:
     """Inject CLIStatusPlugin into experiments if not already present."""
     if isinstance(obj, ExperimentGraph):
         for node in obj._graph.nodes:
@@ -33,6 +36,7 @@ def _inject_status_plugin(obj: Any, callback: Callable[[str, dict[str, Any]], No
     else:
         if obj.get_plugin(CLIStatusPlugin) is None:
             obj.plugins.append(CLIStatusPlugin(callback))
+
 
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
@@ -55,7 +59,10 @@ class RunScreen(ModalScreen[None]):
             self.result = result
             super().__init__()
 
-    BINDINGS = [("ctrl+c", "cancel_and_exit", "Cancel and Go Back")]
+    BINDINGS = [
+        ("ctrl+c", "cancel_and_exit", "Cancel and Go Back"),
+        ("q", "cancel_and_exit", "Close"),
+    ]
 
     node_states: dict[str, str] = reactive({})
     replicate_info: str = reactive("")
@@ -181,6 +188,7 @@ class RunScreen(ModalScreen[None]):
             sys.stdout = WidgetWriter(log, self.app)
             result = None
             try:
+
                 async def run_with_callback():
                     if isinstance(self._obj, ExperimentGraph):
                         return await self._obj.arun(
@@ -194,6 +202,7 @@ class RunScreen(ModalScreen[None]):
                         )
 
                 result = asyncio.run(run_with_callback())
+
             except Exception as e:  # pragma: no cover - runtime path
                 print(f"[bold red]An error occurred in the worker:\n{e}[/bold red]")
             finally:
@@ -221,6 +230,7 @@ class RunScreen(ModalScreen[None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close_run":
             self.app.pop_screen()
+
 
 async def _launch_run(app: App, obj: Any) -> None:
     selected = obj

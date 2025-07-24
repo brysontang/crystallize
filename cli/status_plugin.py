@@ -32,7 +32,9 @@ class CLIStatusPlugin(BasePlugin):
             {
                 "steps": self.steps,
                 "replicates": self.total_replicates,
-                "total": self.total_steps * self.total_replicates * self.total_conditions,
+                "total": self.total_steps
+                * self.total_replicates
+                * self.total_conditions,
             },
         )
 

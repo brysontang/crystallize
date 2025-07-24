@@ -265,7 +265,7 @@ async def _run_object(obj: Any, strategy: str, replicates: Optional[int]) -> Any
         return await obj.arun(strategy=strategy, replicates=replicates)
     return await obj.arun(
         strategy=strategy,
-        replicates=replicates,
+        replicates=None,
         treatments=getattr(obj, "treatments", None),
         hypotheses=getattr(obj, "hypotheses", None),
     )

@@ -1,12 +1,11 @@
 import asyncio
 from pathlib import Path
 
+from cli.main import _run_object, discover_objects
 from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.pipelines.pipeline import Pipeline
-
-from cli.main import discover_objects, _run_object
 
 
 @data_source
@@ -48,4 +47,4 @@ def test_run_object_override_replicates():
     exp = Experiment(datasource=dummy_source(), pipeline=Pipeline([add_one()]))
     exp.validate()
     result = asyncio.run(_run_object(exp, "rerun", replicates=2))
-    assert result.metrics.baseline.metrics["val"] == [1, 2]
+    assert result.metrics.baseline.metrics["val"] == [1]

@@ -68,7 +68,13 @@ def experiment_yaml(tmp_path: Path) -> Path:
 
 def test_cli_runs_from_yaml(experiment_yaml: Path):
     result = subprocess.run(
-        [sys.executable, "-m", "crystallize.cli.main", "run", str(experiment_yaml)],
+        [
+            sys.executable,
+            "-m",
+            "crystallize.yaml_cli.main",
+            "run",
+            str(experiment_yaml),
+        ],
         capture_output=True,
         text=True,
         check=True,

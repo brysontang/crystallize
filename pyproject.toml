@@ -27,14 +27,18 @@ dev = []  # Empty; dev deps handled in pixi sections
 extras = ["crystallize-extras"]
 ray = ["ray"]
 vllm = ["vllm"]
+cli = ["textual"]
 
 [project.urls]
 Homepage = "https://github.com/brysontang/crystallize"
 Documentation = "https://github.com/brysontang/crystallize/tree/main/docs"
 
+[project.scripts]
+crystallize = "cli.main:run"
+
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["crystallize*"]
+include = ["crystallize*", "cli"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
@@ -83,6 +87,7 @@ lazydocs = ">=0.4.8,<0.5"
 build = ">=1.2.2.post1,<2"
 twine = ">=5.1.0,<6"
 diff-cover = "*"
+textual = "*"
 
 [tool.pixi.feature.extras.pypi-dependencies]
 crystallize-ml = "*"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Callable, Awaitable
 import json
 
 import networkx as nx
@@ -22,9 +22,10 @@ from .treatment import Treatment
 class ExperimentGraph:
     """Manage and run a directed acyclic graph of experiments."""
 
-    def __init__(self) -> None:
+    def __init__(self, name: str | None = None) -> None:
         self._graph = nx.DiGraph()
         self._results: Dict[str, Result] = {}
+        self._name = name
 
     # ------------------------------------------------------------------ #
     @classmethod
@@ -86,7 +87,11 @@ class ExperimentGraph:
                 "Unused experiments detected: " + ", ".join(str(u) for u in unused)
             )
 
-        obj = cls()
+        # Infer graph name from the “final” experiment(s) — those with no successors
+        final_nodes = [node for node, children in graph._succ.items() if not children]
+        graph_name = final_nodes[0] if len(final_nodes) == 1 else "ExperimentGraph"
+
+        obj = cls(name=graph_name)
         obj._graph = graph
         return obj
 
@@ -129,6 +134,7 @@ class ExperimentGraph:
         treatments: List[Treatment] | None = None,
         replicates: int | None = None,
         strategy: str = "rerun",
+        progress_callback: Callable[[str, str], Awaitable[None]] | None = None,
     ) -> Dict[str, Result]:
         """Execute all experiments respecting dependency order."""
         if not nx.is_directed_acyclic_graph(self._graph):
@@ -217,8 +223,13 @@ class ExperimentGraph:
                                 ),
                             )
                             self._results[name] = Result(metrics=metrics)
+                            if progress_callback:
+                                await progress_callback("completed", name)
                             continue
                         run_strategy = "rerun"
+
+            if progress_callback:
+                await progress_callback("running", name)
 
             final_treatments_for_exp = (
                 treatments if treatments is not None else getattr(exp, "treatments", [])
@@ -231,5 +242,8 @@ class ExperimentGraph:
                 strategy=run_strategy,
             )
             self._results[name] = result
+
+            if progress_callback:
+                await progress_callback("completed", name)
 
         return self._results

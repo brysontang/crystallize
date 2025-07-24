@@ -3,7 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from crystallize.cli.yaml_loader import load_experiment, load_experiment_from_file
+from crystallize.yaml_cli.yaml_loader import (
+    load_experiment,
+    load_experiment_from_file,
+)
 from crystallize import data_source, pipeline_step, verifier
 
 
@@ -168,7 +171,7 @@ def test_max_workers_invalid_type():
 def test_json_fallback(monkeypatch, tmp_path):
     import importlib
     import sys
-    from crystallize.cli import yaml_loader as yl
+    from crystallize.yaml_cli import yaml_loader as yl
 
     monkeypatch.setitem(sys.modules, "yaml", None)
     yl_reloaded = importlib.reload(yl)

@@ -399,6 +399,7 @@ class Experiment:
         errors: Dict[str, Exception] = {}
 
         for rep, res in enumerate(results_list):
+
             base = res.baseline_metrics
             seed = res.baseline_seed
             treats = res.treatment_metrics
@@ -422,15 +423,17 @@ class Experiment:
             samples: List[Mapping[str, Sequence[Any]]],
         ) -> Dict[str, List[Any]]:
             metrics: DefaultDict[str, List[Any]] = defaultdict(list)
-            for sample in samples:
+            for i, sample in enumerate(samples):
                 for metric, values in sample.items():
                     metrics[metric].extend(list(values))
-            return dict(metrics)
+            result = dict(metrics)
+            return result
 
         baseline_metrics = collect_all_samples(baseline_samples)
-        treatment_metrics_dict = {
-            name: collect_all_samples(samp) for name, samp in treatment_samples.items()
-        }
+
+        treatment_metrics_dict = {}
+        for name, samp in treatment_samples.items():
+            treatment_metrics_dict[name] = collect_all_samples(samp)
 
         return AggregateData(
             baseline_metrics=baseline_metrics,
@@ -593,6 +596,7 @@ class Experiment:
                                     run_baseline=run_baseline,
                                 )
                             )
+
                     else:
 
                         async def replicate_fn(rep: int) -> ReplicateResult:

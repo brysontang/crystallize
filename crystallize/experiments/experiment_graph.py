@@ -241,9 +241,9 @@ class ExperimentGraph:
                 replicates=replicates or getattr(exp, "replicates", 1),
                 strategy=run_strategy,
             )
+
             self._results[name] = result
 
             if progress_callback:
                 await progress_callback("completed", name)
-
         return self._results

@@ -1,4 +1,5 @@
 """Reusable selection widgets for the CLI."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -18,5 +19,7 @@ class ActionableSelectionList(SelectionList):
     BINDINGS = [("enter", "submit", "Submit")]
 
     def action_submit(self) -> None:
-        selected_indices = tuple(value for value in self.selected if isinstance(value, int))
+        selected_indices = tuple(
+            value for value in self.selected if isinstance(value, int)
+        )
         self.post_message(self.Submitted(selected_indices))

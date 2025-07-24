@@ -1,4 +1,5 @@
 """Screens for confirming deletion of artifacts."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,7 +15,10 @@ from .selection_screens import ActionableSelectionList
 
 
 class DeleteDataScreen(ModalScreen[tuple[int, ...] | None]):
-    BINDINGS = [("ctrl+c", "cancel_and_exit", "Cancel")]
+    BINDINGS = [
+        ("ctrl+c", "cancel_and_exit", "Cancel"),
+        ("q", "cancel_and_exit", "Close"),
+    ]
 
     def __init__(self, deletable: List[Tuple[str, Path]]) -> None:
         super().__init__()
@@ -53,7 +57,9 @@ class ConfirmScreen(ModalScreen[bool]):
 
     def compose(self) -> ComposeResult:
         with Container(classes="confirm-delete-container"):
-            yield Static("[bold red]The following will be permanently deleted:[/bold red]")
+            yield Static(
+                "[bold red]The following will be permanently deleted:[/bold red]"
+            )
             with VerticalScroll(classes="path-list"):
                 if not self._paths:
                     yield Static("  (Nothing selected)")

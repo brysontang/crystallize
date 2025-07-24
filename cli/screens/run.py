@@ -1,11 +1,12 @@
 """Screen for running experiments and graphs."""
+
 from __future__ import annotations
 
 import asyncio
 import shutil
 import sys
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, Callable, List, Tuple
 
 import networkx as nx
 from rich.text import Text
@@ -20,6 +21,22 @@ from textual.screen import ModalScreen
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.plugins.plugins import ArtifactPlugin
+from ..status_plugin import CLIStatusPlugin
+
+
+def _inject_status_plugin(
+    obj: Any, callback: Callable[[str, dict[str, Any]], None]
+) -> None:
+    """Inject CLIStatusPlugin into experiments if not already present."""
+    if isinstance(obj, ExperimentGraph):
+        for node in obj._graph.nodes:
+            exp: Experiment = obj._graph.nodes[node]["experiment"]
+            if exp.get_plugin(CLIStatusPlugin) is None:
+                exp.plugins.append(CLIStatusPlugin(callback))
+    else:
+        if obj.get_plugin(CLIStatusPlugin) is None:
+            obj.plugins.append(CLIStatusPlugin(callback))
+
 
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
@@ -42,9 +59,15 @@ class RunScreen(ModalScreen[None]):
             self.result = result
             super().__init__()
 
-    BINDINGS = [("ctrl+c", "cancel_and_exit", "Cancel and Go Back")]
+    BINDINGS = [
+        ("ctrl+c", "cancel_and_exit", "Cancel and Go Back"),
+        ("q", "cancel_and_exit", "Close"),
+    ]
 
     node_states: dict[str, str] = reactive({})
+    replicate_info: str = reactive("")
+    progress_percent: float = reactive(0.0)
+    step_states: dict[str, str] = reactive({})
 
     def __init__(self, obj: Any, strategy: str, replicates: int | None) -> None:
         super().__init__()
@@ -77,10 +100,66 @@ class RunScreen(ModalScreen[None]):
     def on_node_status_changed(self, message: NodeStatusChanged) -> None:
         self.node_states = {**self.node_states, message.node_name: message.status}
 
+    def watch_step_states(self) -> None:
+        if not self.step_states:
+            return
+        try:
+            step_widget = self.query_one("#step-display", Static)
+        except NoMatches:
+            return
+        text = Text(justify="center")
+        steps = list(self.step_states.keys())
+        for i, step in enumerate(steps):
+            status = self.step_states[step]
+            style = {
+                "completed": "bold green",
+                "pending": "bold white",
+            }.get(status, "bold white")
+            text.append(f"[ {step} ]", style=style)
+            if i < len(steps) - 1:
+                text.append(" ⟶  ", style="white")
+        step_widget.update(text)
+
+    def watch_replicate_info(self) -> None:
+        try:
+            rep_widget = self.query_one("#replicate-display", Static)
+        except NoMatches:
+            return
+        rep_widget.update(self.replicate_info)
+
+    def watch_progress_percent(self) -> None:
+        try:
+            prog_widget = self.query_one("#progress-display", Static)
+        except NoMatches:
+            return
+        filled = int(self.progress_percent * 20)
+        bar = "[" + "#" * filled + "-" * (20 - filled) + "]"
+        prog_widget.update(f"{bar} {self.progress_percent*100:.0f}%")
+
+    def _handle_status_event(self, event: str, info: dict[str, Any]) -> None:
+        if event == "start":
+            self.step_states = {name: "pending" for name in info.get("steps", [])}
+            self.progress_percent = 0.0
+            self.replicate_info = "Run started"
+        elif event == "replicate":
+            rep = info.get("replicate", 0)
+            total = info.get("total", 0)
+            cond = info.get("condition", "")
+            self.replicate_info = f"Replicate {rep}/{total} ({cond})"
+            self.step_states = {name: "pending" for name in self.step_states}
+        elif event == "step":
+            step = info.get("step")
+            if step and step in self.step_states:
+                self.step_states[step] = "completed"
+            self.progress_percent = info.get("percent", 0.0)
+
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="run-container"):
             yield Header(show_clock=True)
             yield Static(f"⚡ Running: {self._obj.name}", id="modal-title")
+            yield Static("Run started", id="replicate-display")
+            yield Static(id="step-display")
+            yield Static(id="progress-display")
             yield Static(id="dag-display", classes="hidden")
             yield RichLog(highlight=True, markup=True, id="live_log")
             yield Button("Close", id="close_run")
@@ -94,6 +173,11 @@ class RunScreen(ModalScreen[None]):
             self.query_one("#dag-display").remove_class("hidden")
         log = self.query_one("#live_log", RichLog)
 
+        def status_event(event: str, info: dict[str, Any]) -> None:
+            self.app.call_from_thread(self._handle_status_event, event, info)
+
+        _inject_status_plugin(self._obj, status_event)
+
         async def progress_callback(status: str, name: str) -> None:
             self.app.call_from_thread(
                 self.on_node_status_changed, self.NodeStatusChanged(name, status)
@@ -104,6 +188,7 @@ class RunScreen(ModalScreen[None]):
             sys.stdout = WidgetWriter(log, self.app)
             result = None
             try:
+
                 async def run_with_callback():
                     if isinstance(self._obj, ExperimentGraph):
                         return await self._obj.arun(
@@ -117,6 +202,7 @@ class RunScreen(ModalScreen[None]):
                         )
 
                 result = asyncio.run(run_with_callback())
+
             except Exception as e:  # pragma: no cover - runtime path
                 print(f"[bold red]An error occurred in the worker:\n{e}[/bold red]")
             finally:
@@ -144,6 +230,7 @@ class RunScreen(ModalScreen[None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close_run":
             self.app.pop_screen()
+
 
 async def _launch_run(app: App, obj: Any) -> None:
     selected = obj

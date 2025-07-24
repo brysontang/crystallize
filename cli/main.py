@@ -13,10 +13,13 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
 from rich.table import Table
 from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal
+from textual.containers import Container, Horizontal, VerticalScroll
+from textual.css.query import NoMatches
+from textual.reactive import reactive
 from textual.widgets import (
     Button,
     Footer,
+    Header,
     ListItem,
     ListView,
     LoadingIndicator,
@@ -45,6 +48,100 @@ ASCII_ART = r"""
  | (__| |  | |_| \__ \ || (_| | | | |/ /  __/
   \___|_|   \__, |___/\__\__,_|_|_|_/___\___|
             |___/
+"""
+
+
+# Add some CSS styling as a string (could be loaded from a file)
+CSS = """
+App {
+    background: $background;
+}
+
+Header {
+    background: $accent;
+    content-align: center middle;
+}
+
+Static#title {
+    content-align: center middle;
+    text-style: bold;
+    color: $primary;
+}
+
+ListView {
+    background: $panel;
+    border: tall $secondary;
+    height: 1fr;
+}
+
+ListItem {
+    padding: 1;
+}
+
+ListItem > Static {
+    color: $text;
+}
+
+ListItem:hover {
+    background: $accent;
+}
+
+ListItem.selected {
+    background: $success;
+}
+
+.experiment-item > Static {
+    color: green;
+}
+
+.graph-item > Static {
+    color: blue;
+}
+
+ModalScreen {
+    background: $background 50%;
+    align: center middle;
+}
+
+DeleteDataScreen Container {
+    border: round $warning;
+    background: $panel;
+    width: 80%;
+    height: auto;
+    padding: 1;
+}
+
+SelectionList {
+    height: 1fr;
+    width: 100%;
+}
+
+RichLog {
+    height: 1fr;
+    width: 100%;
+    background: $panel;
+    border: tall $secondary;
+}
+
+Button {
+    margin: 1 0;
+}
+
+Button#confirm {
+    background: $error;
+}
+
+Button#yes {
+    background: $success;
+}
+
+Button#no {
+    background: $error;
+}
+
+LoadingIndicator {
+    color: $accent;
+}
 """
 
 
@@ -107,7 +204,7 @@ async def _run_object(obj: Any, strategy: str, replicates: Optional[int]) -> Any
 def _build_experiment_table(result: Any) -> Table:
     metrics = result.metrics
     treatments = list(metrics.treatments.keys())
-    table = Table(title="Metrics")
+    table = Table(title="Metrics", border_style="bright_magenta", expand=True)
     table.add_column("Metric", style="cyan")
     table.add_column("Baseline", style="magenta")
     for t in treatments:
@@ -150,16 +247,16 @@ class DeleteDataScreen(ModalScreen[tuple[int, ...] | None]):
         self._deletable = deletable
 
     def compose(self) -> ComposeResult:
-        yield Static("Select data to DELETE (space to toggle)")
-        self.list = SelectionList[int]()
-        for idx, (name, path) in enumerate(self._deletable):
-            # FIX: Wrap the prompt and value in a Selection object
-            self.list.add_option(Selection(f"{name}: {path}", idx))
-        yield self.list
-        yield Horizontal(
-            Button("Confirm", id="confirm"),
-            Button("Skip", id="skip"),
-        )
+        with Container():
+            yield Static("Select data to DELETE (space to toggle)", id="modal-title")
+            self.list = SelectionList[int]()
+            for idx, (name, path) in enumerate(self._deletable):
+                self.list.add_option(Selection(f"{name}: {path}", idx))
+            yield self.list
+            yield Horizontal(
+                Button("Confirm", id="confirm"),
+                Button("Skip", id="skip"),
+            )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "confirm":
@@ -174,8 +271,9 @@ class ConfirmScreen(ModalScreen[bool]):
         self._msg = msg
 
     def compose(self) -> ComposeResult:
-        yield Static(self._msg)
-        yield Horizontal(Button("Yes", id="yes"), Button("No", id="no"))
+        with Container():
+            yield Static(self._msg, id="modal-title")
+            yield Horizontal(Button("Yes", id="yes"), Button("No", id="no"))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss(event.button.id == "yes")
@@ -183,12 +281,13 @@ class ConfirmScreen(ModalScreen[bool]):
 
 class StrategyScreen(ModalScreen[str | None]):
     def compose(self) -> ComposeResult:
-        yield Static("Execution strategy")
-        self.options = OptionList()
-        self.options.add_option(Selection("rerun", "rerun", id="rerun"))
-        self.options.add_option(Selection("resume", "resume", id="resume"))
-        yield self.options
-        yield Button("Cancel", id="cancel")
+        with Container():
+            yield Static("Execution strategy", id="modal-title")
+            self.options = OptionList()
+            self.options.add_option(Selection("rerun", "rerun", id="rerun"))
+            self.options.add_option(Selection("resume", "resume", id="resume"))
+            yield self.options
+            yield Button("Cancel", id="cancel")
 
     def on_option_list_option_selected(
         self, message: OptionList.OptionSelected
@@ -205,9 +304,11 @@ class SummaryScreen(ModalScreen[None]):
         self._result = result
 
     def compose(self) -> ComposeResult:
-        self.log_widget = RichLog()
-        yield self.log_widget
-        yield Button("Close", id="close")
+        with Container():
+            yield Static("Execution Summary", id="modal-title")
+            self.log_widget = RichLog()
+            yield self.log_widget
+            yield Button("Close", id="close")
 
     async def on_mount(self) -> None:
         _write_summary(self.log_widget, self._result)
@@ -229,14 +330,11 @@ async def _run_interactive(app: App, obj: Any) -> None:
             if base.exists():
                 deletable.append((node, base))
         if deletable:
-            idxs = await app.push_screen(
-                DeleteDataScreen(deletable), wait_for_dismiss=True
-            )
+            idxs = await app.push_screen_wait(DeleteDataScreen(deletable))
             if idxs:
                 paths_to_delete = [deletable[i][1] for i in idxs]
-                confirm = await app.push_screen(
-                    ConfirmScreen("\nAre you sure you want to proceed?"),
-                    wait_for_dismiss=True,
+                confirm = await app.push_screen_wait(
+                    ConfirmScreen("Are you sure you want to proceed?")
                 )
                 if confirm:
                     for p in paths_to_delete:
@@ -246,26 +344,26 @@ async def _run_interactive(app: App, obj: Any) -> None:
                             pass
                 else:
                     return
-    strategy = await app.push_screen(StrategyScreen(), wait_for_dismiss=True)
+    strategy = await app.push_screen_wait(StrategyScreen())
     if strategy is None:
         return
     result = await _run_object(selected, strategy, None)
-    await app.push_screen(SummaryScreen(result), wait_for_dismiss=True)
+    await app.push_screen_wait(SummaryScreen(result))
 
 
 class CrystallizeApp(App):
     """Textual application for running crystallize objects."""
 
-    BINDINGS = [("q", "quit", "Quit")]
+    CSS = CSS
+    BINDINGS = [("q", "quit", "Quit"), ("ctrl+c", "quit", "Quit")]
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        yield Static(ASCII_ART)
-        yield Container(
-            LoadingIndicator(),
-            Static("Scanning for experiments and graphs...", id="loading-text"),
-            id="main-container",
-        )
+        yield Header(show_clock=True)
+        yield Static(ASCII_ART, id="title")
+        with Container(id="main-container"):
+            yield LoadingIndicator()
+            yield Static("Scanning for experiments and graphs...", id="loading-text")
         yield Footer()
 
     async def on_mount(self) -> None:
@@ -287,20 +385,20 @@ class CrystallizeApp(App):
         main_container = self.query_one("#main-container")
         await main_container.remove_children()  # Clear "Loading..."
 
-        list_view = ListView(initial_index=0)
         await main_container.mount(Static("Select an object to run:"))
-        await main_container.mount(list_view)
+        list_view = ListView(initial_index=0)
+        await main_container.mount(VerticalScroll(list_view))
 
         for label, obj in graphs.items():
             escaped_label = Text(f"[Graph] {label}")
-            item = ListItem(Static(escaped_label))
-            item.data = {"obj": obj, "type": "Graph"}
-            list_view.append(item)
+            item = ListItem(Static(escaped_label), classes="graph-item")
+            item.data = {"obj": obj, "type": "Graph"}  # type: ignore
+            await list_view.append(item)
         for label, obj in experiments.items():
             escaped_label = Text(f"[Experiment] {label}")
-            item = ListItem(Static(escaped_label))
-            item.data = {"obj": obj, "type": "Experiment"}
-            list_view.append(item)
+            item = ListItem(Static(escaped_label), classes="experiment-item")
+            item.data = {"obj": obj, "type": "Experiment"}  # type: ignore
+            await list_view.append(item)
 
         list_view.focus()
 
@@ -309,9 +407,17 @@ class CrystallizeApp(App):
         await _run_interactive(self, obj)
         self.exit()
 
+    async def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        if event.item is not None:
+            try:
+                type_text = self.query_one("#type-text", Static)
+                type_text.update(f"Type: {event.item.data['type']}")
+            except NoMatches:
+                pass
+
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle item selection by running the interactive flow in a worker."""
-        obj = event.item.data["obj"]
+        obj = event.item.data["obj"]  # type: ignore
         self.run_worker(self._run_interactive_and_exit(obj))
 
 

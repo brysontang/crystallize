@@ -139,6 +139,7 @@ class RunScreen(ModalScreen[None]):
             total = info.get("total", 0)
             cond = info.get("condition", "")
             self.replicate_info = f"Replicate {rep}/{total} ({cond})"
+            self.step_states = {name: "pending" for name in self.step_states}
         elif event == "step":
             step = info.get("step")
             if step and step in self.step_states:

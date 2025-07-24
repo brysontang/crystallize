@@ -9,6 +9,7 @@ from cli.screens.run import _inject_status_plugin
 
 events = []
 
+
 def record(event: str, info: dict[str, object]) -> None:
     events.append((event, info))
 
@@ -45,6 +46,8 @@ def test_cli_status_plugin_progress():
     assert any(evt == "replicate" for evt, _ in events)
     step_events = [info for evt, info in events if evt == "step"]
     assert step_events[-1]["percent"] == 1.0
+    rep_events = [info for evt, info in events if evt == "replicate"]
+    assert len(rep_events) == 4
 
 
 def test_inject_status_plugin_deduplicates_experiment():
@@ -58,7 +61,9 @@ def test_inject_status_plugin_deduplicates_experiment():
 
 def test_inject_status_plugin_deduplicates_graph():
     plugin = CLIStatusPlugin(lambda e, i: None)
-    exp = Experiment(datasource=ds(), pipeline=Pipeline([step_a()]), plugins=[plugin], name="e")
+    exp = Experiment(
+        datasource=ds(), pipeline=Pipeline([step_a()]), plugins=[plugin], name="e"
+    )
     exp.validate()
     graph = ExperimentGraph.from_experiments([exp])
     _inject_status_plugin(graph, lambda e, i: None)

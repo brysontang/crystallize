@@ -5,6 +5,15 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.20.2](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.20.1...crystallize-ml@v0.20.2) (2025-07-24)
+
+
+### Bug Fixes
+
+* Can use q to quit cli screen ([6356344](https://github.com/brysontang/crystallize/commit/6356344fdef60da0c214b32066d83940cb7a6133))
+* **cli:** Avoid duplicate status plugin injection ([4c4932c](https://github.com/brysontang/crystallize/commit/4c4932c33d05f2457f32abe036a3ad22c16c8a41))
+* **crystallize-ml:** Reset step states each treatment ([2407af2](https://github.com/brysontang/crystallize/commit/2407af2c3001f29a2b5c93fa5225aecba69c8f2b))
+
 ## [0.20.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.20.0...crystallize-ml@v0.20.1) (2025-07-24)
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import inspect
+import random
 import shutil
 import sys
 from pathlib import Path
@@ -52,6 +53,27 @@ ASCII_ART = r"""
             |___/
 """
 
+ASCII_ART_2 = r"""
+ ▗▄▄▖▗▄▄▖▗▖  ▗▖▗▄▄▖▗▄▄▄▖▗▄▖ ▗▖   ▗▖   ▗▄▄▄▖▗▄▄▄▄▖▗▄▄▄▖
+▐▌   ▐▌ ▐▌▝▚▞▘▐▌     █ ▐▌ ▐▌▐▌   ▐▌     █     ▗▞▘▐▌   
+▐▌   ▐▛▀▚▖ ▐▌  ▝▀▚▖  █ ▐▛▀▜▌▐▌   ▐▌     █   ▗▞▘  ▐▛▀▀▘
+▝▚▄▄▖▐▌ ▐▌ ▐▌ ▗▄▄▞▘  █ ▐▌ ▐▌▐▙▄▄▖▐▙▄▄▖▗▄█▄▖▐▙▄▄▄▖▐▙▄▄▖
+"""
+
+ASCII_ART_3 = r"""
+┌─┐┬─┐┬ ┬┌─┐┌┬┐┌─┐┬  ┬  ┬┌─┐┌─┐
+│  ├┬┘└┬┘└─┐ │ ├─┤│  │  │┌─┘├┤ 
+└─┘┴└─ ┴ └─┘ ┴ ┴ ┴┴─┘┴─┘┴└─┘└─┘
+"""
+
+ASCII_ART_4 = r"""
+  ___  ____  _  _  ____  ____  __   __    __    __  ____  ____ 
+ / __)(  _ \( \/ )/ ___)(_  _)/ _\ (  )  (  )  (  )(__  )(  __)
+( (__  )   / )  / \___ \  )( /    \/ (_/\/ (_/\ )(  / _/  ) _) 
+ \___)(__\_)(__/  (____/ (__)\_/\_/\____/\____/(__)(____)(____)
+"""
+
+ASCII_ART_ARRAY = [ASCII_ART, ASCII_ART_2, ASCII_ART_3, ASCII_ART_4]
 
 # Add some CSS styling as a string (could be loaded from a file)
 CSS = """
@@ -251,6 +273,8 @@ async def _run_object(obj: Any, strategy: str, replicates: Optional[int]) -> Any
 
 def _build_experiment_table(result: Any) -> Table:
     metrics = result.metrics
+    if not metrics:
+        return
     treatments = list(metrics.treatments.keys())
     table = Table(title="Metrics", border_style="bright_magenta", expand=True)
     table.add_column("Metric", style="cyan")
@@ -424,6 +448,32 @@ class StrategyScreen(ModalScreen[str | None]):
         self.dismiss(None)
 
 
+class SummaryScreen(ModalScreen[None]):
+    """A screen to display the summary of a run."""
+
+    BINDINGS = [("ctrl+c", "close", "Close")]
+
+    def __init__(self, result: Any) -> None:
+        super().__init__()
+        self._result = result
+
+    def compose(self) -> ComposeResult:
+        with Container():
+            yield Static("Execution Summary", id="modal-title")
+            self.log_widget = RichLog()
+            yield self.log_widget
+            yield Button("Close", id="close")
+
+    async def on_mount(self) -> None:
+        _write_summary(self.log_widget, self._result)
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(None)
+
+
 class RunScreen(ModalScreen[None]):
     """A screen to display the live output of a running experiment."""
 
@@ -493,6 +543,9 @@ class RunScreen(ModalScreen[None]):
             yield RichLog(highlight=True, markup=True, id="live_log")
             yield Button("Close", id="close_run")
 
+    def open_summary_screen(self, result: Any) -> None:
+        self.app.push_screen(SummaryScreen(result))
+
     def on_mount(self) -> None:
         # Initialize all nodes to "pending". The backend will update their true status.
         if isinstance(self._obj, ExperimentGraph):
@@ -539,9 +592,10 @@ class RunScreen(ModalScreen[None]):
         """Called when the ExperimentComplete message is received."""
         self._result = message.result
         try:
-            log = self.query_one("#live_log", RichLog)
+            # log = self.query_one("#live_log", RichLog)
             if self._result is not None:
-                _write_summary(log, self._result)
+                # _write_summary(log, self._result)
+                self.open_summary_screen(self._result)
 
             self.query_one("#close_run").remove_class("hidden")
         except NoMatches:
@@ -598,36 +652,6 @@ async def _launch_run(app: App, obj: Any) -> None:
     await app.push_screen(RunScreen(selected, strategy, None))
 
 
-class SummaryScreen(ModalScreen[None]):
-    """A screen to display the summary of a run."""
-
-    BINDINGS = [("escape", "close_screen", "Close")]
-
-    def __init__(self, result: Any) -> None:
-        super().__init__()
-        self._result = result
-
-    def compose(self) -> ComposeResult:
-        with Container(id="summary-container"):
-            yield Static("Execution Summary", id="modal-title")
-            # Assign the widget to an instance attribute
-            self.log_widget = RichLog(highlight=True, markup=True)
-            yield self.log_widget
-            yield Button("Close", id="close_summary")
-
-    def on_mount(self) -> None:
-        """This method is called after the screen's widgets are ready."""
-        # This is the correct place to write the summary to the log widget
-        _write_summary(self.log_widget, self._result)
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "close_summary":
-            self.app.pop_screen()
-
-    def action_close_screen(self) -> None:
-        self.app.pop_screen()
-
-
 class CrystallizeApp(App):
     """Textual application for running crystallize objects."""
 
@@ -637,7 +661,7 @@ class CrystallizeApp(App):
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header(show_clock=True)
-        yield Static(ASCII_ART, id="title")
+        yield Static(random.choice(ASCII_ART_ARRAY), id="title")
         with Container(id="main-container"):
             yield LoadingIndicator()
             yield Static("Scanning for experiments and graphs...", id="loading-text")

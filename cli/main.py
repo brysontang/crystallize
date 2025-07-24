@@ -153,13 +153,14 @@ class WidgetWriter:
         self.app = app
 
     def write(self, message: str) -> None:
-        # Use call_from_thread to safely schedule the widget update
-        # on the main application thread.
         self.app.call_from_thread(self.widget.write, message)
 
     def flush(self) -> None:
         # File-like objects need a flush method.
         pass
+
+    def isatty(self) -> bool:
+        return True  # Fake TTY to enable line buffering for live output
 
 
 # Discovery helpers copied from the original CLI
@@ -333,27 +334,34 @@ class RunScreen(ModalScreen[None]):
             yield LoadingIndicator()
 
     def on_mount(self) -> None:
-        """Start the experiment in a background thread."""
-        self.worker = self.run_worker(self._run_experiment, thread=True)
-
-    async def _run_experiment(self) -> None:
-        """The worker thread that runs the experiment."""
         log = self.query_one(RichLog)
-        result = None
-        try:
-            # Use the standard library's redirect_stdout with our custom writer
-            with redirect_stdout(WidgetWriter(log, self.app)):
-                result = await _run_object(self._obj, self._strategy, self._replicates)
-                _write_summary(log, result)
-        except Exception as e:
-            log.write(
-                f"[bold red]An unexpected error occurred during the run:\n{e}[/bold red]"
-            )
-        finally:
-            self.query_one(LoadingIndicator).remove()
-            # Safely interact with the UI from the worker thread
-            if result is not None:
-                self.app.call_from_thread(self.app.push_screen, SummaryScreen(result))
+
+        def run_experiment_sync() -> Any:
+            result = None
+            try:
+                with redirect_stdout(WidgetWriter(log, self.app)):
+                    # Run the async _run_object in a new event loop within this thread.
+                    # This assumes obj.arun() doesn't depend on the main app's event loop.
+                    result = asyncio.run(
+                        _run_object(self._obj, self._strategy, self._replicates)
+                    )
+            except Exception as e:
+                self.app.call_from_thread(
+                    log.write,
+                    f"[bold red]An unexpected error occurred during the run:\n{e}[/bold red]",
+                )
+            return result
+
+        self.worker = self.run_worker(run_experiment_sync, thread=True)
+        asyncio.create_task(self._wait_for_worker())
+
+    async def _wait_for_worker(self) -> None:
+        result = await self.worker.wait()
+        log = self.query_one(RichLog)
+        self.query_one(LoadingIndicator).remove()
+        if result is not None:
+            _write_summary(log, result)
+            self.app.push_screen(SummaryScreen(result))
 
     def action_cancel_and_exit(self) -> None:
         """Called when the user presses Ctrl+C."""

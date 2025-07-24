@@ -87,9 +87,10 @@ class ExperimentGraph:
                 "Unused experiments detected: " + ", ".join(str(u) for u in unused)
             )
 
-        # Try to infer a name if not explicitly given, e.g., from the final node
-        final_nodes = [n for n, d in graph.out_degree() if d == 0]
+        # Infer graph name from the “final” experiment(s) — those with no successors
+        final_nodes = [node for node, children in graph._succ.items() if not children]
         graph_name = final_nodes[0] if len(final_nodes) == 1 else "ExperimentGraph"
+
         obj = cls(name=graph_name)
         obj._graph = graph
         return obj

@@ -38,7 +38,7 @@ crystallize = "cli.app:run"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["crystallize*", "cli"]
+include = ["crystallize*", "cli*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from crystallize.datasources import Artifact
 from crystallize.datasources.datasource import DataSource
 from crystallize.experiments.experiment import Experiment
@@ -48,8 +50,6 @@ class ConsumeStep(PipelineStep):
     @property
     def params(self):
         return {}
-
-
 
 
 def test_mixed_replicates_resume(tmp_path: Path, monkeypatch):
@@ -133,3 +133,32 @@ def test_mixed_replicates_resume(tmp_path: Path, monkeypatch):
     assert step_b2.calls == 0
     assert res["B"].metrics.baseline.metrics["val"] == list(range(10))
 
+
+class PassStep(PipelineStep):
+    def __call__(self, data, ctx):
+        return data
+
+    @property
+    def params(self):
+        return {}
+
+
+@pytest.mark.asyncio
+async def test_progress_callback_resume():
+    """Test that progress callbacks are invoked during graph execution."""
+    exp_a = Experiment(
+        datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="a"
+    )
+    exp_a.validate()
+
+    graph = ExperimentGraph()
+    graph.add_experiment(exp_a)
+
+    callback_events = []
+
+    async def progress_cb(status: str, name: str):
+        callback_events.append((status, name))
+
+    await graph.arun(progress_callback=progress_cb)
+
+    assert callback_events == [("running", "a"), ("completed", "a")]

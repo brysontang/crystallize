@@ -449,3 +449,24 @@ def test_from_experiments_handles_single_artifact_datasource():
     graph = ExperimentGraph.from_experiments([exp_a, exp_b])
 
     assert "b" in graph._graph._succ.get("a", set())
+
+
+@pytest.mark.asyncio
+async def test_progress_callback():
+    """Test that progress callbacks are invoked during graph execution."""
+    exp_a = Experiment(
+        datasource=DummySource(), pipeline=Pipeline([PassStep()]), name="a"
+    )
+    exp_a.validate()
+
+    graph = ExperimentGraph()
+    graph.add_experiment(exp_a)
+
+    callback_events = []
+
+    async def progress_cb(status: str, name: str):
+        callback_events.append((status, name))
+
+    await graph.arun(progress_callback=progress_cb)
+
+    assert callback_events == [("running", "a"), ("completed", "a")]

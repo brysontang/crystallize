@@ -10,14 +10,22 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type
 
-from rich.console import Console
-from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
-from simple_term_menu import TerminalMenu
 from textual.app import App, ComposeResult
-from textual.containers import Container
-from textual.widgets import Footer, ListItem, ListView, LoadingIndicator, Static
+from textual.containers import Container, Horizontal
+from textual.widgets import (
+    Button,
+    Footer,
+    ListItem,
+    ListView,
+    LoadingIndicator,
+    OptionList,
+    RichLog,
+    SelectionList,
+    Static,
+)
+from textual.screen import ModalScreen
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -84,27 +92,6 @@ def discover_objects(directory: Path, obj_type: Type[Any]) -> Dict[str, Any]:
     return found
 
 
-def _select_from_menu(options: Sequence[str], title: str) -> Optional[int]:
-    menu = TerminalMenu(options, title=title)
-    idx = menu.show()
-    return idx if idx is not None else None
-
-
-def _multi_select(options: Sequence[str], title: str) -> Tuple[int, ...]:
-    menu = TerminalMenu(
-        options,
-        title=title,
-        multi_select=True,
-        show_multi_select_hint=True,
-        multi_select_select_on_accept=False,
-    )
-    idxs = menu.show()
-    return idxs if idxs is not None else tuple()
-
-
-def _confirm(msg: str) -> bool:
-    resp = input(f"{msg} (y/N): ").strip().lower()
-    return resp == "y"
 
 
 async def _run_object(obj: Any, strategy: str, replicates: Optional[int]) -> Any:
@@ -118,7 +105,7 @@ async def _run_object(obj: Any, strategy: str, replicates: Optional[int]) -> Any
     )
 
 
-def _print_experiment_summary(result: Any) -> None:
+def _build_experiment_table(result: Any) -> Table:
     metrics = result.metrics
     treatments = list(metrics.treatments.keys())
     table = Table(title="Metrics")
@@ -134,28 +121,102 @@ def _print_experiment_summary(result: Any) -> None:
         for t in treatments:
             row.append(str(metrics.treatments[t].metrics.get(name)))
         table.add_row(*row)
-    console = Console()
-    console.print(table)
+    return table
+
+
+def _write_experiment_summary(log: RichLog, result: Any) -> None:
+    table = _build_experiment_table(result)
+    log.write(table)
     if result.errors:
-        console.print("[bold red]Errors occurred[/]")
+        log.write("[bold red]Errors occurred[/]")
         for cond, err in result.errors.items():
-            console.print(f"{cond}: {err}")
+            log.write(f"{cond}: {err}")
 
 
-def _print_summary(result: Any) -> None:
+def _write_summary(log: RichLog, result: Any) -> None:
     if isinstance(result, dict):
         for name, res in result.items():
-            Console().print(f"[bold underline]{name}[/]")
-            _print_experiment_summary(res)
+            log.write(f"[bold underline]{name}[/]")
+            _write_experiment_summary(log, res)
     else:
-        _print_experiment_summary(result)
+        _write_experiment_summary(log, result)
 
 
 # Interactive run logic reused from the original CLI
 
 
-async def _run_interactive(obj: Any) -> None:
-    console = Console()
+class DeleteDataScreen(ModalScreen[tuple[int, ...] | None]):
+    def __init__(self, deletable: List[Tuple[str, Path]]) -> None:
+        super().__init__()
+        self._deletable = deletable
+
+    def compose(self) -> ComposeResult:
+        yield Static("Select data to DELETE (space to toggle)")
+        self.list = SelectionList[int]()
+        for idx, (name, path) in enumerate(self._deletable):
+            self.list.add_option(f"{name}: {path}", idx)
+        yield self.list
+        yield Horizontal(
+            Button("Confirm", id="confirm"),
+            Button("Skip", id="skip"),
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "confirm":
+            self.dismiss(tuple(self.list.selected))
+        else:
+            self.dismiss(None)
+
+
+class ConfirmScreen(ModalScreen[bool]):
+    def __init__(self, msg: str) -> None:
+        super().__init__()
+        self._msg = msg
+
+    def compose(self) -> ComposeResult:
+        yield Static(self._msg)
+        yield Horizontal(Button("Yes", id="yes"), Button("No", id="no"))
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "yes")
+
+
+class StrategyScreen(ModalScreen[str | None]):
+    def compose(self) -> ComposeResult:
+        yield Static("Execution strategy")
+        self.options = OptionList()
+        self.options.add_option("rerun", "rerun")
+        self.options.add_option("resume", "resume")
+        yield self.options
+        yield Button("Cancel", id="cancel")
+
+    def on_option_list_option_selected(
+        self, message: OptionList.OptionSelected
+    ) -> None:
+        self.dismiss(message.option.value)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(None)
+
+
+class SummaryScreen(ModalScreen[None]):
+    def __init__(self, result: Any) -> None:
+        super().__init__()
+        self._result = result
+
+    def compose(self) -> ComposeResult:
+        self.log = RichLog()
+        yield self.log
+        yield Button("Close", id="close")
+
+    async def on_mount(self) -> None:
+        _write_summary(self.log, self._result)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(None)
+
+
+async def _run_interactive(app: App, obj: Any) -> None:
     selected = obj
     if isinstance(selected, ExperimentGraph):
         deletable: List[Tuple[str, Path]] = []
@@ -168,42 +229,28 @@ async def _run_interactive(obj: Any) -> None:
             if base.exists():
                 deletable.append((node, base))
         if deletable:
-            options = ["[ SKIP DELETION AND CONTINUE ]"] + [
-                f"{name}: {path}" for name, path in deletable
-            ]
-            title = "Select data to DELETE (Space to select, Enter to confirm)"
-            selected_indices = _multi_select(options, title)
-            if not selected_indices:
-                console.print(
-                    "[yellow]No data selected for deletion. Continuing...[/yellow]"
+            idxs = await app.push_screen(
+                DeleteDataScreen(deletable), wait_for_dismiss=True
+            )
+            if idxs:
+                paths_to_delete = [deletable[i][1] for i in idxs]
+                confirm = await app.push_screen(
+                    ConfirmScreen("\nAre you sure you want to proceed?"),
+                    wait_for_dismiss=True,
                 )
-            elif 0 in selected_indices:
-                console.print("[green]Keeping all data. Continuing...[/green]")
-            else:
-                paths_to_delete = [deletable[i - 1][1] for i in selected_indices]
-                console.print(
-                    "\n[bold yellow]The following directories will be PERMANENTLY DELETED:[/bold yellow]"
-                )
-                for p in paths_to_delete:
-                    console.print(f"- {p}")
-                if _confirm("\nAre you sure you want to proceed?"):
+                if confirm:
                     for p in paths_to_delete:
                         try:
                             shutil.rmtree(p)
-                            console.print(f"[green]Deleted: {p}[/green]")
-                        except OSError as e:
-                            console.print(
-                                f"[bold red]Error deleting {p}: {e}[/bold red]"
-                            )
+                        except OSError:
+                            pass
                 else:
-                    console.print("[red]Deletion cancelled by user. Exiting.[/red]")
                     return
-    strat_idx = _select_from_menu(["rerun", "resume"], "Execution strategy")
-    if strat_idx is None:
+    strategy = await app.push_screen(StrategyScreen(), wait_for_dismiss=True)
+    if strategy is None:
         return
-    strategy = ["rerun", "resume"][strat_idx]
     result = await _run_object(selected, strategy, None)
-    _print_summary(result)
+    await app.push_screen(SummaryScreen(result), wait_for_dismiss=True)
 
 
 class CrystallizeApp(App):
@@ -259,8 +306,7 @@ class CrystallizeApp(App):
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         obj = event.item.data["obj"]
-        with self.suspend():
-            await _run_interactive(obj)
+        await _run_interactive(self, obj)
         self.exit()
 
 

@@ -1135,3 +1135,38 @@ def test_async_execution_with_hypothesis_and_verifier():
     result = exp.run(treatments=[inc_async()], hypotheses=[dummy_ranker], replicates=2)
     assert result.metrics.baseline.metrics["metric"] == [2, 2]
     assert result.metrics.treatments["inc_async"].metrics["metric"] == [3, 3]
+
+
+def test_experiment_requires_datasource_and_pipeline():
+    with pytest.raises(ValueError, match="Experiment requires datasource and pipeline"):
+        Experiment()
+
+
+def test_validation_error_prints_message(capsys):
+    exp = Experiment(
+        datasource=DummyDataSource(),
+        pipeline=Pipeline([PassStep()]),
+    )
+    exp._validated = False
+
+    with pytest.raises(ValueError, match="boom"):
+        exp.validate = lambda: (_ for _ in ()).throw(ValueError("boom"))
+        exp.run()
+
+    captured = capsys.readouterr()
+    assert "Experiment validation failed: boom" in captured.out
+
+
+def test_validation_error_prints_message_in_apply(capsys):
+    exp = Experiment(
+        datasource=DummyDataSource(),
+        pipeline=Pipeline([PassStep()]),
+    )
+    exp._validated = False
+
+    with pytest.raises(ValueError, match="boom"):
+        exp.validate = lambda: (_ for _ in ()).throw(ValueError("boom"))
+        exp.apply()
+
+    captured = capsys.readouterr()
+    assert "Experiment validation failed: boom" in captured.out

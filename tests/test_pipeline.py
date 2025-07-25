@@ -87,3 +87,30 @@ def test_async_pipeline_step_runs():
     ctx = FrozenContext({})
     result = pipeline.run(1, ctx)
     assert result == {"result": 6}
+
+
+class BrokenHashStep(PipelineStep):
+    def __init__(self):
+        self._hash_error = ValueError("Hash computation failed")
+
+    def __call__(self, data: Any, ctx: FrozenContext) -> Any:
+        return data
+
+    @property
+    def step_hash(self):
+        raise self._hash_error
+
+    @property
+    def params(self) -> dict:
+        return {}
+
+
+def test_pipeline_step_hash_error():
+    pipeline = Pipeline([BrokenHashStep()])
+    ctx = FrozenContext({})
+
+    with pytest.raises(ValueError) as exc_info:
+        pipeline.run(0, ctx)
+
+    assert str(exc_info.value) == "Hash computation failed"
+    assert "Error in step BrokenHashStep" in str(exc_info.value)

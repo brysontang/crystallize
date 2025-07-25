@@ -11,6 +11,8 @@ from crystallize.experiments.treatment import Treatment
 from crystallize.utils.context import FrozenContext
 from crystallize.pipelines.pipeline import PipelineStep
 from crystallize.pipelines.pipeline import Pipeline
+from crystallize.experiments.hypothesis import Hypothesis
+
 from crystallize.utils.decorators import (
     data_source,
     hypothesis,
@@ -44,6 +46,7 @@ __all__ = [
     "resource_factory",
     "PipelineStep",
     "Pipeline",
+    "Hypothesis",
     "Experiment",
     "DataSource",
     "FrozenContext",

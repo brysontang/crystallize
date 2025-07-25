@@ -210,11 +210,16 @@ class VerifierCallable:
     """A picklable callable that wraps the verifier function with fixed parameters."""
 
     def __init__(
-        self, fn: Callable[..., Any], params: Dict[str, Any], param_names: List[str]
+        self,
+        fn: Callable[..., Any],
+        params: dict,
+        param_names: list[str],
+        factory: Callable[..., Any],
     ):
         self.fn = fn
         self.params = params
         self.param_names = param_names
+        self._factory = factory
 
     def __call__(
         self,
@@ -223,6 +228,10 @@ class VerifierCallable:
     ) -> Mapping[str, Any]:
         kwargs = {n: self.params[n] for n in self.param_names}
         return self.fn(baseline_samples, treatment_samples, **kwargs)
+
+    def __reduce__(self):
+        # Tell pickle to reconstruct via the factory and saved params
+        return _reconstruct_from_factory, (self._factory, self.params)
 
 
 def verifier(
@@ -233,7 +242,7 @@ def verifier(
         [Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]
     ],
 ]:
-    """Decorate a function to produce a parameterized verifier callable."""
+    """Decorate a function to produce a parameterized, picklable verifier callable."""
 
     sig = inspect.signature(fn)
     param_names = [
@@ -252,9 +261,7 @@ def verifier(
 
     def factory(
         **overrides: Any,
-    ) -> Callable[
-        [Mapping[str, Sequence[Any]], Mapping[str, Sequence[Any]]], Mapping[str, Any]
-    ]:
+    ) -> VerifierCallable:
         unknown = set(overrides) - set(param_names)
         if unknown:
             raise TypeError(f"Unknown parameters: {', '.join(sorted(unknown))}")
@@ -263,8 +270,10 @@ def verifier(
         if missing:
             raise TypeError(f"Missing parameters: {', '.join(missing)}")
 
-        return VerifierCallable(fn, params, param_names)
+        # Pass the factory itself so __reduce__ can reconstruct
+        return VerifierCallable(fn, params, param_names, factory)
 
+    # Preserve metadata from the original function (e.g. __name__, __doc__)
     return update_wrapper(factory, fn)
 
 

@@ -167,16 +167,17 @@ class RunScreen(ModalScreen[None]):
     def open_summary_screen(self, result: Any) -> None:
         self.app.push_screen(SummaryScreen(result))
 
+    def status_event(self, event: str, info: dict[str, Any]) -> None:
+        """A picklable callback method for the CLIStatusPlugin."""
+        self.app.call_from_thread(self._handle_status_event, event, info)
+
     def on_mount(self) -> None:
         if isinstance(self._obj, ExperimentGraph):
             self.node_states = {node: "pending" for node in self._obj._graph.nodes}
             self.query_one("#dag-display").remove_class("hidden")
         log = self.query_one("#live_log", RichLog)
 
-        def status_event(event: str, info: dict[str, Any]) -> None:
-            self.app.call_from_thread(self._handle_status_event, event, info)
-
-        _inject_status_plugin(self._obj, status_event)
+        _inject_status_plugin(self._obj, self.status_event)
 
         async def progress_callback(status: str, name: str) -> None:
             self.app.call_from_thread(

@@ -57,12 +57,15 @@ def _build_hypothesis_tables(result: Any) -> list[Table]:
         tables.append(table)
     return tables
 
+
 def _write_experiment_summary(log: RichLog, result: Any) -> None:
     table = _build_experiment_table(result)
     if table:
         log.write(table)
+        log.write("\n")
     for hyp_table in _build_hypothesis_tables(result):
         log.write(hyp_table)
+        log.write("\n")
     if result.errors:
         log.write("[bold red]Errors occurred[/]")
         for cond, err in result.errors.items():
@@ -72,7 +75,9 @@ def _write_experiment_summary(log: RichLog, result: Any) -> None:
 def _write_summary(log: RichLog, result: Any) -> None:
     if isinstance(result, dict):
         for name, res in result.items():
-            has_table = _build_experiment_table(res) is not None or bool(res.metrics.hypotheses)
+            has_table = _build_experiment_table(res) is not None or bool(
+                res.metrics.hypotheses
+            )
             has_errors = bool(res.errors)
 
             if has_table or has_errors:

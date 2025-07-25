@@ -226,7 +226,7 @@ def test_write_experiment_summary_with_hypotheses():
     _write_experiment_summary(log, res)
     titles = [getattr(m, "title", "") for m in log.written if hasattr(m, "title")]
     assert "Metrics" in titles
-    assert any(t.startswith("Hypothesis: h") for t in titles)
+    assert any(isinstance(t, str) and t.startswith("Hypothesis: h") for t in titles)
 
 
 def test_write_summary_single_result():

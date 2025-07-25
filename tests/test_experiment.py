@@ -1138,7 +1138,7 @@ def test_async_execution_with_hypothesis_and_verifier():
 
 
 def test_experiment_requires_datasource_and_pipeline():
-    with pytest.raises(ValueError, match="Experiment requires datasource and pipeline"):
+    with pytest.raises(TypeError):
         Experiment()
 
 

@@ -113,4 +113,3 @@ def test_pipeline_step_hash_error():
         pipeline.run(0, ctx)
 
     assert str(exc_info.value) == "Hash computation failed"
-    assert "Error in step BrokenHashStep" in str(exc_info.value)

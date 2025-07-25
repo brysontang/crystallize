@@ -183,23 +183,26 @@ def test_experiment_requires_validation():
 
 
 def test_experiment_builder_chaining():
-    experiment = Experiment(
-        datasource=DummyDataSource(),
-        pipeline=Pipeline([PassStep()]),
+    experiment = (
+        Experiment.builder()
+        .datasource(DummyDataSource())
+        .add_step(PassStep())
+        .treatments([Treatment("t", {"increment": 1})])
+        .hypotheses(
+            [
+                Hypothesis(
+                    verifier=always_significant,
+                    metrics="metric",
+                    ranker=lambda r: r["p_value"],
+                    name="hypothesis",
+                )
+            ]
+        )
+        .replicates(2)
+        .build()
     )
     experiment.validate()
-    result = experiment.run(
-        treatments=[Treatment("t", {"increment": 1})],
-        hypotheses=[
-            Hypothesis(
-                verifier=always_significant,
-                metrics="metric",
-                ranker=lambda r: r["p_value"],
-                name="hypothesis",
-            )
-        ],
-        replicates=2,
-    )
+    result = experiment.run()
     assert result.metrics.treatments["t"].metrics["metric"] == [1, 2]
     hyp_res = result.get_hypothesis("hypothesis")
     assert hyp_res is not None and hyp_res.ranking["best"] == "t"

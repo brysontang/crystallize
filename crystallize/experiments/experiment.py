@@ -17,6 +17,8 @@ from typing import (
 )
 import inspect
 
+from typing import TYPE_CHECKING
+
 from crystallize.utils.context import FrozenContext
 from crystallize.datasources import Artifact
 from crystallize.datasources.datasource import DataSource
@@ -36,6 +38,9 @@ from crystallize.plugins.plugins import (
     default_seed_function,
 )
 from crystallize.experiments.result import Result
+
+if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
+    from .experiment_builder import ExperimentBuilder
 from crystallize.experiments.result_structs import (
     ExperimentMetrics,
     HypothesisResult,
@@ -76,6 +81,14 @@ class Experiment:
     :class:`~crystallize.utils.context.FrozenContext` instance passed through the
     pipeline steps.
     """
+
+    @classmethod
+    def builder(cls, name: str | None = None) -> "ExperimentBuilder":
+        """Return a fluent builder for constructing an ``Experiment``."""
+
+        from .experiment_builder import ExperimentBuilder
+
+        return ExperimentBuilder(name)
 
     def __init__(
         self,
@@ -399,7 +412,6 @@ class Experiment:
         errors: Dict[str, Exception] = {}
 
         for rep, res in enumerate(results_list):
-
             base = res.baseline_metrics
             seed = res.baseline_seed
             treats = res.treatment_metrics

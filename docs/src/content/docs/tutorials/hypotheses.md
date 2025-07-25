@@ -99,20 +99,20 @@ def rank_by_p_value(result):
 Add to builder; run to verify.
 
 ```python
-# Update build with hypothesis
-exp = Experiment(
-    datasource=titanic_source(),
-    pipeline=Pipeline([normalize_age(), compute_metrics()]),
-    plugins=[ParallelExecution()],
+# Update build with hypothesis using the fluent builder
+exp = (
+    Experiment.builder()
+    .datasource(titanic_source())
+    .add_step(normalize_age())
+    .add_step(compute_metrics())
+    .plugins([ParallelExecution()])
+    .treatments([scale_ages()])
+    .hypotheses([rank_by_p_value])
+    .replicates(20)
+    .build()
 )
 exp.validate()
-
-# Run and inspect hypothesis
-result = exp.run(
-    treatments=[scale_ages()],
-    hypotheses=[rank_by_p_value],  # Add here
-    replicates=20,  # Increase for stats power
-)
+result = exp.run()
 hyp_result = result.get_hypothesis("std_change_hyp")
 print("Hypothesis results:", hyp_result.results)  # e.g., {'scale_ages_treatment': {'p_value': ~1, 'significant': False}}
 print("Ranking:", hyp_result.ranking)  # Best treatment (likely none significant)

@@ -243,8 +243,22 @@ class ArtifactPlugin(BasePlugin):
         def dump_condition(name: str, metrics: Mapping[str, Any]) -> None:
             dest = base / name
             os.makedirs(dest, exist_ok=True)
+            def _default(o: Any) -> Any:
+                try:
+                    import numpy as np
+
+                    if isinstance(o, np.ndarray):
+                        return o.tolist()
+                    if isinstance(o, np.generic):
+                        return o.item()
+                except Exception:  # pragma: no cover - numpy optional
+                    pass
+                raise TypeError(
+                    f"Object of type {o.__class__.__name__} is not JSON serializable"
+                )
+
             with open(dest / "results.json", "w") as f:
-                json.dump({"metrics": metrics}, f)
+                json.dump({"metrics": metrics}, f, default=_default)
             open(dest / ".crystallize_complete", "a").close()
 
         dump_condition(BASELINE_CONDITION, result.metrics.baseline.metrics)

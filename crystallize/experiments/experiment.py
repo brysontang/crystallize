@@ -570,6 +570,10 @@ class Experiment:
         datasource_reps = getattr(self.datasource, "replicates", None)
         if replicates is None:
             replicates = datasource_reps or self.replicates
+        elif datasource_reps and replicates != datasource_reps:
+            raise ValueError(
+                f"Replicates ({replicates}) do not match datasource replicates ({datasource_reps})"
+            )
         replicates = max(1, replicates)
 
         from crystallize.utils.cache import compute_hash

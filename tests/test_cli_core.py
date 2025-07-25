@@ -7,6 +7,7 @@ import pytest
 from cli.discovery import _import_module, _run_object, discover_objects
 from cli.utils import (
     _build_experiment_table,
+    _build_hypothesis_tables,
     _write_experiment_summary,
     _write_summary,
 )
@@ -14,7 +15,11 @@ from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.experiments.result import Result
-from crystallize.experiments.result_structs import ExperimentMetrics, TreatmentMetrics
+from crystallize.experiments.result_structs import (
+    ExperimentMetrics,
+    TreatmentMetrics,
+    HypothesisResult,
+)
 from crystallize.pipelines.pipeline import Pipeline
 
 
@@ -58,6 +63,21 @@ def make_result() -> Result:
         baseline=TreatmentMetrics({"m": [0]}),
         treatments={"t": TreatmentMetrics({"m": [1]})},
         hypotheses=[],
+    )
+    return Result(metrics=metrics, errors={})
+
+
+def make_hyp_result() -> Result:
+    metrics = ExperimentMetrics(
+        baseline=TreatmentMetrics({"m": [0]}),
+        treatments={"t": TreatmentMetrics({"m": [1]})},
+        hypotheses=[
+            HypothesisResult(
+                name="h",
+                results={"t": {"p_value": 0.1, "significant": False}},
+                ranking={"best": "t"},
+            )
+        ],
     )
     return Result(metrics=metrics, errors={})
 
@@ -172,6 +192,13 @@ def test_build_experiment_table_no_metrics():
     assert _build_experiment_table(result) is None
 
 
+def test_build_hypothesis_tables():
+    res = make_hyp_result()
+    tables = _build_hypothesis_tables(res)
+    assert len(tables) == 1
+    assert tables[0].title.startswith("Hypothesis: h")
+
+
 def test_write_experiment_summary_with_errors():
     res = make_result()
     res.errors = {"base": RuntimeError("fail")}
@@ -191,6 +218,15 @@ def test_write_experiment_summary_errors_only():
     _write_experiment_summary(log, res)
     assert not any(hasattr(m, "columns") for m in log.written)
     assert any("Errors occurred" in str(m) for m in log.written)
+
+
+def test_write_experiment_summary_with_hypotheses():
+    res = make_hyp_result()
+    log = FakeLog()
+    _write_experiment_summary(log, res)
+    titles = [getattr(m, "title", "") for m in log.written if hasattr(m, "title")]
+    assert "Metrics" in titles
+    assert any(t.startswith("Hypothesis: h") for t in titles)
 
 
 def test_write_summary_single_result():

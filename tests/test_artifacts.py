@@ -180,8 +180,9 @@ def test_artifact_datasource_replicate_mismatch(tmp_path: Path, monkeypatch):
     pipeline2 = Pipeline([CheckStep([])])
     exp2 = Experiment(datasource=ds2, pipeline=pipeline2)
     exp2.validate()
-    with pytest.raises(ValueError):
-        exp2.run(replicates=3)
+    result = exp2.run(replicates=3)
+    # Replicates exceeding available artifacts produce errors
+    assert any(isinstance(e, FileNotFoundError) for e in result.errors.values())
 
 
 def test_artifact_datasource_missing_file(tmp_path: Path, monkeypatch):

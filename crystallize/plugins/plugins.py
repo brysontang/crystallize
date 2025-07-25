@@ -180,7 +180,7 @@ class LoggingPlugin(BasePlugin):
 class ArtifactPlugin(BasePlugin):
     """Persist artifacts produced during pipeline execution."""
 
-    root_dir: str = "./crystallize_artifacts"
+    root_dir: str = "./data"
     versioned: bool = False
 
     def __post_init__(self) -> None:

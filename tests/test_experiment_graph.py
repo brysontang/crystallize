@@ -451,6 +451,46 @@ def test_from_experiments_handles_single_artifact_datasource():
     assert "b" in graph._graph._succ.get("a", set())
 
 
+def test_constructor_infers_dependencies():
+    """Graph constructor should infer dependencies like from_experiments."""
+    out_a = Artifact("a.txt")
+    out_b = Artifact("b.txt")
+
+    class ProduceStep(PipelineStep):
+        def __init__(self, art: Artifact) -> None:
+            self.art = art
+
+        def __call__(self, data, ctx):
+            self.art.write(b"x")
+            return data
+
+        @property
+        def params(self):
+            return {}
+
+    exp_a = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([ProduceStep(out_a)]),
+        name="a",
+        outputs=[out_a],
+    )
+    exp_b = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([ProduceStep(out_b)]),
+        name="b",
+        outputs=[out_b],
+    )
+    ds_c = ExperimentInput(first=out_a, second=out_b)
+    exp_c = Experiment(datasource=ds_c, pipeline=Pipeline([PassStep()]), name="c")
+
+    for e in (exp_a, exp_b, exp_c):
+        e.validate()
+
+    graph = ExperimentGraph(exp_a, exp_b, exp_c)
+    results = graph.run()
+    assert set(results) == {"a", "b", "c"}
+
+
 @pytest.mark.asyncio
 async def test_progress_callback():
     """Test that progress callbacks are invoked during graph execution."""

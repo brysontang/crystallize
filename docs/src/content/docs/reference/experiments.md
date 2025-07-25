@@ -18,5 +18,6 @@ title: Experiments
 - **run_results**
 - **experiment**
 - **experiment_graph**
+- **experiment_builder**
 
 

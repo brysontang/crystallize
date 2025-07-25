@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import threading
 from functools import update_wrapper
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 from crystallize.utils.constants import (
     BASELINE_CONDITION,

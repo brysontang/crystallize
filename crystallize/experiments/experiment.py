@@ -448,15 +448,23 @@ class Experiment:
                 provenance_runs[name][rep] = p
             errors.update(errs)
 
+        def _to_serializable(value: Any) -> Any:
+            if hasattr(value, "tolist"):
+                try:
+                    return value.tolist()
+                except Exception:  # pragma: no cover - fallback
+                    pass
+            return value
+
         def collect_all_samples(
             samples: List[Mapping[str, Sequence[Any]]],
         ) -> Dict[str, List[Any]]:
             metrics: DefaultDict[str, List[Any]] = defaultdict(list)
-            for i, sample in enumerate(samples):
+            for sample in samples:
                 for metric, values in sample.items():
-                    metrics[metric].extend(list(values))
-            result = dict(metrics)
-            return result
+                    for val in values:
+                        metrics[metric].append(_to_serializable(val))
+            return dict(metrics)
 
         baseline_metrics = collect_all_samples(baseline_samples)
 

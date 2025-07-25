@@ -36,7 +36,7 @@ exp = Experiment(
     pipeline=my_pipeline,
     plugins=[TimerPlugin()],
 )
-exp.validate()
+exp.validate()  # optional
 exp.run()
 ```
 

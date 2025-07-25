@@ -58,7 +58,7 @@ temp_exp = Experiment(
     name="temperature_stats",
     outputs=[out_temp],
 )
-temp_exp.validate()
+temp_exp.validate()  # optional
 
 out_humidity = Artifact("average.json")
 humidity_exp = Experiment(
@@ -68,7 +68,7 @@ humidity_exp = Experiment(
     name="humidity_stats",
     outputs=[out_humidity],
 )
-humidity_exp.validate()
+humidity_exp.validate()  # optional
 
 comfort_ds = ExperimentInput(
     temp=temp_exp.artifact_datasource(step="AverageStep", name="average.json"),
@@ -80,7 +80,7 @@ comfort_exp = Experiment(
     pipeline=Pipeline([comfort_index()]),
     name="comfort_index",
 )
-comfort_exp.validate()
+comfort_exp.validate()  # optional
 
 
 if __name__ == "__main__":

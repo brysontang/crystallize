@@ -49,7 +49,7 @@ exp = Experiment(
     datasource=my_source(),
     pipeline=my_pipeline,
 )
-exp.validate()
+exp.validate()  # optional
 result = exp.run(treatments=[my_treatment()], hypotheses=[rank_by_p], replicates=10)
 print(result.get_hypothesis("rank_by_p").results)
 ```

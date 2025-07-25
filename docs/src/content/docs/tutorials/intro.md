@@ -100,7 +100,7 @@ if __name__ == "__main__":
         pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
         plugins=[ParallelExecution()],
     )
-    experiment.validate()
+    experiment.validate()  # optional
     result = experiment.run(
         treatments=[add_ten()],
         hypotheses=[check_for_improvement],
@@ -197,7 +197,7 @@ experiment = Experiment(
     pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
     plugins=[ParallelExecution()],
 )
-experiment.validate()
+experiment.validate()  # optional
 result = experiment.run(
     treatments=[add_ten()],
     hypotheses=[check_for_improvement],
@@ -207,7 +207,7 @@ hyp_result = result.get_hypothesis("check_for_improvement")
 print(hyp_result.results)
 ```
 
-Validate with `experiment.validate()` before running. Results include p-value and significance.
+`experiment.run()` automatically validates before execution.
 
 **Inline FAQ: Why add noise?** Identical samples cause SciPy t-test errors; noise simulates real variability.
 

@@ -74,17 +74,10 @@ Hypotheses tie verifiers to metrics and add a ranker for treatment ordering.
 
 ```python
 # Hypothesis: Test if treatment changes std (expect not significant)
-@hypothesis(verifier=age_std_t_test(), metrics="std_norm_age", name="std_change_hyp")
-def rank_by_p_value(result):
-    """
-    Ranker: Lower p-value ranks higher (better evidence of change).
-    - result: Verifier output dict.
-    Returns: Float score (negative for descending sort).
-    """
-    return result.get("p_value", 1.0)  # High p-value (no change) ranks low
+Hypothesis(verifier=age_std_t_test(), metrics="std_norm_age", name="std_change_hyp")
 ```
 
-- **How it works**: `@hypothesis` decorates the ranker, linking verifier and metrics.
+- **How it works**: `Hypothesis` class, links verifier and metrics.
 - **Multi-metrics**: Set `metrics=["std_norm_age", "mean_age"]` for joint verification.
 - **Test it**: Hypotheses run post-experiment; mock: `hyp.verify({"std_norm_age": [1]}, {"std_norm_age": [1]})`.
 
@@ -99,20 +92,20 @@ def rank_by_p_value(result):
 Add to builder; run to verify.
 
 ```python
-# Update build with hypothesis
-exp = Experiment(
-    datasource=titanic_source(),
-    pipeline=Pipeline([normalize_age(), compute_metrics()]),
-    plugins=[ParallelExecution()],
+# Update build with hypothesis using the fluent builder
+exp = (
+    Experiment.builder()
+    .datasource(titanic_source())
+    .add_step(normalize_age())
+    .add_step(compute_metrics())
+    .plugins([ParallelExecution()])
+    .treatments([scale_ages()])
+    .hypotheses([rank_by_p_value])
+    .replicates(20)
+    .build()
 )
 exp.validate()
-
-# Run and inspect hypothesis
-result = exp.run(
-    treatments=[scale_ages()],
-    hypotheses=[rank_by_p_value],  # Add here
-    replicates=20,  # Increase for stats power
-)
+result = exp.run()
 hyp_result = result.get_hypothesis("std_change_hyp")
 print("Hypothesis results:", hyp_result.results)  # e.g., {'scale_ages_treatment': {'p_value': ~1, 'significant': False}}
 print("Ranking:", hyp_result.ranking)  # Best treatment (likely none significant)
@@ -178,9 +171,7 @@ def age_std_t_test(baseline_samples, treatment_samples, alpha: float = 0.05):
     stat, p = ttest_ind(treatment_samples["std_norm_age"], baseline_samples["std_norm_age"], equal_var=False)
     return {"p_value": p, "significant": p < alpha}
 
-@hypothesis(verifier=age_std_t_test(), metrics="std_norm_age", name="std_change_hyp")
-def rank_by_p_value(result):
-    return result.get("p_value", 1.0)
+hyp = Hypothesis(verifier=age_std_t_test(), metrics="std_norm_age", name="std_change_hyp")
 
 if __name__ == "__main__":
     exp = Experiment(
@@ -191,7 +182,7 @@ if __name__ == "__main__":
     exp.validate()
     result = exp.run(
         treatments=[scale_ages()],
-        hypotheses=[rank_by_p_value],
+        hypotheses=[hyp],
         replicates=20,
     )
     hyp_result = result.get_hypothesis("std_change_hyp")

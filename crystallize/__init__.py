@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.experiments.experiment import Experiment
+from crystallize.experiments.experiment_builder import ExperimentBuilder
 from crystallize.datasources.datasource import DataSource, ExperimentInput
 from crystallize.datasources import Artifact
 from crystallize.experiments.treatment import Treatment
 from crystallize.utils.context import FrozenContext
 from crystallize.pipelines.pipeline import PipelineStep
 from crystallize.pipelines.pipeline import Pipeline
+from crystallize.experiments.hypothesis import Hypothesis
+
 from crystallize.utils.decorators import (
     data_source,
     hypothesis,
@@ -43,6 +46,7 @@ __all__ = [
     "resource_factory",
     "PipelineStep",
     "Pipeline",
+    "Hypothesis",
     "Experiment",
     "DataSource",
     "FrozenContext",
@@ -57,4 +61,5 @@ __all__ = [
     "ExperimentGraph",
     "Artifact",
     "ExperimentInput",
+    "ExperimentBuilder",
 ]

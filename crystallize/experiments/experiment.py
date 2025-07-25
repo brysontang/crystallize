@@ -17,6 +17,8 @@ from typing import (
 )
 import inspect
 
+from typing import TYPE_CHECKING
+
 from crystallize.utils.context import FrozenContext
 from crystallize.datasources import Artifact
 from crystallize.datasources.datasource import DataSource
@@ -36,6 +38,9 @@ from crystallize.plugins.plugins import (
     default_seed_function,
 )
 from crystallize.experiments.result import Result
+
+if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
+    from .experiment_builder import ExperimentBuilder
 from crystallize.experiments.result_structs import (
     ExperimentMetrics,
     HypothesisResult,
@@ -76,6 +81,14 @@ class Experiment:
     :class:`~crystallize.utils.context.FrozenContext` instance passed through the
     pipeline steps.
     """
+
+    @classmethod
+    def builder(cls, name: str | None = None) -> "ExperimentBuilder":
+        """Return a fluent builder for constructing an ``Experiment``."""
+
+        from .experiment_builder import ExperimentBuilder
+
+        return ExperimentBuilder(name)
 
     def __init__(
         self,
@@ -119,6 +132,8 @@ class Experiment:
                 self._setup_ctx.add(key, val)
 
         self.plugins = plugins or []
+        self.set_default_plugins()
+
         for plugin in self.plugins:
             plugin.init_hook(self)
 
@@ -130,6 +145,21 @@ class Experiment:
             )
 
     # ------------------------------------------------------------------ #
+
+    def set_default_plugins(self) -> None:
+        artifact_plugin = self.get_plugin(ArtifactPlugin)
+        if artifact_plugin is None:
+            self.plugins.append(ArtifactPlugin(root_dir="data"))
+
+        seed_plugin = self.get_plugin(SeedPlugin)
+        if seed_plugin is None:
+            self.plugins.append(
+                SeedPlugin(auto_seed=True, seed_fn=default_seed_function)
+            )
+
+        logging_plugin = self.get_plugin(LoggingPlugin)
+        if logging_plugin is None:
+            self.plugins.append(LoggingPlugin())
 
     def validate(self) -> None:
         if self.datasource is None or self.pipeline is None:
@@ -399,7 +429,6 @@ class Experiment:
         errors: Dict[str, Exception] = {}
 
         for rep, res in enumerate(results_list):
-
             base = res.baseline_metrics
             seed = res.baseline_seed
             treats = res.treatment_metrics
@@ -495,7 +524,6 @@ class Experiment:
     ) -> Result:
         """Synchronous wrapper for the async run method. Convenient for tests and scripts."""
         import asyncio
-
         return asyncio.run(
             self.arun(
                 treatments=treatments,
@@ -530,7 +558,11 @@ class Experiment:
         mutations for every pipeline step.
         """
         if not self._validated:
-            raise RuntimeError("Experiment must be validated before execution")
+            try:
+                self.validate()
+            except Exception as exc:
+                print(f"Experiment validation failed: {exc}")
+                raise
 
         run_treatments = treatments if treatments is not None else self.treatments
         run_hypotheses = hypotheses if hypotheses is not None else self.hypotheses
@@ -539,8 +571,6 @@ class Experiment:
         if replicates is None:
             replicates = datasource_reps or self.replicates
         replicates = max(1, replicates)
-        if datasource_reps is not None and datasource_reps != replicates:
-            raise ValueError("Replicates mismatch with datasource metadata")
 
         from crystallize.utils.cache import compute_hash
 
@@ -672,7 +702,11 @@ class Experiment:
         calls.
         """
         if not self._validated:
-            raise RuntimeError("Experiment must be validated before execution")
+            try:
+                self.validate()
+            except Exception as exc:
+                print(f"Experiment validation failed: {exc}")
+                raise
 
         from crystallize.utils.cache import compute_hash
 

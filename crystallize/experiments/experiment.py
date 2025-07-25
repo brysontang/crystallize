@@ -568,8 +568,6 @@ class Experiment:
         if replicates is None:
             replicates = datasource_reps or self.replicates
         replicates = max(1, replicates)
-        if datasource_reps is not None and datasource_reps != replicates:
-            raise ValueError("Replicates mismatch with datasource metadata")
 
         from crystallize.utils.cache import compute_hash
 

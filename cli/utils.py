@@ -1,4 +1,5 @@
 """Helper utilities for formatting CLI output."""
+
 from __future__ import annotations
 
 from typing import Any, Optional

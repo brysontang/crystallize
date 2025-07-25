@@ -132,6 +132,8 @@ class Experiment:
                 self._setup_ctx.add(key, val)
 
         self.plugins = plugins or []
+        self.set_default_plugins()
+
         for plugin in self.plugins:
             plugin.init_hook(self)
 
@@ -143,6 +145,21 @@ class Experiment:
             )
 
     # ------------------------------------------------------------------ #
+
+    def set_default_plugins(self) -> None:
+        artifact_plugin = self.get_plugin(ArtifactPlugin)
+        if artifact_plugin is None:
+            self.plugins.append(ArtifactPlugin(root_dir="data"))
+
+        seed_plugin = self.get_plugin(SeedPlugin)
+        if seed_plugin is None:
+            self.plugins.append(
+                SeedPlugin(auto_seed=True, seed_fn=default_seed_function)
+            )
+
+        logging_plugin = self.get_plugin(LoggingPlugin)
+        if logging_plugin is None:
+            self.plugins.append(LoggingPlugin())
 
     def validate(self) -> None:
         if self.datasource is None or self.pipeline is None:

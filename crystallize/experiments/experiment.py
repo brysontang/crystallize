@@ -524,7 +524,6 @@ class Experiment:
     ) -> Result:
         """Synchronous wrapper for the async run method. Convenient for tests and scripts."""
         import asyncio
-
         return asyncio.run(
             self.arun(
                 treatments=treatments,
@@ -559,7 +558,11 @@ class Experiment:
         mutations for every pipeline step.
         """
         if not self._validated:
-            raise RuntimeError("Experiment must be validated before execution")
+            try:
+                self.validate()
+            except Exception as exc:
+                print(f"Experiment validation failed: {exc}")
+                raise
 
         run_treatments = treatments if treatments is not None else self.treatments
         run_hypotheses = hypotheses if hypotheses is not None else self.hypotheses
@@ -699,7 +702,11 @@ class Experiment:
         calls.
         """
         if not self._validated:
-            raise RuntimeError("Experiment must be validated before execution")
+            try:
+                self.validate()
+            except Exception as exc:
+                print(f"Experiment validation failed: {exc}")
+                raise
 
         from crystallize.utils.cache import compute_hash
 

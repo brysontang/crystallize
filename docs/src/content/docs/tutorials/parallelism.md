@@ -24,7 +24,7 @@ exp = Experiment(
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
     plugins=[ParallelExecution()],
 )
-exp.validate()
+exp.validate()  # optional
 result = exp.run(treatments=[scale_ages()], hypotheses=[rank_by_p_value], replicates=50)
 print("Replicate count in metrics:", len(result.metrics.baseline.metrics["std_norm_age"]))  # 50
 ```
@@ -49,7 +49,7 @@ exp = Experiment(
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
     plugins=[ParallelExecution(max_workers=4, executor_type="process")],
 )
-exp.validate()
+exp.validate()  # optional
 
 import time  # To measure speed
 start = time.time()
@@ -156,7 +156,7 @@ if __name__ == "__main__":
         pipeline=Pipeline([normalize_age(), compute_metrics()]),
         plugins=[ParallelExecution(max_workers=4, executor_type="process")],
     )
-    exp.validate()
+    exp.validate()  # optional
     start = time.time()
     result = exp.run(
         treatments=[scale_ages()],

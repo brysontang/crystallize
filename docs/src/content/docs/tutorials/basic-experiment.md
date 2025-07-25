@@ -113,7 +113,7 @@ exp = Experiment(
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
     plugins=[ParallelExecution()],
 )
-exp.validate()
+exp.validate()  # optional
 
 # Run and inspect
 result = exp.run(replicates=3)
@@ -180,7 +180,7 @@ if __name__ == "__main__":
         pipeline=Pipeline([normalize_age(), compute_metrics()]),
         plugins=[ParallelExecution()],
     )
-    exp.validate()
+    exp.validate()  # optional
     r = exp.run(replicates=3)
 
     print("Baseline metrics:", r.metrics.baseline.metrics)

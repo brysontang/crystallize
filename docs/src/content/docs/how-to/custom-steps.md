@@ -134,7 +134,7 @@ exp = Experiment(
     ]),
     plugins=[ParallelExecution()],
 )
-exp.validate()
+exp.validate()  # optional
 result = exp.run(replicates=3)
 print(result.metrics.baseline.metrics)
 

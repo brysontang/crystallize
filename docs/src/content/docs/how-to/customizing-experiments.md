@@ -24,7 +24,7 @@ exp = Experiment(
     ],
     initial_ctx={"rng": resource_factory(lambda ctx: random.Random(ctx["seed"]))},
 )
-exp.validate()
+exp.validate()  # optional
 
 exp_static = Experiment(
     datasource=my_source(),

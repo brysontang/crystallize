@@ -32,7 +32,7 @@ exp = Experiment(
     plugins=[ArtifactPlugin(root_dir="artifacts", versioned=True)],
     outputs=[out],
 )
-exp.validate()
+exp.validate()  # optional
 exp.run()
 ```
 

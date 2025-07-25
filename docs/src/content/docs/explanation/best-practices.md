@@ -1,5 +1,5 @@
 ---
-title: Explanation: Design Patterns & Best Practices
+title: "Explanation: Design Patterns & Best Practices"
 description: A guide to structuring robust and scalable Crystallize projects.
 ---
 

@@ -79,7 +79,7 @@ experiment = Experiment(
     pipeline=pipeline,
     plugins=[SeedPlugin(seed=42), ParallelExecution(max_workers=4)],
 )
-experiment.validate()
+experiment.validate()  # optional
 result = experiment.run(
     treatments=[treatment],
     hypotheses=[hypothesis],

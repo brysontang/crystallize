@@ -1,5 +1,5 @@
 from .context import FrozenContext, ContextMutationError, LoggingContext
-from .exceptions import MissingMetricError, PipelineExecutionError
+from .exceptions import MissingMetricError, PipelineExecutionError, ValidationError
 from .cache import compute_hash, load_cache, store_cache
 from .injection import inject_from_ctx
 
@@ -9,6 +9,7 @@ __all__ = [
     "LoggingContext",
     "MissingMetricError",
     "PipelineExecutionError",
+    "ValidationError",
     "compute_hash",
     "load_cache",
     "store_cache",

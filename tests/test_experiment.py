@@ -176,10 +176,11 @@ def test_experiment_requires_validation():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()
     experiment = Experiment(datasource=datasource, pipeline=pipeline)
-    with pytest.raises(RuntimeError):
-        experiment.run()
-    with pytest.raises(RuntimeError):
-        experiment.apply(data=1)
+    # run() and apply() should auto-validate
+    result = experiment.run()
+    assert result.metrics.baseline.metrics["metric"] == [0]
+    output = experiment.apply(data=1)
+    assert output == {"metric": 1}
 
 
 def test_experiment_builder_chaining():

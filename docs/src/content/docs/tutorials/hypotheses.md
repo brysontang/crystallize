@@ -105,7 +105,7 @@ exp = Experiment(
     pipeline=Pipeline([normalize_age(), compute_metrics()]),
     plugins=[ParallelExecution()],
 )
-exp.validate()
+exp.validate()  # optional
 
 # Run and inspect hypothesis
 result = exp.run(
@@ -188,7 +188,7 @@ if __name__ == "__main__":
         pipeline=Pipeline([normalize_age(), compute_metrics()]),
         plugins=[ParallelExecution()],
     )
-    exp.validate()
+    exp.validate()  # optional
     result = exp.run(
         treatments=[scale_ages()],
         hypotheses=[rank_by_p_value],

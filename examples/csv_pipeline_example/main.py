@@ -41,7 +41,7 @@ def main() -> None:
         pipeline=pipeline_obj,
         plugins=[ParallelExecution()],
     )
-    experiment.validate()
+    experiment.validate()  # optional
     result = experiment.run(treatments=[better_data()], hypotheses=[hyp])
     print(result.metrics["hypotheses"])
     print(result.provenance)

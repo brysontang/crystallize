@@ -44,7 +44,7 @@ exp = Experiment(
     pipeline=pipeline,
     initial_ctx={"rng": resource_factory(lambda ctx: random.Random(ctx.get("seed", 42)))},
 )
-exp.validate()
+exp.validate()  # optional
 
 # You can also provide plain values:
 exp_static = Experiment(

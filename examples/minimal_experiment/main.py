@@ -66,7 +66,7 @@ if __name__ == "__main__":
         pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
         plugins=[ParallelExecution(), LoggingPlugin(verbose=True, log_level="DEBUG")],
     )
-    experiment.validate()
+    experiment.validate()  # optional
     result = experiment.run(treatments=[add_ten()], hypotheses=[check_for_improvement])
 
     # Print the results for our hypothesis

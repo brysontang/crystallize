@@ -23,7 +23,7 @@ exp1 = Experiment(
     plugins=[ArtifactPlugin(root_dir="artifact_chain", versioned=True)],
     outputs=[out_file],
 )
-exp1.validate()
+exp1.validate()  # optional
 
 if __name__ == "__main__":
     exp1.run(replicates=2)

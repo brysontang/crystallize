@@ -60,7 +60,7 @@ exp = Experiment(
     replicates=5,
     plugins=[SeedPlugin(seed=42), ParallelExecution(max_workers=4)],
 )
-exp.validate()
+exp.validate()  # optional
 result = exp.run()
 print(result.metrics)
 

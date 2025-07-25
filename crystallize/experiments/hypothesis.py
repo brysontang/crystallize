@@ -3,6 +3,11 @@ from typing import Any, Callable, Dict, Mapping, Sequence, Optional
 from crystallize.utils.exceptions import MissingMetricError
 
 
+def rank_by_p_value(result: dict) -> float:
+    """A simple, picklable ranker function. Lower p-value is better."""
+    return result.get("p_value", 1.0)
+
+
 class Hypothesis:
     """Encapsulate a statistical test to compare baseline and treatment results."""
 
@@ -18,7 +23,7 @@ class Hypothesis:
     ) -> None:
         self.metrics_spec = metrics
         self.verifier = verifier
-        self.ranker = ranker or (lambda res: float(res.get("p_value", 0.0)))
+        self.ranker = ranker or rank_by_p_value
         if name:
             self.name = name
         elif hasattr(ranker, "__name__"):

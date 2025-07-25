@@ -84,7 +84,7 @@ comfort_exp.validate()  # optional
 
 
 if __name__ == "__main__":
-    graph = ExperimentGraph.from_experiments([temp_exp, humidity_exp, comfort_exp])
+    graph = ExperimentGraph(temp_exp, humidity_exp, comfort_exp)
 
     print("Baseline run:")
     base = graph.run()

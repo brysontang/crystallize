@@ -164,12 +164,9 @@ def hypothesis(
     """Decorate a ranker function and produce a :class:`Hypothesis`."""
 
     def decorator(fn: Callable[[Mapping[str, Any]], float]) -> Hypothesis:
-        def factory() -> Hypothesis:
-            return Hypothesis(
-                verifier=verifier, metrics=metrics, ranker=fn, name=name or fn.__name__
-            )
-
-        return update_wrapper(factory, fn)
+        return Hypothesis(
+            verifier=verifier, metrics=metrics, ranker=fn, name=name or fn.__name__
+        )
 
     return decorator
 

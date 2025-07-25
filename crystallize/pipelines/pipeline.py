@@ -68,12 +68,7 @@ class Pipeline:
 
             pre_ctx = dict(ctx.as_dict())
             pre_metrics = {k: tuple(v) for k, v in ctx.metrics.as_dict().items()}
-            try:
-                step_hash = step.step_hash
-            except Exception as exc:
-                print(f"Error in step {step.__class__.__name__}")
-                print(f"Error: {exc}")
-                raise exc
+            step_hash = step.step_hash
             input_hash = compute_hash(data)
             if step.cacheable:
                 try:

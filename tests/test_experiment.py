@@ -9,6 +9,7 @@ import pytest
 from crystallize.plugins.plugins import ArtifactPlugin, BasePlugin
 from crystallize.experiments.result import Result
 
+import asyncio
 from crystallize.plugins.execution import ParallelExecution
 from crystallize.plugins.plugins import SeedPlugin
 from crystallize.utils.cache import compute_hash
@@ -21,6 +22,14 @@ from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.experiments.optimizers import BaseOptimizer, Objective
 from crystallize.experiments.treatment import Treatment
+from crystallize import (
+    pipeline_step,
+    data_source,
+    verifier,
+    hypothesis,
+    treatment,
+    AsyncExecution,
+)
 
 
 class DummyDataSource(DataSource):
@@ -1075,3 +1084,50 @@ def test_experiment_description_attribute():
         description="my experiment",
     )
     assert exp.description == "my experiment"
+
+
+@pipeline_step()
+async def async_increment(data, ctx):
+    await asyncio.sleep(0)
+    inc = ctx.as_dict().get("inc", 0)
+    return data + inc
+
+
+@pipeline_step()
+def record(data, ctx):
+    ctx.metrics.add("metric", data)
+    return {"metric": data}
+
+
+@data_source
+def constant(ctx, value=0):
+    return value
+
+
+@verifier
+def dummy_verifier(baseline, treatment, *, alpha=0.05):
+    return {"p_value": 0.01, "significant": True, "accepted": True}
+
+
+@hypothesis(verifier=dummy_verifier(), metrics="metric")
+def dummy_ranker(result):
+    return result["p_value"]
+
+
+@treatment("inc_async")
+def inc_async(ctx):
+    ctx.add("inc", 1)
+
+
+def test_async_execution_with_hypothesis_and_verifier():
+    ds = constant(value=2)
+    pipe = Pipeline([async_increment(), record()])
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipe,
+        plugins=[AsyncExecution()],
+    )
+    exp.validate()
+    result = exp.run(treatments=[inc_async()], hypotheses=[dummy_ranker], replicates=2)
+    assert result.metrics.baseline.metrics["metric"] == [2, 2]
+    assert result.metrics.treatments["inc_async"].metrics["metric"] == [3, 3]

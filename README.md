@@ -98,6 +98,8 @@ Crystallize ships with an interactive CLI for discovering and executing
 experiments or experiment graphs. After each run, the summary screen now displays
 both recorded metrics and hypothesis results.
 
+Press ``c`` in the main screen to scaffold a new experiment folder.
+
 ```bash
 # Discover and run a single experiment
 crystallize run experiment

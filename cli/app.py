@@ -15,6 +15,7 @@ from rich.text import Text
 from .constants import ASCII_ART_ARRAY, CSS, OBJ_TYPES
 from .discovery import _import_module, _run_object, discover_objects
 from .screens.run import _launch_run
+from .screens.create_experiment import CreateExperimentScreen
 from .utils import _build_experiment_table, _write_experiment_summary, _write_summary
 
 # Export these for backward compatibility
@@ -37,6 +38,7 @@ class CrystallizeApp(App):
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("r", "refresh", "Refresh"),
+        ("c", "create_experiment", "Create Experiment"),
         ("ctrl+c", "quit", "Quit"),
     ]
 
@@ -53,6 +55,9 @@ class CrystallizeApp(App):
 
     def action_refresh(self) -> None:
         self.run_worker(self._discover)
+
+    def action_create_experiment(self) -> None:
+        self.push_screen(CreateExperimentScreen())
 
     def _discover_sync(self) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         path = Path(".")

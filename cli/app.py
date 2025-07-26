@@ -1,5 +1,3 @@
-"""Textual application wiring for the Crystallize CLI."""
-
 from __future__ import annotations
 
 import random
@@ -7,8 +5,17 @@ from pathlib import Path
 from typing import Any, Dict, Tuple
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, VerticalScroll
-from textual.widgets import Footer, Header, ListItem, ListView, LoadingIndicator, Static
+from textual.containers import Container, Horizontal
+from textual.widgets import (
+    Footer,
+    Header,
+    ListItem,
+    ListView,
+    LoadingIndicator,
+    Static,
+    TabbedContent,
+    TabPane,
+)
 from textual.css.query import NoMatches
 from rich.text import Text
 
@@ -56,10 +63,10 @@ class CrystallizeApp(App):
         yield Footer()
 
     async def on_mount(self) -> None:
-        self.run_worker(self._discover)
+        self.run_worker(self._discover())
 
     def action_refresh(self) -> None:
-        self.run_worker(self._discover)
+        self.run_worker(self._discover())
 
     def action_create_experiment(self) -> None:
         self.push_screen(CreateExperimentScreen())
@@ -81,19 +88,74 @@ class CrystallizeApp(App):
         await main_container.remove_children()
 
         await main_container.mount(Static("Select an object to run:"))
-        list_view = ListView(initial_index=0)
-        await main_container.mount(VerticalScroll(list_view))
 
-        for label, obj in graphs.items():
-            escaped_label = Static(Text(f"[Graph] {label}"))
-            item = ListItem(escaped_label, classes="graph-item")
-            item.data = {"obj": obj, "type": "Graph"}
-            await list_view.append(item)
-        for label, obj in experiments.items():
-            escaped_label = Static(Text(f"[Experiment] {label}"))
-            item = ListItem(escaped_label, classes="experiment-item")
-            item.data = {"obj": obj, "type": "Experiment"}
-            await list_view.append(item)
+        horizontal = Horizontal()
+        await main_container.mount(horizontal)
+
+        left_panel = Container(classes="left-panel")
+        await horizontal.mount(left_panel)
+
+        tabbed_content = TabbedContent()
+        await left_panel.mount(tabbed_content)
+
+        initial_tab = None
+        if experiments:
+            tab_pane_exp = TabPane("Experiments", id="experiments")
+            await tabbed_content.add_pane(tab_pane_exp)
+
+            list_view_exp = ListView(classes="experiment-list")
+            await tab_pane_exp.mount(list_view_exp)
+
+            for label, obj in experiments.items():
+                item = ListItem(classes="experiment-item")
+                await list_view_exp.append(item)
+                await item.mount(Static(Text(f"🧪 {label}")))
+                if obj.__doc__:
+                    await item.mount(
+                        Static(
+                            obj.__doc__.strip()[:200] + "...", classes="item-doc dim"
+                        )
+                    )
+                item.data = {
+                    "obj": obj,
+                    "type": "Experiment",
+                    "doc": obj.__doc__ or "No documentation available.",
+                }
+
+            initial_tab = "experiments"
+
+        if graphs:
+            tab_pane_graph = TabPane("Graphs", id="graphs")
+            await tabbed_content.add_pane(tab_pane_graph)
+
+            list_view_graph = ListView(classes="graph-list")
+            await tab_pane_graph.mount(list_view_graph)
+
+            for label, obj in graphs.items():
+                item = ListItem(classes="graph-item")
+                await list_view_graph.append(item)
+                await item.mount(Static(Text(f"📈 {label}")))
+                if obj.__doc__:
+                    await item.mount(
+                        Static(
+                            obj.__doc__.strip()[:200] + "...", classes="item-doc dim"
+                        )
+                    )
+                item.data = {
+                    "obj": obj,
+                    "type": "Graph",
+                    "doc": obj.__doc__ or "No documentation available.",
+                }
+
+            if initial_tab is None:
+                initial_tab = "graphs"
+
+        if initial_tab:
+            tabbed_content.active = initial_tab
+
+        right_panel = Container(classes="right-panel")
+        await horizontal.mount(right_panel)
+        await right_panel.mount(Static(id="details", classes="details-panel"))
 
         if self._load_errors:
             await main_container.mount(
@@ -103,18 +165,22 @@ class CrystallizeApp(App):
                 )
             )
 
-        list_view.focus()
+        try:
+            self.query_one(".experiment-list", ListView).focus()
+        except NoMatches:
+            try:
+                self.query_one(".graph-list", ListView).focus()
+            except NoMatches:
+                pass
 
     async def _run_interactive_and_exit(self, obj: Any) -> None:
         await _launch_run(self, obj)
 
     async def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         if event.item is not None:
-            try:
-                type_text = self.query_one("#type-text", Static)
-                type_text.update(f"Type: {event.item.data['type']}")
-            except NoMatches:  # pragma: no cover - optional widget
-                pass
+            data = event.item.data
+            details = self.query_one("#details", Static)
+            details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         obj = event.item.data["obj"]

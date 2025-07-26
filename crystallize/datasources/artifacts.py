@@ -60,12 +60,16 @@ class ArtifactLog:
         return len(self._items)
 
 
+def default_loader(p: Path) -> Any:
+    return p.read_bytes()
+
+
 class Artifact(DataSource):
     """Declarative handle for reading and writing artifacts."""
 
     def __init__(self, name: str, loader: Callable[[Path], Any] | None = None) -> None:
         self.name = name
-        self.loader = loader or (lambda p: p.read_bytes())
+        self.loader = loader or default_loader
         self._ctx: Optional["FrozenContext"] = None
         self._producer: Optional["Experiment"] = None
         self._manifest: Optional[dict[str, str]] = None

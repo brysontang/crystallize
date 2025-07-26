@@ -123,15 +123,15 @@ def create_experiment_scaffolding(
         if steps:
             config["steps"] = ["add_one"]
         if outputs:
-            config["outputs"] = {"result": {}}
+            config["outputs"] = {"out": {"file_name": "out.txt"}}
         if hypotheses:
             config["hypotheses"] = [
-                {"name": "h", "verifier": "always_sig", "metrics": "result"}
+                {"name": "h", "verifier": "always_sig", "metrics": "val"}
             ]
-            config["treatments"] = [
-                {"add_one": {"delta": 1}},
-                {"add_two": {"delta": 2}},
-            ]
+            config["treatments"] = {
+                "add_one": {"delta": 1},
+                "add_two": {"delta": 2},
+            }
 
     (exp_dir / "config.yaml").write_text(yaml.safe_dump(config))
 

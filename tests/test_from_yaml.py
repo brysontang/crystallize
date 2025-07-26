@@ -35,7 +35,7 @@ def create_exp(tmp, name="exp"):
         "datasource": {"x": "constant"},
         "steps": ["add_one"],
         "hypotheses": [{"name": "h", "verifier": "always_sig", "metrics": "val"}],
-        "treatments": [{"control": {}}],
+        "treatments": {"control": {}},
         "outputs": {"artifact": {}},
     }
     (d / "config.yaml").write_text(yaml.safe_dump(cfg))
@@ -88,7 +88,7 @@ def test_from_yaml_with_artifact(tmp_path: Path):
         "name": "consumer",
         "datasource": {"prev": "producer#artifact"},
         "steps": ["passthrough"],
-        "treatments": [],
+        "treatments": {},
         "hypotheses": [],
     }
     (cons / "config.yaml").write_text(yaml.safe_dump(cfg))

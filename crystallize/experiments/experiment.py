@@ -900,27 +900,43 @@ class Experiment:
         else:
             datasource = ExperimentInput(**inputs)
 
-        step_names = cfg.get("steps", []) if steps_mod else []
-        steps = [_load("steps", s)() for s in step_names]
-        pipeline = Pipeline(steps)
-
         outputs_spec = cfg.get("outputs", {})
-        outputs: list[Artifact] = []
-        if outs_mod:
-            for art_name, spec in outputs_spec.items():
-                loader_fn = None
-                file_name = None
-                if isinstance(spec, dict):
-                    if spec.get("loader"):
-                        loader_fn = _load("outputs", spec["loader"])
-                    if spec.get("file_name"):
-                        file_name = spec["file_name"]
-                
-                
-                outputs.append(Artifact(name=file_name, loader=loader_fn))
-        else:
-            for art_name in outputs_spec:
-                outputs.append(Artifact(art_name))
+        outputs_map: Dict[str, Artifact] = {}
+        for alias, spec in outputs_spec.items():
+            loader_fn = None
+            file_name = alias  # Default file name to alias
+            if isinstance(spec, dict):
+                if spec.get("loader") and outs_mod:
+                    loader_fn = _load("outputs", spec["loader"])
+                if spec.get("file_name"):
+                    file_name = spec["file_name"]
+
+            outputs_map[alias] = Artifact(name=file_name, loader=loader_fn)
+        outputs = list(outputs_map.values())
+
+        step_specs = cfg.get("steps", []) if steps_mod else []
+        steps = []
+        for s_spec in step_specs:
+            step_name = s_spec
+            kwargs = {}
+
+            if isinstance(s_spec, dict):
+                step_name = next(iter(s_spec.keys()))
+                kwargs = s_spec[step_name]
+            else:
+                step_name = s_spec
+                kwargs = {}
+
+            step_factory = _load("steps", step_name)
+            import inspect
+
+            # Inspect the step factory's signature and map any Artifact parameters
+            sig = inspect.signature(step_factory)
+            for param_name, param in sig.parameters.items():
+                if param.annotation == Artifact and param_name in outputs_map:
+                    kwargs[param_name] = outputs_map[param_name]
+            steps.append(step_factory(**kwargs))
+        pipeline = Pipeline(steps)
 
         treatments: list[Treatment] = []
         treatments_spec = cfg.get("treatments", {})

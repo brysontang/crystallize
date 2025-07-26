@@ -128,6 +128,10 @@ def create_experiment_scaffolding(
             config["hypotheses"] = [
                 {"name": "h", "verifier": "always_sig", "metrics": "result"}
             ]
+            config["treatments"] = [
+                {"add_one": {"delta": 1}},
+                {"add_two": {"delta": 2}},
+            ]
 
     (exp_dir / "config.yaml").write_text(yaml.safe_dump(config))
 
@@ -138,21 +142,15 @@ def create_experiment_scaffolding(
         (exp_dir / "datasources.py").write_text(ds_code)
 
     if steps:
-        st_code = (
-            "from crystallize import pipeline_step"
-        )
+        st_code = "from crystallize import pipeline_step"
         if examples and outputs:
             st_code += ", Artifact"
         st_code += "\nfrom crystallize.utils.context import FrozenContext\n"
         if examples:
             if outputs:
-                st_code += (
-                    "\n@pipeline_step()\ndef add_one(data: int, ctx: FrozenContext, out: Artifact, *, delta: int = 1) -> dict:\n    val = data + delta\n    out.write(str(val).encode())\n    ctx.metrics.add('val', val)\n    return {'val': val}\n"
-                )
+                st_code += "\n@pipeline_step()\ndef add_one(data: int, ctx: FrozenContext, out: Artifact, *, delta: int = 1) -> dict:\n    val = data + delta\n    out.write(str(val).encode())\n    ctx.metrics.add('val', val)\n    return {'val': val}\n"
             else:
-                st_code += (
-                    "\n@pipeline_step()\ndef add_one(data: int, ctx: FrozenContext, *, delta: int = 1) -> dict:\n    val = data + delta\n    ctx.metrics.add('val', val)\n    return {'val': val}\n"
-                )
+                st_code += "\n@pipeline_step()\ndef add_one(data: int, ctx: FrozenContext, *, delta: int = 1) -> dict:\n    val = data + delta\n    ctx.metrics.add('val', val)\n    return {'val': val}\n"
         (exp_dir / "steps.py").write_text(st_code)
 
     if outputs:
@@ -164,10 +162,14 @@ def create_experiment_scaffolding(
     if hypotheses:
         hyp_code = "from crystallize import verifier\n"
         if examples:
-            hyp_code += (
-                "\n@verifier\ndef always_sig(baseline, treatment):\n    return {'p_value': 0.01, 'significant': True}\n"
-            )
+            hyp_code += "\n@verifier\ndef always_sig(baseline, treatment):\n    return {'p_value': 0.01, 'significant': True}\n"
         (exp_dir / "hypotheses.py").write_text(hyp_code)
 
-    return exp_dir
+    (exp_dir / "main.py").write_text(
+        "from pathlib import Path\n"
+        "from crystallize.experiments.experiment import Experiment\n"
+        "\n"
+        "exp = Experiment.from_yaml(Path(__file__).parent / 'config.yaml')\n"
+    )
 
+    return exp_dir

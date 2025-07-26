@@ -889,7 +889,9 @@ class Experiment:
                 inputs[alias] = art
             else:
                 if not ds_mod:
-                    raise FileNotFoundError("datasources.py not found")  # pragma: no cover - sanity check
+                    raise FileNotFoundError(
+                        "datasources.py not found"
+                    )  # pragma: no cover - sanity check
                 fn = _load("datasources", str(val))
                 inputs[alias] = fn()
 
@@ -907,35 +909,30 @@ class Experiment:
         if outs_mod:
             for art_name, spec in outputs_spec.items():
                 loader_fn = None
-                if isinstance(spec, dict) and spec.get("loader"):
-                    loader_fn = _load("outputs", spec["loader"])
-                outputs.append(Artifact(art_name, loader=loader_fn))
+                file_name = None
+                if isinstance(spec, dict):
+                    if spec.get("loader"):
+                        loader_fn = _load("outputs", spec["loader"])
+                    if spec.get("file_name"):
+                        file_name = spec["file_name"]
+                
+                
+                outputs.append(Artifact(name=file_name, loader=loader_fn))
         else:
             for art_name in outputs_spec:
                 outputs.append(Artifact(art_name))
 
         treatments: list[Treatment] = []
-        for item in cfg.get("treatments", []):
-            t_name: str | None = None
-            params: dict[str, Any]
-            if isinstance(item, dict):
-                if "name" in item:
-                    t_name = str(item.get("name"))
-                    params = {k: v for k, v in item.items() if k != "name"}
-                else:
-                    if len(item) != 1:
-                        raise ValueError("Invalid treatment specification")  # pragma: no cover - validated via tests
-                    t_name, params = next(iter(item.items()))
-                    if params is None:
-                        params = {}
-                    elif not isinstance(params, dict):
-                        raise ValueError(
-                            f"Treatment '{t_name}' must map to a dictionary"  # pragma: no cover - validated via tests
-                        )
-            else:  # pragma: no cover - invalid type
-                raise TypeError("Treatment entries must be dictionaries")  # pragma: no cover - type check
-
-            treatments.append(Treatment(t_name, params))
+        treatments_spec = cfg.get("treatments", {})
+        if isinstance(treatments_spec, dict):
+            for t_name, params in treatments_spec.items():
+                if params is None:
+                    params = {}
+                elif not isinstance(params, dict):
+                    raise ValueError(f"Treatment '{t_name}' must map to a dictionary")
+                treatments.append(Treatment(t_name, params))
+        else:
+            raise TypeError("Treatments must be specified as a dictionary")
 
         hypotheses: list[Hypothesis] = []
         if hyps_mod:

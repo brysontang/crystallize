@@ -1,5 +1,6 @@
 import yaml
 from pathlib import Path
+import pytest
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -21,6 +22,13 @@ def add_one(data, ctx):
 
 
 @pipeline_step()
+def add_one_out(data, ctx, dest: Artifact):
+    dest.write(b"data")
+    ctx.metrics.add("val", data + 1)
+    return {"val": data + 1}
+
+
+@pipeline_step()
 def write_out(data, ctx, dest: Artifact):
     dest.write(str(data).encode())
     ctx.metrics.add("val", data)
@@ -36,12 +44,12 @@ def create_exp(tmp, name="exp"):
     d = tmp / name
     d.mkdir()
     (d / "datasources.py").write_text("from test_from_yaml import constant\n")
-    (d / "steps.py").write_text("from test_from_yaml import add_one\n")
+    (d / "steps.py").write_text("from test_from_yaml import add_one_out\n")
     (d / "hypotheses.py").write_text("from test_from_yaml import always_sig\n")
     cfg = {
         "name": name,
         "datasource": {"x": "constant"},
-        "steps": ["add_one"],
+        "steps": [{"add_one_out": {"dest": "artifact"}}],
         "hypotheses": [{"name": "h", "verifier": "always_sig", "metrics": "val"}],
         "treatments": {"control": {}},
         "outputs": {"artifact": {}},
@@ -228,3 +236,46 @@ def test_from_yaml_multiple_outputs(tmp_path: Path):
     )
     assert out1.read_text() == "1"
     assert out2.read_text() == "1"
+
+
+def test_from_yaml_unknown_output(tmp_path: Path):
+    exp_dir = tmp_path / "exp_bad_alias"
+    exp_dir.mkdir()
+    (exp_dir / "datasources.py").write_text("from test_from_yaml import constant\n")
+    (exp_dir / "steps.py").write_text("from test_from_yaml import write_out\n")
+
+    cfg = {
+        "name": "exp_bad_alias",
+        "datasource": {"x": "constant"},
+        "steps": [{"write_out": {"dest": "missing"}}],
+        "treatments": {"control": {}},
+        "hypotheses": [],
+        "outputs": {"result": {"file_name": "out.txt"}},
+    }
+    (exp_dir / "config.yaml").write_text(yaml.safe_dump(cfg))
+
+    with pytest.raises(ValueError, match="missing"):
+        Experiment.from_yaml(exp_dir / "config.yaml")
+
+
+def test_from_yaml_unused_output(tmp_path: Path):
+    exp_dir = tmp_path / "exp_unused"
+    exp_dir.mkdir()
+    (exp_dir / "datasources.py").write_text("from test_from_yaml import constant\n")
+    (exp_dir / "steps.py").write_text("from test_from_yaml import write_out\n")
+
+    cfg = {
+        "name": "exp_unused",
+        "datasource": {"x": "constant"},
+        "steps": [{"write_out": {"dest": "result"}}],
+        "treatments": {"control": {}},
+        "hypotheses": [],
+        "outputs": {
+            "result": {"file_name": "out.txt"},
+            "unused": {"file_name": "unused.txt"},
+        },
+    }
+    (exp_dir / "config.yaml").write_text(yaml.safe_dump(cfg))
+
+    with pytest.raises(ValueError, match="unused"):
+        Experiment.from_yaml(exp_dir / "config.yaml")

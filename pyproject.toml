@@ -20,6 +20,7 @@ dependencies = [
     "networkx >=3.4.2,<4",
     "tqdm",
     "rich >=13.8.1,<14",
+    "dill >=0.3.7,<0.4",
 ]
 
 [project.optional-dependencies]

@@ -78,36 +78,42 @@ class Pipeline:
             input_hash = compute_hash(data)
             if step.cacheable:
                 try:
-                    data = load_cache(step_hash, input_hash)
+                    result = load_cache(step_hash, input_hash)
                     cache_hit = True
                 except (FileNotFoundError, IOError):
                     try:
                         result = step(data, target_ctx)
                         if inspect.isawaitable(result):
-                            data = await result
-                        else:
-                            data = result
+                            result = await result
                     except Exception as exc:
                         raise PipelineExecutionError(
                             step.__class__.__name__, exc
                         ) from exc
-                    store_cache(step_hash, input_hash, data)
+                    store_cache(step_hash, input_hash, result)
                     cache_hit = False
             else:
                 try:
                     result = step(data, target_ctx)
                     if inspect.isawaitable(result):
-                        data = await result
-                    else:
-                        data = result
+                        result = await result
                 except Exception as exc:
                     raise PipelineExecutionError(step.__class__.__name__, exc) from exc
                 cache_hit = False
 
+            data, step_metrics = self._unpack_result(result)
+            if step_metrics is not None:
+                for key, value in step_metrics.items():
+                    ctx.metrics.add(key, value)
+
             if experiment is not None:
                 for plugin in experiment.plugins:
                     plugin.after_step(experiment, step, data, ctx)
-            if cache_hit and i == len(self.steps) - 1 and isinstance(data, Mapping):
+            if (
+                cache_hit
+                and i == len(self.steps) - 1
+                and step_metrics is None
+                and isinstance(data, Mapping)
+            ):
                 for key, value in data.items():
                     ctx.metrics.add(key, value)
 
@@ -225,6 +231,16 @@ class Pipeline:
                 },
             }
         )
+
+    def _unpack_result(self, result: Any) -> Tuple[Any, Optional[Mapping[str, Any]]]:
+        """Separate step output into data and metrics if present."""
+        if (
+            isinstance(result, tuple)
+            and len(result) == 2
+            and isinstance(result[1], Mapping)
+        ):
+            return result[0], result[1]
+        return result, None
 
     def signature(self) -> str:
         """Hash‐friendly signature for caching/provenance."""

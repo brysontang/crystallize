@@ -49,3 +49,14 @@ def test_pipeline_step_factory_defaults_and_hash():
 def test_pipeline_step_factory_missing_param():
     with pytest.raises(TypeError):
         multiply()
+
+
+@pipeline_step()
+def no_ctx_step(data, *, inc: int = 1):
+    return data + inc
+
+
+def test_pipeline_step_without_ctx_parameter():
+    ctx = FrozenContext({"inc": 2})
+    step = no_ctx_step()
+    assert step(3, ctx) == 5

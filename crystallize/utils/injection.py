@@ -17,13 +17,24 @@ def inject_from_ctx(fn: Callable[..., Any]) -> Callable[..., Any]:
     """
 
     signature = inspect.signature(fn)
+    has_ctx_param = "ctx" in signature.parameters
 
     @wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        bound = signature.bind_partial(*args, **kwargs)
-        if "ctx" not in bound.arguments:
-            raise TypeError("inject_from_ctx requires 'ctx' argument")
-        ctx = bound.arguments["ctx"]
+        if has_ctx_param:
+            bound = signature.bind_partial(*args, **kwargs)
+            if "ctx" not in bound.arguments:
+                raise TypeError("inject_from_ctx requires 'ctx' argument")
+            ctx = bound.arguments["ctx"]
+        else:
+            if "ctx" in kwargs:
+                ctx = kwargs.pop("ctx")
+            elif len(args) >= 2:
+                ctx = args[1]
+                args = args[:1] + args[2:]
+            else:
+                raise TypeError("inject_from_ctx requires 'ctx' argument")
+            bound = signature.bind_partial(*args, **kwargs)
         if not isinstance(ctx, FrozenContext):
             raise TypeError("'ctx' must be a FrozenContext")
 
@@ -45,6 +56,10 @@ def inject_from_ctx(fn: Callable[..., Any]) -> Callable[..., Any]:
         for name, val in list(bound.arguments.items()):
             if isinstance(val, Artifact) and getattr(val, "_ctx", None) is None:
                 bound.arguments[name] = val._clone_with_context(ctx)
+
+        if has_ctx_param:
+            bound.arguments["ctx"] = ctx
+
         return fn(*bound.args, **bound.kwargs)
 
     return wrapper

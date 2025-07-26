@@ -7,8 +7,8 @@ Crystallize pipelines are built from small, deterministic **steps**. This guide 
 
 ## 1. Define a Step with `@pipeline_step`
 
-Use the decorator on a regular function. `data` and `ctx` are required
-arguments. Additional keyword arguments make your step configurable and are
+Use the decorator on a regular function. `data` is required while `ctx` is
+optional. Additional keyword arguments make your step configurable and are
 automatically pulled from the execution context when not supplied explicitly.
 
 ```python
@@ -69,14 +69,13 @@ def normalize(data: list, ctx: FrozenContext) -> list:
 
 ## 4. Recording Metrics
 
-Each context has a `metrics` object used to accumulate results. Use `ctx.metrics.add(name, value)` to record values in any step. Metrics are aggregated across replicates and passed to hypotheses for verification. The last step may return any data type—returning metrics is optional.
+Each context has a `metrics` object used to accumulate results. Use `ctx.metrics.add(name, value)` to record values in any step. Metrics are aggregated across replicates and passed to hypotheses for verification. Steps may also return a tuple `(data, metrics_dict)` to add metrics without mutating the context directly.
 
 ```python
 @pipeline_step()
-def compute_sum(data, ctx: FrozenContext):
+def compute_sum(data):
     total = sum(data)
-    ctx.metrics.add("sum", total)
-    return data
+    return data, {"sum": total}
 ```
 
 Intermediate steps may also write metrics if useful. All metrics collected across replicates are provided to verifiers.

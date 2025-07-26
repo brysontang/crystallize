@@ -40,10 +40,9 @@ def add_random(data, ctx: FrozenContext):
     return [x + random.random() for x in data]
 
 @pipeline_step()
-def compute_metrics(data, ctx: FrozenContext):
-    # Record a simple metric for later verification
-    ctx.metrics.add("result", sum(data))
-    return data
+def compute_metrics(data):
+    """Return the data and a metrics dictionary."""
+    return data, {"result": sum(data)}
 
 # 3. Define the treatment (the change we are testing)
 add_ten = treatment(

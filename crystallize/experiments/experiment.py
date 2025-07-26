@@ -933,8 +933,14 @@ class Experiment:
             # Inspect the step factory's signature and map any Artifact parameters
             sig = inspect.signature(step_factory)
             for param_name, param in sig.parameters.items():
-                if param.annotation == Artifact and param_name in outputs_map:
-                    kwargs[param_name] = outputs_map[param_name]
+                if param.annotation == Artifact:
+                    # Allow explicit mapping of output names via kwargs
+                    if param_name in kwargs and isinstance(kwargs[param_name], str):
+                        alias = kwargs[param_name]
+                        if alias in outputs_map:
+                            kwargs[param_name] = outputs_map[alias]
+                    elif param_name in outputs_map and param_name not in kwargs:
+                        kwargs[param_name] = outputs_map[param_name]
             steps.append(step_factory(**kwargs))
         pipeline = Pipeline(steps)
 

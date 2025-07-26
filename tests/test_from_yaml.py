@@ -3,8 +3,9 @@ from pathlib import Path
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
+from crystallize.plugins.plugins import ArtifactPlugin
 
-from crystallize import data_source, pipeline_step, verifier
+from crystallize import data_source, pipeline_step, verifier, Artifact
 
 
 @data_source
@@ -17,6 +18,13 @@ def add_one(data, ctx):
     ctx.metrics.add("val", data + 1)
     ctx.artifacts.add("artifact.txt", b"data")
     return {"val": data + 1}
+
+
+@pipeline_step()
+def write_out(data, ctx, dest: Artifact):
+    dest.write(str(data).encode())
+    ctx.metrics.add("val", data)
+    return data
 
 
 @verifier
@@ -96,3 +104,127 @@ def test_from_yaml_with_artifact(tmp_path: Path):
     graph = ExperimentGraph.from_yaml(tmp_path)
     res = graph.run()
     assert "consumer" in res
+
+
+def test_from_yaml_output_alias_mapping(tmp_path: Path):
+    exp_dir = tmp_path / "exp_alias"
+    exp_dir.mkdir()
+    (exp_dir / "datasources.py").write_text("from test_from_yaml import constant\n")
+    (exp_dir / "steps.py").write_text("from test_from_yaml import write_out\n")
+
+    cfg = {
+        "name": "exp_alias",
+        "datasource": {"x": "constant"},
+        "steps": [{"write_out": {"dest": "result"}}],
+        "treatments": {"control": {}},
+        "hypotheses": [],
+        "outputs": {"result": {"file_name": "out.txt"}},
+    }
+    (exp_dir / "config.yaml").write_text(yaml.safe_dump(cfg))
+
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp = Experiment.from_yaml(exp_dir / "config.yaml")
+    exp.plugins = [plugin]
+    exp.validate()
+    exp.run()
+
+    step_dir = "Write_OutStep"
+    out_path = (
+        tmp_path
+        / "arts"
+        / "exp_alias"
+        / "v0"
+        / "replicate_0"
+        / "baseline"
+        / step_dir
+        / "out.txt"
+    )
+    assert out_path.read_text() == "1"
+
+
+def test_from_yaml_output_default_mapping(tmp_path: Path):
+    exp_dir = tmp_path / "exp_default"
+    exp_dir.mkdir()
+    (exp_dir / "datasources.py").write_text("from test_from_yaml import constant\n")
+    (exp_dir / "steps.py").write_text("from test_from_yaml import write_out\n")
+
+    cfg = {
+        "name": "exp_default",
+        "datasource": {"x": "constant"},
+        "steps": ["write_out"],
+        "treatments": {"control": {}},
+        "hypotheses": [],
+        "outputs": {"dest": {"file_name": "out.txt"}},
+    }
+    (exp_dir / "config.yaml").write_text(yaml.safe_dump(cfg))
+
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp = Experiment.from_yaml(exp_dir / "config.yaml")
+    exp.plugins = [plugin]
+    exp.validate()
+    exp.run()
+
+    step_dir = "Write_OutStep"
+    out_path = (
+        tmp_path
+        / "arts"
+        / "exp_default"
+        / "v0"
+        / "replicate_0"
+        / "baseline"
+        / step_dir
+        / "out.txt"
+    )
+    assert out_path.read_text() == "1"
+
+def test_from_yaml_multiple_outputs(tmp_path: Path):
+    exp_dir = tmp_path / "exp_multi"
+    exp_dir.mkdir()
+    (exp_dir / "datasources.py").write_text("from test_from_yaml import constant\n")
+    (exp_dir / "steps.py").write_text("from test_from_yaml import write_out\n")
+
+    cfg = {
+        "name": "exp_multi",
+        "datasource": {"x": "constant"},
+        "steps": [
+            {"write_out": {"dest": "results1"}},
+            {"write_out": {"dest": "results2"}},
+        ],
+        "treatments": {"control": {}},
+        "hypotheses": [],
+        "outputs": {
+            "results1": {"file_name": "out1.txt"},
+            "results2": {"file_name": "out2.txt"},
+        },
+    }
+    (exp_dir / "config.yaml").write_text(yaml.safe_dump(cfg))
+
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp = Experiment.from_yaml(exp_dir / "config.yaml")
+    exp.plugins = [plugin]
+    exp.validate()
+    exp.run()
+
+    step_dir = "Write_OutStep"
+    out1 = (
+        tmp_path
+        / "arts"
+        / "exp_multi"
+        / "v0"
+        / "replicate_0"
+        / "baseline"
+        / step_dir
+        / "out1.txt"
+    )
+    out2 = (
+        tmp_path
+        / "arts"
+        / "exp_multi"
+        / "v0"
+        / "replicate_0"
+        / "baseline"
+        / step_dir
+        / "out2.txt"
+    )
+    assert out1.read_text() == "1"
+    assert out2.read_text() == "1"

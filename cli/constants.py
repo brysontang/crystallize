@@ -48,7 +48,6 @@ App {
 }
 
 Header {
-    background: $accent;
     content-align: center middle;
 }
 
@@ -206,10 +205,6 @@ TabbedContent {
 TabPane {
     height: 1fr;
     padding: 1;
-}
-
-Tabs {
-    background: $accent-darken-1;
 }
 
 ListView {

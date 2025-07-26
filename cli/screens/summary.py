@@ -15,7 +15,11 @@ from ..utils import _write_summary
 class SummaryScreen(ModalScreen[None]):
     """Display the summary of an experiment run."""
 
-    BINDINGS = [("ctrl+c", "close", "Close"), ("q", "close", "Close")]
+    BINDINGS = [
+        ("ctrl+c", "close", "Close"),
+        ("escape", "close", "Close"),
+        ("q", "close", "Close"),
+    ]
 
     def __init__(self, result: Any) -> None:
         super().__init__()

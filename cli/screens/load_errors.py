@@ -11,7 +11,11 @@ from textual.screen import ModalScreen
 class LoadErrorsScreen(ModalScreen[None]):
     """Display import errors found during discovery."""
 
-    BINDINGS = [("ctrl+c", "close", "Close"), ("q", "close", "Close")]
+    BINDINGS = [
+        ("ctrl+c", "close", "Close"),
+        ("escape", "close", "Close"),
+        ("q", "close", "Close"),
+    ]
 
     def __init__(self, errors: Dict[str, BaseException]) -> None:
         super().__init__()

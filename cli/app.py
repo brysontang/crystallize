@@ -64,7 +64,9 @@ class CrystallizeApp(App):
     def action_create_experiment(self) -> None:
         self.push_screen(CreateExperimentScreen())
 
-    def _discover_sync(self) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, BaseException]]:
+    def _discover_sync(
+        self,
+    ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, BaseException]]:
         path = Path(".")
         graphs, graph_errors = discover_objects(path, OBJ_TYPES["graph"])
         experiments, exp_errors = discover_objects(path, OBJ_TYPES["experiment"])

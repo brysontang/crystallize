@@ -14,6 +14,7 @@ class CreateExperimentScreen(ModalScreen[None]):
 
     BINDINGS = [
         ("ctrl+c", "cancel", "Cancel"),
+        ("escape", "cancel", "Cancel"),
         ("q", "cancel", "Close"),
         ("c", "create", "Create"),
     ]

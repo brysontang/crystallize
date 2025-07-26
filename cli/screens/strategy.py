@@ -12,6 +12,7 @@ from textual.screen import ModalScreen
 class StrategyScreen(ModalScreen[str | None]):
     BINDINGS = [
         ("ctrl+c", "cancel_and_exit", "Cancel"),
+        ("escape", "cancel_and_exit", "Cancel"),
         ("q", "cancel_and_exit", "Close"),
     ]
 

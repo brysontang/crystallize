@@ -40,7 +40,12 @@ class CrystallizeApp(App):
         ("r", "refresh", "Refresh"),
         ("c", "create_experiment", "Create Experiment"),
         ("ctrl+c", "quit", "Quit"),
+        ("e", "show_errors", "Errors"),
     ]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._load_errors: Dict[str, BaseException] = {}
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -59,15 +64,18 @@ class CrystallizeApp(App):
     def action_create_experiment(self) -> None:
         self.push_screen(CreateExperimentScreen())
 
-    def _discover_sync(self) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def _discover_sync(
+        self,
+    ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, BaseException]]:
         path = Path(".")
-        graphs = discover_objects(path, OBJ_TYPES["graph"])
-        experiments = discover_objects(path, OBJ_TYPES["experiment"])
-        return graphs, experiments
+        graphs, graph_errors = discover_objects(path, OBJ_TYPES["graph"])
+        experiments, exp_errors = discover_objects(path, OBJ_TYPES["experiment"])
+        return graphs, experiments, {**graph_errors, **exp_errors}
 
     async def _discover(self) -> None:
         worker = self.run_worker(self._discover_sync, thread=True)
-        graphs, experiments = await worker.wait()
+        graphs, experiments, errors = await worker.wait()
+        self._load_errors = errors
 
         main_container = self.query_one("#main-container")
         await main_container.remove_children()
@@ -87,6 +95,14 @@ class CrystallizeApp(App):
             item.data = {"obj": obj, "type": "Experiment"}
             await list_view.append(item)
 
+        if self._load_errors:
+            await main_container.mount(
+                Static(
+                    f"Failed to load {len(self._load_errors)} file(s), press e for more details",
+                    id="error-msg",
+                )
+            )
+
         list_view.focus()
 
     async def _run_interactive_and_exit(self, obj: Any) -> None:
@@ -103,6 +119,12 @@ class CrystallizeApp(App):
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         obj = event.item.data["obj"]
         self.run_worker(self._run_interactive_and_exit(obj))
+
+    def action_show_errors(self) -> None:
+        if self._load_errors:
+            from .screens.load_errors import LoadErrorsScreen
+
+            self.push_screen(LoadErrorsScreen(self._load_errors))
 
 
 def run() -> None:

@@ -37,8 +37,8 @@ def create_module(tmp: Path) -> Path:
 
 def test_discover_objects(tmp_path: Path):
     create_module(tmp_path)
-    exps = discover_objects(tmp_path, Experiment)
-    graphs = discover_objects(tmp_path, ExperimentGraph)
+    exps, _ = discover_objects(tmp_path, Experiment)
+    graphs, _ = discover_objects(tmp_path, ExperimentGraph)
     assert any(isinstance(o, Experiment) for o in exps.values())
     assert any(isinstance(o, ExperimentGraph) for o in graphs.values())
 

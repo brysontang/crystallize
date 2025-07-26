@@ -85,34 +85,36 @@ def make_hyp_result() -> Result:
 def test_import_module_relative(tmp_path: Path):
     mod = tmp_path / "mod.py"
     mod.write_text("X = 1")
-    m = _import_module(mod, tmp_path)
-    assert m is not None and getattr(m, "X") == 1
+    m, err = _import_module(mod, tmp_path)
+    assert m is not None and getattr(m, "X") == 1 and err is None
 
 
 def test_import_module_invalid(tmp_path: Path):
     bad = tmp_path / "bad.py"
     bad.write_text("def broken(")
-    assert _import_module(bad, tmp_path) is None
+    mod, err = _import_module(bad, tmp_path)
+    assert mod is None
 
 
 def test_import_module_absolute(tmp_path: Path):
     mod = tmp_path / "abs.py"
     mod.write_text("X = 2")
-    m = _import_module(mod, Path.cwd())
-    assert m is not None and getattr(m, "X") == 2
+    m, err = _import_module(mod, Path.cwd())
+    assert m is not None and getattr(m, "X") == 2 and err is None
 
 
 def test_import_module_runtime_error(tmp_path: Path):
     bad = tmp_path / "bad.py"
     bad.write_text("raise ValueError('boom')")
-    assert _import_module(bad, Path.cwd()) is None
+    mod, err = _import_module(bad, Path.cwd())
+    assert mod is None
 
 
 def test_discover_objects_skips_invalid(tmp_path: Path):
     create_module(tmp_path)
     bad = tmp_path / "bad.py"
     bad.write_text("def broken(")
-    exps = discover_objects(tmp_path, Experiment)
+    exps, errors = discover_objects(tmp_path, Experiment)
     assert len(exps) == 1
 
 
@@ -124,7 +126,7 @@ def test_discover_objects_nested(tmp_path: Path):
     mod1 = create_module(pkg)
     mod2 = create_module(sub)
 
-    objs = discover_objects(pkg, ExperimentGraph)
+    objs, _ = discover_objects(pkg, ExperimentGraph)
     keys = {Path(k.split(":")[0]) for k in objs}
     assert mod1 in keys and mod2 in keys
 

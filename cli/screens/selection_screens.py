@@ -16,7 +16,7 @@ class ActionableSelectionList(SelectionList):
             self.selected = selected
             super().__init__()
 
-    BINDINGS = [("enter", "submit", "Submit")]
+    BINDINGS = [("enter", "submit", "Submit"), ("escape", "cancel", "Cancel")]
 
     def action_submit(self) -> None:
         selected_indices = tuple(

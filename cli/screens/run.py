@@ -61,6 +61,7 @@ class RunScreen(ModalScreen[None]):
 
     BINDINGS = [
         ("ctrl+c", "cancel_and_exit", "Cancel and Go Back"),
+        ("escape", "cancel_and_exit", "Cancel and Go Back"),
         ("q", "cancel_and_exit", "Close"),
     ]
 

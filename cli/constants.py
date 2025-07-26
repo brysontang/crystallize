@@ -1,4 +1,5 @@
 """Constants used across the CLI."""
+
 from __future__ import annotations
 
 from crystallize.experiments.experiment import Experiment
@@ -10,12 +11,12 @@ OBJ_TYPES = {
 }
 
 ASCII_ART = r"""
-                      _        _ _
-   ___ _ __ _   _ ___| |_ __ _| | (_)_______
-  / __| '__| | | / __| __/ _` | | | |_  / _ \
- | (__| |  | |_| \__ \ || (_| | | | |/ /  __/
-  \___|_|   \__, |___/\__\__,_|_|_|_/___\___|
-            |___/
+   *           *      _        _ _ *
+   ___ _*__ _   _ ___| |_ __ *| | (_)_______ *
+  * __| ' _| | | / *_| __/ _` | | | |_* / _ \
+ | (__| |* | |_| \__ \ ||*(_| | * | |/ /  __/ *
+  \___|_|   *__, |___/\__\__,_|_|_|_/___\___|
+    *       |___/ *              *
 """
 
 ASCII_ART_2 = r"""
@@ -38,7 +39,8 @@ ASCII_ART_4 = r"""
  \___)(__\_)(__/  (____/ (__)\_/\_/\____/\____/(__)(____)(____)
 """
 
-ASCII_ART_ARRAY = [ASCII_ART, ASCII_ART_2, ASCII_ART_3, ASCII_ART_4]
+# ASCII_ART_ARRAY = [ASCII_ART, ASCII_ART_2, ASCII_ART_3, ASCII_ART_4]
+ASCII_ART_ARRAY = [ASCII_ART]
 
 CSS = """
 App {

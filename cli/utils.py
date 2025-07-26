@@ -85,3 +85,91 @@ def _write_summary(log: RichLog, result: Any) -> None:
                 _write_experiment_summary(log, res)
     else:
         _write_experiment_summary(log, result)
+
+
+import yaml
+from pathlib import Path
+
+
+def create_experiment_scaffolding(
+    name: str,
+    *,
+    directory: Path = Path("experiments"),
+    steps: bool = True,
+    datasources: bool = True,
+    outputs: bool = False,
+    hypotheses: bool = False,
+    examples: bool = False,
+) -> Path:
+    """Create a new experiment folder with optional example code."""
+
+    if not name or not name.islower() or " " in name:
+        raise ValueError("name must be lowercase and contain no spaces")
+    directory.mkdir(exist_ok=True)
+    exp_dir = directory / name
+    if exp_dir.exists():
+        raise FileExistsError(exp_dir)
+    exp_dir.mkdir()
+
+    config: dict[str, Any] = {"name": name, "datasource": {}, "steps": []}
+    if outputs:
+        config["outputs"] = {}
+    if hypotheses:
+        config["hypotheses"] = []
+
+    if examples:
+        if datasources:
+            config["datasource"] = {"numbers": "numbers"}
+        if steps:
+            config["steps"] = ["add_one"]
+        if outputs:
+            config["outputs"] = {"out": {"file_name": "out.txt"}}
+        if hypotheses:
+            config["hypotheses"] = [
+                {"name": "h", "verifier": "always_sig", "metrics": "val"}
+            ]
+            config["treatments"] = {
+                "add_one": {"delta": 1},
+                "add_two": {"delta": 2},
+            }
+
+    (exp_dir / "config.yaml").write_text(yaml.safe_dump(config))
+
+    if datasources:
+        ds_code = "from crystallize import data_source\n"
+        if examples:
+            ds_code += "\n@data_source\ndef numbers(ctx):\n    return 1\n"
+        (exp_dir / "datasources.py").write_text(ds_code)
+
+    if steps:
+        st_code = "from crystallize import pipeline_step"
+        if examples and outputs:
+            st_code += ", Artifact"
+        st_code += "\nfrom crystallize.utils.context import FrozenContext\n"
+        if examples:
+            if outputs:
+                st_code += "\n@pipeline_step()\ndef add_one(data: int, ctx: FrozenContext, out: Artifact, *, delta: int = 1) -> dict:\n    val = data + delta\n    out.write(str(val).encode())\n    ctx.metrics.add('val', val)\n    return {'val': val}\n"
+            else:
+                st_code += "\n@pipeline_step()\ndef add_one(data: int, ctx: FrozenContext, *, delta: int = 1) -> dict:\n    val = data + delta\n    ctx.metrics.add('val', val)\n    return {'val': val}\n"
+        (exp_dir / "steps.py").write_text(st_code)
+
+    if outputs:
+        out_code = ""
+        if examples:
+            out_code = ""
+        (exp_dir / "outputs.py").write_text(out_code)
+
+    if hypotheses:
+        hyp_code = "from crystallize import verifier\n"
+        if examples:
+            hyp_code += "\n@verifier\ndef always_sig(baseline, treatment):\n    return {'p_value': 0.01, 'significant': True}\n"
+        (exp_dir / "hypotheses.py").write_text(hyp_code)
+
+    (exp_dir / "main.py").write_text(
+        "from pathlib import Path\n"
+        "from crystallize.experiments.experiment import Experiment\n"
+        "\n"
+        "exp = Experiment.from_yaml(Path(__file__).parent / 'config.yaml')\n"
+    )
+
+    return exp_dir

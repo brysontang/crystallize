@@ -4,6 +4,8 @@ import json
 from collections import defaultdict
 from contextlib import contextmanager
 import logging
+import importlib
+import sys
 from pathlib import Path
 from typing import (
     Any,
@@ -21,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from crystallize.utils.context import FrozenContext
 from crystallize.datasources import Artifact
-from crystallize.datasources.datasource import DataSource
+from crystallize.datasources.datasource import DataSource, ExperimentInput
 from crystallize.plugins.execution import (
     VALID_EXECUTOR_TYPES,
     SerialExecution,
@@ -830,3 +832,145 @@ class Experiment:
         ]
         aggregated_value = sum(metric_values) / len(metric_values)
         return {objective.metric: aggregated_value}
+
+    # ------------------------------------------------------------------ #
+
+    @classmethod
+    def from_yaml(cls, config_path: str | Path) -> "Experiment":
+        """Instantiate an experiment from a folder-based YAML config."""
+
+        from importlib import import_module
+        import yaml
+
+        path = Path(config_path)
+        with path.open() as f:
+            cfg = yaml.safe_load(f)
+
+        base = path.parent.resolve()
+        root = Path.cwd().resolve()
+
+        def _load(mod: str, name: str):
+            mod_path = base / f"{mod}.py"
+            try:
+                rel = mod_path.relative_to(root)
+                module_name = ".".join(rel.with_suffix("").parts)
+                if str(root) not in sys.path:
+                    sys.path.insert(0, str(root))
+                module = import_module(module_name)
+            except ValueError:
+                spec = importlib.util.spec_from_file_location(mod_path.stem, mod_path)
+                if spec and spec.loader:
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)  # type: ignore[arg-type]
+                else:  # pragma: no cover - invalid path
+                    raise ImportError(mod_path)
+            return getattr(module, name)
+
+        ds_mod = (base / "datasources.py").exists()
+        steps_mod = (base / "steps.py").exists()
+        outs_mod = (base / "outputs.py").exists()
+        hyps_mod = (base / "hypotheses.py").exists()
+
+        exp_name = cfg.get("name", base.name)
+
+        ds_spec = cfg.get("datasource", {})
+        if isinstance(ds_spec, list):
+            tmp = {}
+            for item in ds_spec:
+                tmp.update(item)
+            ds_spec = tmp
+
+        inputs: dict[str, DataSource | Artifact] = {}
+        for alias, val in ds_spec.items():
+            if isinstance(val, str) and "#" in val:
+                src_exp_name, art_name = val.split("#", 1)
+                art = Artifact(art_name)
+                setattr(art, "_source_experiment", src_exp_name)
+                inputs[alias] = art
+            else:
+                if not ds_mod:
+                    raise FileNotFoundError(
+                        "datasources.py not found"
+                    )  # pragma: no cover - sanity check
+                fn = _load("datasources", str(val))
+                inputs[alias] = fn()
+
+        if len(inputs) == 1:
+            datasource = next(iter(inputs.values()))
+        else:
+            datasource = ExperimentInput(**inputs)
+
+        outputs_spec = cfg.get("outputs", {})
+        outputs_map: Dict[str, Artifact] = {}
+        for alias, spec in outputs_spec.items():
+            loader_fn = None
+            file_name = alias  # Default file name to alias
+            if isinstance(spec, dict):
+                if spec.get("loader") and outs_mod:
+                    loader_fn = _load("outputs", spec["loader"])
+                if spec.get("file_name"):
+                    file_name = spec["file_name"]
+
+            outputs_map[alias] = Artifact(name=file_name, loader=loader_fn)
+        outputs = list(outputs_map.values())
+
+        step_specs = cfg.get("steps", []) if steps_mod else []
+        steps = []
+        for s_spec in step_specs:
+            step_name = s_spec
+            kwargs = {}
+
+            if isinstance(s_spec, dict):
+                step_name = next(iter(s_spec.keys()))
+                kwargs = s_spec[step_name]
+            else:
+                step_name = s_spec
+                kwargs = {}
+
+            step_factory = _load("steps", step_name)
+            import inspect
+
+            # Inspect the step factory's signature and map any Artifact parameters
+            sig = inspect.signature(step_factory)
+            for param_name, param in sig.parameters.items():
+                if param.annotation == Artifact and param_name in outputs_map:
+                    kwargs[param_name] = outputs_map[param_name]
+            steps.append(step_factory(**kwargs))
+        pipeline = Pipeline(steps)
+
+        treatments: list[Treatment] = []
+        treatments_spec = cfg.get("treatments", {})
+        if isinstance(treatments_spec, dict):
+            for t_name, params in treatments_spec.items():
+                if params is None:
+                    params = {}
+                elif not isinstance(params, dict):
+                    raise ValueError(f"Treatment '{t_name}' must map to a dictionary")
+                treatments.append(Treatment(t_name, params))
+        else:
+            raise TypeError("Treatments must be specified as a dictionary")
+
+        hypotheses: list[Hypothesis] = []
+        if hyps_mod:
+            for h in cfg.get("hypotheses", []):
+                v_fn = _load("hypotheses", h["verifier"])()
+                metrics = h.get("metrics")
+                h_name = h.get("name")
+                hypotheses.append(
+                    Hypothesis(verifier=v_fn, metrics=metrics, name=h_name)
+                )
+
+        replicates = int(cfg.get("replicates", 1))
+
+        return cls(
+            datasource=datasource,
+            pipeline=pipeline,
+            plugins=None,
+            description=cfg.get("description"),
+            name=exp_name,
+            initial_ctx=None,
+            outputs=outputs,
+            treatments=treatments,
+            hypotheses=hypotheses,
+            replicates=replicates,
+        )

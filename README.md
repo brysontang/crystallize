@@ -90,11 +90,16 @@ print(result.hypothesis_result)
 result.print_tree()
 ```
 
+For a minimal YAML-driven setup with treatments and artifact output,
+see [`examples/folder_experiment`](examples/folder_experiment).
+
 ### Command Line Interface
 
 Crystallize ships with an interactive CLI for discovering and executing
 experiments or experiment graphs. After each run, the summary screen now displays
 both recorded metrics and hypothesis results.
+
+Press ``c`` in the main screen to scaffold a new experiment folder.
 
 ```bash
 # Discover and run a single experiment

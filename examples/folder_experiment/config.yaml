@@ -1,0 +1,17 @@
+datasource:
+  numbers: numbers
+hypotheses:
+  - metrics: result
+    name: h
+    verifier: always_sig
+name: test
+outputs:
+  out:
+    file_name: out.txt
+steps:
+  - add_one
+treatments:
+  increase_by_one:
+    delta: 1
+  increase_by_two:
+    delta: 2

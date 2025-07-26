@@ -109,6 +109,14 @@ DeleteDataScreen Container {
     padding: 1;
 }
 
+.create-exp-container {
+    width: 60%;
+    height: auto;
+    border: round $primary;
+    background: $panel;
+    padding: 1;
+}
+
 .path-list {
     background: $surface;
     border: round $primary;
@@ -151,6 +159,10 @@ Button#yes {
 
 Button#no {
     background: $error;
+}
+
+.button-row {
+    align-horizontal: center;
 }
 
 LoadingIndicator {

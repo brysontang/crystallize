@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from textual.app import ComposeResult
-from textual.containers import Container
+from textual.containers import Container, Horizontal
 from textual.widgets import Button, Checkbox, Input, Static
 from textual.screen import ModalScreen
 
@@ -20,16 +20,20 @@ class CreateExperimentScreen(ModalScreen[None]):
     ]
 
     def compose(self) -> ComposeResult:
-        with Container():
+        with Container(id="create-exp-container"):
             yield Static("Create New Experiment", id="modal-title")
             yield Input(placeholder="experiment name", id="name")
-            yield Checkbox("steps.py", value=True, id="steps")
-            yield Checkbox("datasources.py", value=True, id="datasources")
-            yield Checkbox("outputs.py", id="outputs")
-            yield Checkbox("hypotheses.py", id="hypotheses")
+            yield Static("Files to include:")
+            with Horizontal():
+                yield Checkbox("steps.py", value=True, id="steps")
+                yield Checkbox("datasources.py", value=True, id="datasources")
+            with Horizontal():
+                yield Checkbox("outputs.py", id="outputs")
+                yield Checkbox("hypotheses.py", id="hypotheses")
             yield Checkbox("add example code", id="examples")
-            yield Button("Create", id="create")
-            yield Button("Cancel", id="cancel")
+            with Horizontal(classes="button-row"):
+                yield Button("Create", id="create")
+                yield Button("Cancel", id="cancel")
 
     def on_mount(self) -> None:
         self.query_one("#name", Input).focus()

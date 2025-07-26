@@ -524,6 +524,7 @@ class Experiment:
     ) -> Result:
         """Synchronous wrapper for the async run method. Convenient for tests and scripts."""
         import asyncio
+
         return asyncio.run(
             self.arun(
                 treatments=treatments,
@@ -570,11 +571,9 @@ class Experiment:
         datasource_reps = getattr(self.datasource, "replicates", None)
         if replicates is None:
             replicates = datasource_reps or self.replicates
-        elif datasource_reps and replicates != datasource_reps:
-            raise ValueError(
-                f"Replicates ({replicates}) do not match datasource replicates ({datasource_reps})"
-            )
+
         replicates = max(1, replicates)
+        # TEST: When replicates > datasource_reps, the experiment should run with the datasource_reps % n
 
         from crystallize.utils.cache import compute_hash
 

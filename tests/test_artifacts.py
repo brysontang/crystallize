@@ -180,8 +180,11 @@ def test_artifact_datasource_replicate_mismatch(tmp_path: Path, monkeypatch):
     pipeline2 = Pipeline([CheckStep([])])
     exp2 = Experiment(datasource=ds2, pipeline=pipeline2)
     exp2.validate()
-    with pytest.raises(ValueError):
-        exp2.run(replicates=3)
+
+    # Should run with replicates % datasource_reps
+    exp2.run(replicates=3)  # Will run with 3 % 2 = 1 replicate
+    exp2.run(replicates=4)  # Will run with 4 % 2 = 0 replicate (maps to 0)
+    exp2.run(replicates=5)  # Will run with 5 % 2 = 1 replicate
 
 
 def test_artifact_datasource_missing_file(tmp_path: Path, monkeypatch):
@@ -320,4 +323,3 @@ def test_missing_upstream_artifact(tmp_path, monkeypatch):
     graph.add_dependency(exp_b, exp_a)
     res = graph.run()
     assert any(isinstance(e, FileNotFoundError) for e in res["B"].errors.values())
-

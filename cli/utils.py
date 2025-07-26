@@ -139,13 +139,20 @@ def create_experiment_scaffolding(
 
     if steps:
         st_code = (
-            "from crystallize import pipeline_step\n"
-            "from crystallize.utils.context import FrozenContext\n"
+            "from crystallize import pipeline_step"
         )
+        if examples and outputs:
+            st_code += ", Artifact"
+        st_code += "\nfrom crystallize.utils.context import FrozenContext\n"
         if examples:
-            st_code += (
-                "\n@pipeline_step()\ndef add_one(data: int, ctx: FrozenContext) -> dict:\n    return {'result': data + 1}\n"
-            )
+            if outputs:
+                st_code += (
+                    "\n@pipeline_step()\ndef add_one(data: int, ctx: FrozenContext, out: Artifact, *, delta: int = 1) -> dict:\n    val = data + delta\n    out.write(str(val).encode())\n    ctx.metrics.add('val', val)\n    return {'val': val}\n"
+                )
+            else:
+                st_code += (
+                    "\n@pipeline_step()\ndef add_one(data: int, ctx: FrozenContext, *, delta: int = 1) -> dict:\n    val = data + delta\n    ctx.metrics.add('val', val)\n    return {'val': val}\n"
+                )
         (exp_dir / "steps.py").write_text(st_code)
 
     if outputs:

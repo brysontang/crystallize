@@ -90,7 +90,8 @@ print(result.hypothesis_result)
 result.print_tree()
 ```
 
-For a minimal YAML-driven setup, see [`examples/folder_experiment`](examples/folder_experiment).
+For a minimal YAML-driven setup with treatments and artifact output,
+see [`examples/folder_experiment`](examples/folder_experiment).
 
 ### Command Line Interface
 

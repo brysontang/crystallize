@@ -35,7 +35,7 @@ def create_exp(tmp, name="exp"):
         "datasource": {"x": "constant"},
         "steps": ["add_one"],
         "hypotheses": [{"name": "h", "verifier": "always_sig", "metrics": "val"}],
-        "treatments": [{"name": "control"}],
+        "treatments": [{"control": {}}],
         "outputs": {"artifact": {}},
     }
     (d / "config.yaml").write_text(yaml.safe_dump(cfg))

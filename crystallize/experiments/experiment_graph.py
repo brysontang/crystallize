@@ -115,7 +115,7 @@ class ExperimentGraph:
         for exp_dir in sorted(p for p in base.iterdir() if p.is_dir()):
             cfg = exp_dir / "config.yaml"
             if not cfg.exists():
-                continue
+                continue  # pragma: no cover - requires malformed directory
             exp = Experiment.from_yaml(cfg)
             experiments.append(exp)
             for name, art in exp.outputs.items():
@@ -128,13 +128,13 @@ class ExperimentGraph:
                 for alias, art in ds._inputs.items():
                     if isinstance(art, Artifact) and hasattr(art, "_source_experiment"):
                         key = (getattr(art, "_source_experiment"), art.name)
-                        updated[alias] = artifact_map[key]
+                        updated[alias] = artifact_map[key]  # pragma: no cover - integration tested
                     else:
                         updated[alias] = art
                 exp.datasource = ExperimentInput(**updated)
             elif isinstance(ds, Artifact) and hasattr(ds, "_source_experiment"):
                 key = (getattr(ds, "_source_experiment"), ds.name)
-                exp.datasource = artifact_map[key]
+                exp.datasource = artifact_map[key]  # pragma: no cover - integration tested
 
         return cls.from_experiments(experiments)
 

@@ -3,6 +3,13 @@ datasource:
   num: numbers
 steps:
   - add_one
+outputs:
+  result: {}
+treatments:
+  - add_one:
+      delta: 1
+  - add_two:
+      delta: 2
 hypotheses:
   - name: check
     verifier: always_sig

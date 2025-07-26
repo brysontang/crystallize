@@ -90,6 +90,8 @@ print(result.hypothesis_result)
 result.print_tree()
 ```
 
+For a minimal YAML-driven setup, see [`examples/folder_experiment`](examples/folder_experiment).
+
 ### Command Line Interface
 
 Crystallize ships with an interactive CLI for discovering and executing

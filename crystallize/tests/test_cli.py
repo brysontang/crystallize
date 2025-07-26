@@ -42,28 +42,34 @@ def apply_value(ctx: FrozenContext, amount: int) -> None:
 
 @pytest.fixture
 def experiment_yaml(tmp_path: Path) -> Path:
-    yaml_path = tmp_path / "exp.yaml"
-    yaml_path.write_text(
-        """
-{
-  "replicates": 2,
-  "datasource": {"target": "crystallize.tests.test_cli.DummyDataSource", "params": {}},
-  "pipeline": [{"target": "crystallize.tests.test_cli.PassStep", "params": {}}],
-  "hypothesis": {
-    "metrics": "metric",
-    "verifier": {"target": "crystallize.tests.test_cli.always_sig", "params": {}},
-    "ranker": "crystallize.tests.test_cli.rank_p"
-  },
-  "treatments": [
-    {
-      "name": "increment",
-      "apply": {"target": "crystallize.tests.test_cli.apply_value", "params": {"amount": 1}}
-    }
-  ]
-}
-"""
+    exp = tmp_path / "exp"
+    exp.mkdir()
+    (exp / "datasources.py").write_text(
+        "from crystallize import data_source\n"
+        "@data_source\n"
+        "def src(ctx):\n    return 0\n"
     )
-    return yaml_path
+    (exp / "steps.py").write_text(
+        "from crystallize import pipeline_step\n"
+        "@pipeline_step()\n"
+        "def step(data, ctx):\n    ctx.metrics.add('metric', data)\n    return {'metric': data}\n"
+    )
+    (exp / "hypotheses.py").write_text(
+        "from crystallize import verifier\n"
+        "@verifier\n"
+        "def always_sig(baseline, treatment):\n    return {'p_value':0.01,'significant':True}\n"
+    )
+    config = {
+        "name": "exp",
+        "datasource": {"d": "src"},
+        "steps": ["step"],
+        "treatments": [{"name": "increment", "amount": 1}],
+        "hypotheses": [{"name": "h", "verifier": "always_sig", "metrics": "metric"}],
+    }
+    import yaml
+
+    (exp / "config.yaml").write_text(yaml.safe_dump(config))
+    return exp / "config.yaml"
 
 
 def test_cli_runs_from_yaml(experiment_yaml: Path):

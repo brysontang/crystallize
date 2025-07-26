@@ -192,4 +192,4 @@ To add ML: In pipeline, fit `from sklearn.linear_model import LinearRegression` 
 - **Custom Variations**: How-to Guides: How to add a custom treatment.
 - **Reference**: Treatment, Experiment (for baselines).
 - **Explanations**: Why baselines? See Explanation: Controlled experiments.
-- Experiment with multiple treatments or real Titanic CSV. Link to `examples/yaml_experiment` for config-based runs.
+- Experiment with multiple treatments or real Titanic CSV. Link to `examples/folder_experiment` for config-based runs.

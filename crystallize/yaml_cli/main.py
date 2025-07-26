@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from typing import List
 
-from .yaml_loader import load_experiment_from_file
+from crystallize.experiments.experiment import Experiment
 from rich.console import Console
 from rich.table import Table
 
@@ -19,7 +19,7 @@ def main(argv: List[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     if args.command == "run":
-        experiment = load_experiment_from_file(args.config)
+        experiment = Experiment.from_yaml(args.config)
         experiment.validate()
         result = experiment.run(
             treatments=experiment.treatments,

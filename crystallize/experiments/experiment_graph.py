@@ -103,6 +103,42 @@ class ExperimentGraph:
         return obj
 
     # ------------------------------------------------------------------ #
+
+    @classmethod
+    def from_yaml(cls, directory: str | Path) -> "ExperimentGraph":
+        """Load all experiments in ``directory`` and build a graph."""
+
+        base = Path(directory)
+        experiments: list[Experiment] = []
+        artifact_map: dict[tuple[str, str], Artifact] = {}
+
+        for exp_dir in sorted(p for p in base.iterdir() if p.is_dir()):
+            cfg = exp_dir / "config.yaml"
+            if not cfg.exists():
+                continue
+            exp = Experiment.from_yaml(cfg)
+            experiments.append(exp)
+            for name, art in exp.outputs.items():
+                artifact_map[(exp.name or exp_dir.name, name)] = art
+
+        for exp in experiments:
+            ds = exp.datasource
+            if isinstance(ds, ExperimentInput):
+                updated = {}
+                for alias, art in ds._inputs.items():
+                    if isinstance(art, Artifact) and hasattr(art, "_source_experiment"):
+                        key = (getattr(art, "_source_experiment"), art.name)
+                        updated[alias] = artifact_map[key]
+                    else:
+                        updated[alias] = art
+                exp.datasource = ExperimentInput(**updated)
+            elif isinstance(ds, Artifact) and hasattr(ds, "_source_experiment"):
+                key = (getattr(ds, "_source_experiment"), ds.name)
+                exp.datasource = artifact_map[key]
+
+        return cls.from_experiments(experiments)
+
+    # ------------------------------------------------------------------ #
     def add_experiment(self, experiment: Experiment) -> None:
         """Add an experiment node to the graph."""
         name = getattr(experiment, "name", None)

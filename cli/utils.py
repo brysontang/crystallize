@@ -91,6 +91,11 @@ import yaml
 from pathlib import Path
 
 
+class IndentDumper(yaml.SafeDumper):
+    def increase_indent(self, flow=False, indentless=False):
+        return super().increase_indent(flow, False)
+
+
 def create_experiment_scaffolding(
     name: str,
     *,
@@ -133,7 +138,8 @@ def create_experiment_scaffolding(
                 "add_two": {"delta": 2},
             }
 
-    (exp_dir / "config.yaml").write_text(yaml.safe_dump(config))
+    with open(exp_dir / "config.yaml", "w") as f:
+        yaml.dump(config, f, Dumper=IndentDumper, sort_keys=False)
 
     if datasources:
         ds_code = "from crystallize import data_source\n"

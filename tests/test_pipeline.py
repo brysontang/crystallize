@@ -39,6 +39,24 @@ class FailStep(PipelineStep):
         return {}
 
 
+class TupleMetricsStep(PipelineStep):
+    def __call__(self, data: Any, ctx: FrozenContext):
+        return data, {"metric": data}
+
+    @property
+    def params(self) -> dict:
+        return {}
+
+
+class TupleDataStep(PipelineStep):
+    def __call__(self, data: Any, ctx: FrozenContext):
+        return data, data + 1
+
+    @property
+    def params(self) -> dict:
+        return {}
+
+
 def test_pipeline_runs_and_returns_metrics():
     pipeline = Pipeline([AddStep(1), MetricsStep()])
     ctx = FrozenContext({})
@@ -67,6 +85,22 @@ def test_pipeline_execution_mid_chain():
     prov = pipeline.get_provenance()
     assert len(prov) == 3
     assert prov[1]["step"] == "AddStep"
+
+
+def test_pipeline_metrics_tuple_return():
+    pipeline = Pipeline([TupleMetricsStep()])
+    ctx = FrozenContext({})
+    result = pipeline.run(5, ctx)
+    assert result == 5
+    assert ctx.metrics["metric"] == (5,)
+
+
+def test_pipeline_tuple_data_not_metrics():
+    pipeline = Pipeline([TupleDataStep()])
+    ctx = FrozenContext({})
+    result = pipeline.run(1, ctx)
+    assert result == (1, 2)
+    assert ctx.metrics.as_dict() == {}
 
 
 class AsyncAddStep(PipelineStep):

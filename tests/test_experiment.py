@@ -1138,8 +1138,10 @@ def test_async_execution_with_hypothesis_and_verifier():
 
 
 def test_experiment_requires_datasource_and_pipeline():
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError) as excinfo:
         Experiment()
+    assert "datasource" in str(excinfo.value)
+    assert "pipeline" in str(excinfo.value)
 
 
 def test_validation_error_prints_message(capsys):

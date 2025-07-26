@@ -18,7 +18,7 @@ exp2 = Experiment(
     datasource=exp1.artifact_datasource(step="SaveData", name="data.csv"),
     pipeline=Pipeline([load_and_use()]),
 )
-exp2.validate()
+exp2.validate()  # optional
 
 if __name__ == "__main__":
     result = exp2.run()

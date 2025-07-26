@@ -93,16 +93,19 @@ def normalize_age(
 Update the builder to include treatments. Baselines run automatically.
 
 ```python
-# Build with treatments
-exp = Experiment(
-    datasource=titanic_source(),
-    pipeline=Pipeline([normalize_age(), compute_metrics()]),
-    plugins=[ParallelExecution()],
+# Build with treatments using the fluent builder
+exp = (
+    Experiment.builder()
+    .datasource(titanic_source())
+    .add_step(normalize_age())
+    .add_step(compute_metrics())
+    .plugins([ParallelExecution()])
+    .treatments([scale_ages()])
+    .replicates(3)
+    .build()
 )
 exp.validate()
-
-# Run and compare baseline vs. treatment
-result = exp.run(treatments=[scale_ages()], replicates=3)
+result = exp.run()
 print("Baseline metrics:", result.metrics.baseline.metrics)  # std ~1
 print("Treatment metrics:", result.metrics.treatments["scale_ages_treatment"].metrics)  # std ~1, but scaled input
 ```

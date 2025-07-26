@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from crystallize.utils.cache import compute_hash
@@ -180,8 +181,11 @@ def test_artifact_datasource_replicate_mismatch(tmp_path: Path, monkeypatch):
     pipeline2 = Pipeline([CheckStep([])])
     exp2 = Experiment(datasource=ds2, pipeline=pipeline2)
     exp2.validate()
-    with pytest.raises(ValueError):
-        exp2.run(replicates=3)
+
+    # Should run with replicates % datasource_reps
+    exp2.run(replicates=3)  # Will run with 3 % 2 = 1 replicate
+    exp2.run(replicates=4)  # Will run with 4 % 2 = 0 replicate (maps to 0)
+    exp2.run(replicates=5)  # Will run with 5 % 2 = 1 replicate
 
 
 def test_artifact_datasource_missing_file(tmp_path: Path, monkeypatch):
@@ -321,3 +325,34 @@ def test_missing_upstream_artifact(tmp_path, monkeypatch):
     res = graph.run()
     assert any(isinstance(e, FileNotFoundError) for e in res["B"].errors.values())
 
+
+def test_np_generic_serialization(tmp_path):
+    class DummyStep(PipelineStep):
+        def __call__(self, data, ctx):
+            ctx.metrics.add("score", np.float64(3.14))  # This will hit `np.generic`
+            return data
+
+        @property
+        def params(self):
+            return {}
+
+    class DummySource(DataSource):
+        def fetch(self, ctx: FrozenContext):
+            return 0
+
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([DummyStep()]),
+        plugins=[plugin],
+        name="test_generic",
+    )
+    exp.validate()
+    exp.run()
+
+    results_file = (
+        tmp_path / "arts" / "test_generic" / "v0" / "baseline" / "results.json"
+    )
+    assert results_file.exists()
+    content = results_file.read_text()
+    assert "3.14" in content

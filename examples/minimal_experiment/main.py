@@ -6,7 +6,13 @@ from crystallize import (
     treatment,
     verifier,
 )
-from crystallize import LoggingPlugin, ParallelExecution, Experiment, Pipeline, FrozenContext
+from crystallize import (
+    Experiment,
+    LoggingPlugin,
+    ParallelExecution,
+    Pipeline,
+    FrozenContext,
+)
 from scipy.stats import ttest_ind
 import random
  
@@ -61,13 +67,22 @@ def check_for_improvement(res):
 
 # 5. Build and run the experiment
 if __name__ == "__main__":
-    experiment = Experiment(
-        datasource=initial_data(),
-        pipeline=Pipeline([add_delta(), add_random(), compute_metrics()]),
-        plugins=[ParallelExecution(), LoggingPlugin(verbose=True, log_level="DEBUG")],
+    experiment = (
+        Experiment.builder()
+        .datasource(initial_data())
+        .add_step(add_delta())
+        .add_step(add_random())
+        .add_step(compute_metrics())
+        .plugins([
+            ParallelExecution(),
+            LoggingPlugin(verbose=True, log_level="DEBUG"),
+        ])
+        .treatments([add_ten()])
+        .hypotheses([check_for_improvement])
+        .build()
     )
     experiment.validate()
-    result = experiment.run(treatments=[add_ten()], hypotheses=[check_for_improvement])
+    result = experiment.run()
 
     # Print the results for our hypothesis
     hyp_result = result.get_hypothesis("check_for_improvement")

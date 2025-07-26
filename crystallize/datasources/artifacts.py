@@ -71,6 +71,20 @@ class Artifact(DataSource):
         self._manifest: Optional[dict[str, str]] = None
         self.replicates: int | None = None
 
+    def __getstate__(self):
+        """
+        Customize the pickling process to exclude unpicklable attributes
+        like weak references to the producer experiment.
+        """
+        # Copy the object's state dictionary
+        state = self.__dict__.copy()
+
+        # Remove the unpicklable weak reference before serialization
+        if "_producer" in state:
+            del state["_producer"]
+
+        return state
+
     def _clone_with_context(self, ctx: "FrozenContext") -> "Artifact":
         clone = Artifact(self.name, loader=self.loader)
         clone._ctx = ctx

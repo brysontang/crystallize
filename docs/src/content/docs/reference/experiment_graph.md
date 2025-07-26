@@ -16,8 +16,11 @@ Manage and run a directed acyclic graph of experiments.
 ### <kbd>method</kbd> `ExperimentGraph.__init__`
 
 ```python
-__init__() → None
+__init__(*experiments: Experiment, name: str | None = None) → None
 ```
+
+Initialize a graph. If ``experiments`` are provided, dependencies are
+inferred automatically using :func:`~ExperimentGraph.from_experiments`.
 
 
 

@@ -1,5 +1,5 @@
 ---
-title: How-To: Master Advanced DAG Caching and Execution
+title: "How-To: Master Advanced DAG Caching and Execution"
 description: An in-depth guide to the resume and rerun strategies and how cache invalidation works in a complex experiment graph.
 ---
 

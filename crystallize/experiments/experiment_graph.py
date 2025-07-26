@@ -22,10 +22,17 @@ from .treatment import Treatment
 class ExperimentGraph:
     """Manage and run a directed acyclic graph of experiments."""
 
-    def __init__(self, name: str | None = None) -> None:
+    def __init__(self, *experiments: Experiment, name: str | None = None) -> None:
+        """Create a graph and optionally infer dependencies from experiments."""
         self._graph = nx.DiGraph()
         self._results: Dict[str, Result] = {}
         self._name = name
+
+        if experiments:
+            tmp = self.__class__.from_experiments(list(experiments))
+            self._graph = tmp._graph
+            if name is None:
+                self._name = tmp._name
 
     # ------------------------------------------------------------------ #
     @classmethod

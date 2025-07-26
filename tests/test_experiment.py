@@ -9,6 +9,7 @@ import pytest
 from crystallize.plugins.plugins import ArtifactPlugin, BasePlugin
 from crystallize.experiments.result import Result
 
+import asyncio
 from crystallize.plugins.execution import ParallelExecution
 from crystallize.plugins.plugins import SeedPlugin
 from crystallize.utils.cache import compute_hash
@@ -21,6 +22,14 @@ from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.experiments.optimizers import BaseOptimizer, Objective
 from crystallize.experiments.treatment import Treatment
+from crystallize import (
+    pipeline_step,
+    data_source,
+    verifier,
+    hypothesis,
+    treatment,
+    AsyncExecution,
+)
 
 
 class DummyDataSource(DataSource):
@@ -167,30 +176,34 @@ def test_experiment_requires_validation():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()
     experiment = Experiment(datasource=datasource, pipeline=pipeline)
-    with pytest.raises(RuntimeError):
-        experiment.run()
-    with pytest.raises(RuntimeError):
-        experiment.apply(data=1)
+    # run() and apply() should auto-validate
+    result = experiment.run()
+    assert result.metrics.baseline.metrics["metric"] == [0]
+    output = experiment.apply(data=1)
+    assert output == {"metric": 1}
 
 
 def test_experiment_builder_chaining():
-    experiment = Experiment(
-        datasource=DummyDataSource(),
-        pipeline=Pipeline([PassStep()]),
+    experiment = (
+        Experiment.builder()
+        .datasource(DummyDataSource())
+        .add_step(PassStep())
+        .treatments([Treatment("t", {"increment": 1})])
+        .hypotheses(
+            [
+                Hypothesis(
+                    verifier=always_significant,
+                    metrics="metric",
+                    ranker=lambda r: r["p_value"],
+                    name="hypothesis",
+                )
+            ]
+        )
+        .replicates(2)
+        .build()
     )
     experiment.validate()
-    result = experiment.run(
-        treatments=[Treatment("t", {"increment": 1})],
-        hypotheses=[
-            Hypothesis(
-                verifier=always_significant,
-                metrics="metric",
-                ranker=lambda r: r["p_value"],
-                name="hypothesis",
-            )
-        ],
-        replicates=2,
-    )
+    result = experiment.run()
     assert result.metrics.treatments["t"].metrics["metric"] == [1, 2]
     hyp_res = result.get_hypothesis("hypothesis")
     assert hyp_res is not None and hyp_res.ranking["best"] == "t"
@@ -1075,3 +1088,87 @@ def test_experiment_description_attribute():
         description="my experiment",
     )
     assert exp.description == "my experiment"
+
+
+@pipeline_step()
+async def async_increment(data, ctx):
+    await asyncio.sleep(0)
+    inc = ctx.as_dict().get("inc", 0)
+    return data + inc
+
+
+@pipeline_step()
+def record(data, ctx):
+    ctx.metrics.add("metric", data)
+    return {"metric": data}
+
+
+@data_source
+def constant(ctx, value=0):
+    return value
+
+
+@verifier
+def dummy_verifier(baseline, treatment, *, alpha=0.05):
+    return {"p_value": 0.01, "significant": True, "accepted": True}
+
+
+@hypothesis(verifier=dummy_verifier(), metrics="metric")
+def dummy_ranker(result):
+    return result["p_value"]
+
+
+@treatment("inc_async")
+def inc_async(ctx):
+    ctx.add("inc", 1)
+
+
+def test_async_execution_with_hypothesis_and_verifier():
+    ds = constant(value=2)
+    pipe = Pipeline([async_increment(), record()])
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipe,
+        plugins=[AsyncExecution()],
+    )
+    exp.validate()
+    result = exp.run(treatments=[inc_async()], hypotheses=[dummy_ranker], replicates=2)
+    assert result.metrics.baseline.metrics["metric"] == [2, 2]
+    assert result.metrics.treatments["inc_async"].metrics["metric"] == [3, 3]
+
+
+def test_experiment_requires_datasource_and_pipeline():
+    with pytest.raises(TypeError) as excinfo:
+        Experiment()
+    assert "datasource" in str(excinfo.value)
+    assert "pipeline" in str(excinfo.value)
+
+
+def test_validation_error_prints_message(capsys):
+    exp = Experiment(
+        datasource=DummyDataSource(),
+        pipeline=Pipeline([PassStep()]),
+    )
+    exp._validated = False
+
+    with pytest.raises(ValueError, match="boom"):
+        exp.validate = lambda: (_ for _ in ()).throw(ValueError("boom"))
+        exp.run()
+
+    captured = capsys.readouterr()
+    assert "Experiment validation failed: boom" in captured.out
+
+
+def test_validation_error_prints_message_in_apply(capsys):
+    exp = Experiment(
+        datasource=DummyDataSource(),
+        pipeline=Pipeline([PassStep()]),
+    )
+    exp._validated = False
+
+    with pytest.raises(ValueError, match="boom"):
+        exp.validate = lambda: (_ for _ in ()).throw(ValueError("boom"))
+        exp.apply()
+
+    captured = capsys.readouterr()
+    assert "Experiment validation failed: boom" in captured.out

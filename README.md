@@ -79,7 +79,7 @@ experiment = Experiment(
     pipeline=pipeline,
     plugins=[SeedPlugin(seed=42), ParallelExecution(max_workers=4)],
 )
-experiment.validate()
+experiment.validate()  # optional
 result = experiment.run(
     treatments=[treatment],
     hypotheses=[hypothesis],
@@ -93,7 +93,8 @@ result.print_tree()
 ### Command Line Interface
 
 Crystallize ships with an interactive CLI for discovering and executing
-experiments or experiment graphs.
+experiments or experiment graphs. After each run, the summary screen now displays
+both recorded metrics and hypothesis results.
 
 ```bash
 # Discover and run a single experiment

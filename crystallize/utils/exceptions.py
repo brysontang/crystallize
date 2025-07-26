@@ -19,3 +19,7 @@ class PipelineExecutionError(CrystallizeError):
 
 class ContextMutationError(CrystallizeError):
     """Raised when attempting to mutate frozen context."""
+
+
+class ValidationError(CrystallizeError):
+    """Raised when experiment configuration is invalid."""

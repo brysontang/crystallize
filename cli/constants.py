@@ -168,4 +168,74 @@ Button#no {
 LoadingIndicator {
     color: $accent;
 }
+
+#main-container {
+    layout: vertical;
+    padding: 1;
+}
+
+Horizontal {
+    height: 1fr;
+}
+
+.left-panel {
+    width: 50%;
+    height: 1fr;
+    border-right: solid $secondary;
+    padding-right: 1;
+}
+
+.right-panel {
+    width: 50%;
+    padding-left: 1;
+    height: 1fr;
+}
+
+.details-panel {
+    background: $panel-darken-1;
+    border: round $secondary;
+    padding: 1;
+    height: 1fr;
+    content-align: left top;
+}
+
+TabbedContent {
+    height: 1fr;
+}
+
+TabPane {
+    height: 1fr;
+    padding: 1;
+}
+
+Tabs {
+    background: $accent-darken-1;
+}
+
+ListView {
+    border: solid $secondary;
+    height: 1fr;
+}
+
+ListItem {
+    padding: 1;
+    layout: vertical;
+}
+
+.item-doc {
+    color: $text-muted;
+}
+
+ListItem:hover {
+    background: $accent-lighten-1;
+}
+
+.experiment-item:hover, .graph-item:hover {
+    background: $accent-lighten-1;
+}
+
+#error-msg {
+    color: $error;
+    margin-top: 1;
+}
 """

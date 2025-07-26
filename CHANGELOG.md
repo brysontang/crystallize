@@ -5,6 +5,44 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.21.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.20.2...crystallize-ml@v0.21.0) (2025-07-26)
+
+
+### Features
+
+* **crystallize-ml:** Add experiment creator in CLI ([2840cec](https://github.com/brysontang/crystallize/commit/2840cec090b7234682f3a29ac1c726f64a3a8c10))
+* **crystallize-ml:** Add fluent experiment builder ([36b02b9](https://github.com/brysontang/crystallize/commit/36b02b9934d340d47db47eb90567c1d1a788315c))
+* **crystallize-ml:** Add folder-based YAML loader ([ed657bf](https://github.com/brysontang/crystallize/commit/ed657bfa20d256bed524c55a9905e1afaec1bd83))
+* **crystallize-ml:** Auto-validate on run ([d3613b8](https://github.com/brysontang/crystallize/commit/d3613b8f9ce794e8d01d0f8efdab699140eeaabe))
+* **crystallize-ml:** Infer experiment graph deps automatically ([f39cd57](https://github.com/brysontang/crystallize/commit/f39cd57a81004da41a6ce46316ed477a753c38d7))
+* **crystallize-ml:** Infer experiment graph deps automatically ([88a40a7](https://github.com/brysontang/crystallize/commit/88a40a796ea234e22e65e800613f1362725f2dea))
+* **crystallize-ml:** Show hypothesis results in summary ([26e4818](https://github.com/brysontang/crystallize/commit/26e4818647644aa12709c0783e911d746aa3ae58))
+* **crystallize-ml:** Update folder YAML loader ([0d4ab93](https://github.com/brysontang/crystallize/commit/0d4ab93ad711b87697e10a07c006e1efb5cd34ee))
+* Experiment sets default plugins on initialize ([68c7a55](https://github.com/brysontang/crystallize/commit/68c7a553b260cb3b873c4999695cc18e96eaa35b))
+
+
+### Bug Fixes
+
+* Added data folder to git ignore ([014d63b](https://github.com/brysontang/crystallize/commit/014d63b151ffe5ad0e583fee54f978c318e39831))
+* Artifact default loader no longer causes pickle error ([fc0dc6e](https://github.com/brysontang/crystallize/commit/fc0dc6ebcc1edee432eb2a559f8c75ed85226f93))
+* Better error handling for writer widget ([ca21c7c](https://github.com/brysontang/crystallize/commit/ca21c7cdaf4e60682d61466919cba021238d3cac))
+* Can have more replicates than data source ([ca21c7c](https://github.com/brysontang/crystallize/commit/ca21c7cdaf4e60682d61466919cba021238d3cac))
+* Changed default artifacts folder to ./data ([d45d51f](https://github.com/brysontang/crystallize/commit/d45d51ffec18953746aa7d0619062c0889d3f9d3))
+* **crystallize-ml:** Restore hypothesis decorator behavior ([d0f57a7](https://github.com/brysontang/crystallize/commit/d0f57a713df3f0cc8650cec1c512a754b58b88e7))
+* From_yaml for experiment now checks for Artifacts from signature ([fc0dc6e](https://github.com/brysontang/crystallize/commit/fc0dc6ebcc1edee432eb2a559f8c75ed85226f93))
+* Issues with running async experiments with verifiers ([42ebe1f](https://github.com/brysontang/crystallize/commit/42ebe1f22fe74854ebad8de93cd5b463e51cf561))
+* New line between tables ([6b5cd90](https://github.com/brysontang/crystallize/commit/6b5cd904d19ff189106a4e6bae0c88ef70fe5b25))
+* No longer check replicates mismatch, % handles this ([b75138a](https://github.com/brysontang/crystallize/commit/b75138a31755e90549b343ced92e72dbd97be2fe))
+* Test ([0748575](https://github.com/brysontang/crystallize/commit/0748575731aab92edab8792075304a5c1c327fe7))
+* Treatment now object instead of array ([c8ccf69](https://github.com/brysontang/crystallize/commit/c8ccf698fe895d2d3df03d0e8d82af5372a0f8c6))
+* Update tests and docs ([95c2f4e](https://github.com/brysontang/crystallize/commit/95c2f4e407267816899900cb44f550bd2f0ccd8a))
+* Verifier and hypothesis are now pickleable ([1c68a45](https://github.com/brysontang/crystallize/commit/1c68a45f2c9f10cdf108a5dc20c69c19cc5bb916))
+
+
+### Documentation
+
+* Auto-update generated API docs ([972d199](https://github.com/brysontang/crystallize/commit/972d199494d680a83a46e5144ce933cbc76998a3))
+
 ## [0.20.2](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.20.1...crystallize-ml@v0.20.2) (2025-07-24)
 
 

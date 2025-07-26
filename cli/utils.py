@@ -87,8 +87,9 @@ def _write_summary(log: RichLog, result: Any) -> None:
         _write_experiment_summary(log, result)
 
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 
 class IndentDumper(yaml.SafeDumper):
@@ -105,8 +106,18 @@ def create_experiment_scaffolding(
     outputs: bool = False,
     hypotheses: bool = False,
     examples: bool = False,
+    input_artifacts: dict[str, str] | None = None,
 ) -> Path:
-    """Create a new experiment folder with optional example code."""
+    """Create a new experiment folder with optional example code.
+
+    Parameters
+    ----------
+    name:
+        Name of the experiment directory.
+    input_artifacts:
+        Optional mapping of datasource aliases to ``"experiment#output"``
+        strings referencing outputs from other experiments.
+    """
 
     if not name or not name.islower() or " " in name:
         raise ValueError("name must be lowercase and contain no spaces")
@@ -121,9 +132,11 @@ def create_experiment_scaffolding(
         config["outputs"] = {}
     if hypotheses:
         config["hypotheses"] = []
+    if input_artifacts:
+        config["datasource"] = input_artifacts
 
     if examples:
-        if datasources:
+        if datasources and not input_artifacts:
             config["datasource"] = {"numbers": "numbers"}
         if steps:
             config["steps"] = ["add_one"]

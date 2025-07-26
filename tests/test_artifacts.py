@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from crystallize.utils.cache import compute_hash
@@ -323,3 +324,35 @@ def test_missing_upstream_artifact(tmp_path, monkeypatch):
     graph.add_dependency(exp_b, exp_a)
     res = graph.run()
     assert any(isinstance(e, FileNotFoundError) for e in res["B"].errors.values())
+
+
+def test_np_generic_serialization(tmp_path):
+    class DummyStep(PipelineStep):
+        def __call__(self, data, ctx):
+            ctx.metrics.add("score", np.float64(3.14))  # This will hit `np.generic`
+            return data
+
+        @property
+        def params(self):
+            return {}
+
+    class DummySource(DataSource):
+        def fetch(self, ctx: FrozenContext):
+            return 0
+
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([DummyStep()]),
+        plugins=[plugin],
+        name="test_generic",
+    )
+    exp.validate()
+    exp.run()
+
+    results_file = (
+        tmp_path / "arts" / "test_generic" / "v0" / "baseline" / "results.json"
+    )
+    assert results_file.exists()
+    content = results_file.read_text()
+    assert "3.14" in content

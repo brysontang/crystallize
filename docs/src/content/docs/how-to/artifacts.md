@@ -36,6 +36,10 @@ exp.validate()  # optional
 exp.run()
 ```
 
+Loader callables must be pickleable when using process-based execution.
+Crystallize automatically wraps lambda functions so they can be used as
+artifact loaders.
+
 Artifacts are stored under:
 `<root>/<experiment_name_or_id>/v<run>/<replicate>/<condition>/<step>/<name>`.
 

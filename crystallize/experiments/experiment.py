@@ -913,6 +913,7 @@ class Experiment:
 
             outputs_map[alias] = Artifact(name=file_name, loader=loader_fn)
         outputs = list(outputs_map.values())
+        used_outputs: set[str] = set()
 
         step_specs = cfg.get("steps", []) if steps_mod else []
         steps = []
@@ -934,15 +935,26 @@ class Experiment:
             sig = inspect.signature(step_factory)
             for param_name, param in sig.parameters.items():
                 if param.annotation == Artifact:
-                    # Allow explicit mapping of output names via kwargs
                     if param_name in kwargs and isinstance(kwargs[param_name], str):
                         alias = kwargs[param_name]
                         if alias in outputs_map:
                             kwargs[param_name] = outputs_map[alias]
+                            used_outputs.add(alias)
+                        else:
+                            raise ValueError(
+                                f"Output '{alias}' requested by step '{step_name}' is not in experiment outputs"
+                            )
                     elif param_name in outputs_map and param_name not in kwargs:
                         kwargs[param_name] = outputs_map[param_name]
+                        used_outputs.add(param_name)
             steps.append(step_factory(**kwargs))
         pipeline = Pipeline(steps)
+
+        unused = set(outputs_map) - used_outputs
+        if unused:
+            raise ValueError(
+                "Outputs not used in any step: " + ", ".join(sorted(unused))
+            )
 
         treatments: list[Treatment] = []
         treatments_spec = cfg.get("treatments", {})

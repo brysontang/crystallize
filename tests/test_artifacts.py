@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import pickle
 
 from crystallize.utils.cache import compute_hash
 from crystallize.utils.context import FrozenContext
@@ -9,6 +10,7 @@ from crystallize.datasources.datasource import DataSource
 from crystallize.experiments.experiment import Experiment
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
+from crystallize import pipeline_step
 from crystallize.plugins.plugins import ArtifactPlugin
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.datasources import Artifact, ArtifactLog
@@ -356,3 +358,19 @@ def test_np_generic_serialization(tmp_path):
     assert results_file.exists()
     content = results_file.read_text()
     assert "3.14" in content
+
+
+@pipeline_step()
+def write_simple(data, ctx, dest: Artifact):
+    dest.write(b"data")
+    ctx.metrics.add("val", data)
+    return data
+
+
+def test_lambda_loader_pickleable(tmp_path):
+    path = tmp_path / "sample.txt"
+    path.write_text("hello")
+    loader_art = Artifact("x.txt", loader=lambda p: p.read_text())
+    dumped = pickle.dumps(loader_art)
+    clone = pickle.loads(dumped)
+    assert clone.loader(path) == "hello"

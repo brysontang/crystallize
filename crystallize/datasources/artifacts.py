@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 from typing import Any, Callable, List, Optional, TYPE_CHECKING
+import pickle
+import dill
 
 from crystallize.utils.exceptions import ContextMutationError
 from crystallize.utils.constants import (
@@ -64,12 +66,36 @@ def default_loader(p: Path) -> Any:
     return p.read_bytes()
 
 
+class _PickleableLoader:
+    """Wrapper enabling pickling of arbitrary loader callables."""
+
+    def __init__(self, fn: Callable[[Path], Any]) -> None:
+        self.fn = fn
+
+    def __call__(self, path: Path) -> Any:
+        return self.fn(path)
+
+    def __getstate__(self) -> bytes:
+        return dill.dumps(self.fn)
+
+    def __setstate__(self, state: bytes) -> None:
+        self.fn = dill.loads(state)
+
+
+def _ensure_pickleable(fn: Callable[[Path], Any]) -> Callable[[Path], Any]:
+    try:
+        pickle.dumps(fn)
+    except Exception:
+        fn = _PickleableLoader(fn)
+    return fn
+
+
 class Artifact(DataSource):
     """Declarative handle for reading and writing artifacts."""
 
     def __init__(self, name: str, loader: Callable[[Path], Any] | None = None) -> None:
         self.name = name
-        self.loader = loader or default_loader
+        self.loader = _ensure_pickleable(loader or default_loader)
         self._ctx: Optional["FrozenContext"] = None
         self._producer: Optional["Experiment"] = None
         self._manifest: Optional[dict[str, str]] = None

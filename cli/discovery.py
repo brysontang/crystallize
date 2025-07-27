@@ -108,6 +108,7 @@ def discover_configs(
                 data = yaml.safe_load(f) or {}
             name = data.get("name", cfg.parent.name)
             desc = data.get("description", "")
+            repl = data.get("replicates", 1)
             cli_cfg = data.get("cli", {}) or {}
 
             is_graph = _has_ref(data.get("datasource"))
@@ -133,6 +134,7 @@ def discover_configs(
             info = {
                 "path": cfg,
                 "description": desc,
+                "replicates": repl,
                 "label": label,
                 "cli": cli_info,
             }

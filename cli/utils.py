@@ -205,3 +205,15 @@ def create_experiment_scaffolding(
     (exp_dir / "main.py").write_text(main_code)
 
     return exp_dir
+
+
+def update_replicates(config_path: Path, replicates: int) -> None:
+    """Update the replicates count in ``config_path``."""
+
+    with config_path.open() as f:
+        data = yaml.safe_load(f) or {}
+
+    data["replicates"] = replicates
+
+    with config_path.open("w") as f:
+        yaml.dump(data, f, Dumper=IndentDumper, sort_keys=False)

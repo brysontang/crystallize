@@ -188,6 +188,7 @@ Horizontal {
     width: 50%;
     padding-left: 1;
     height: 1fr;
+
 }
 
 .details-panel {
@@ -196,6 +197,7 @@ Horizontal {
     padding: 1;
     height: 1fr;
     content-align: left top;
+    overflow: auto;
 }
 
 TabbedContent {
@@ -240,6 +242,13 @@ Input {
     width: 100%;
 }
 
+#replicate-input {
+    width: 10;
+    margin-right: 1;
+    margin-top: 0;
+    align-vertical: middle;
+}
+
 Input:focus {
     border: tall $accent;
 }
@@ -252,5 +261,17 @@ Input:focus {
     height: auto;
     layout: horizontal;
     margin: 1 0;
+    align-vertical: middle;
+}
+
+#select-button-container {
+    height: auto;
+    layout: horizontal;
+    align-vertical: middle;
+}
+
+#run-btn {
+    align-vertical: middle;
+    margin-top: 0;
 }
 """

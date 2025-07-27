@@ -26,9 +26,9 @@ from .selection_screens import ActionableSelectionList
 class OutputTree(Tree):
     """Tree widget with custom binding for output selection."""
 
-    BINDINGS = [
-        b for b in Tree.BINDINGS if getattr(b, "key", "") != "space"
-    ] + [Binding("space", "toggle_output", "Select", show=True)]
+    BINDINGS = [b for b in Tree.BINDINGS if getattr(b, "key", "") != "space"] + [
+        Binding("space", "toggle_output", "Select", show=True)
+    ]
 
     def action_toggle_output(self) -> None:  # pragma: no cover - delegates
         screen = self.screen
@@ -62,7 +62,20 @@ class CreateExperimentScreen(ModalScreen[None]):
                 placeholder="Enter experiment name (lowercase, no spaces)",
                 id="name-input",
             )
-            yield Label(id="name-feedback")  # For validation feedback
+            yield Label(
+                "[dim]Enter a name to continue[/dim]", id="name-feedback"
+            )  # For validation feedback
+            with Horizontal(classes="button-row"):
+                yield Checkbox(
+                    "Use outputs from other experiments",
+                    id="graph-mode",
+                )
+                yield Checkbox(
+                    "Add example code",
+                    id="examples",
+                    tooltip="Includes starter code in selected files (steps.py, hypotheses.py, etc.)",
+                )
+
             with Collapsible(title="Files to include", collapsed=False):
                 self.file_list = ActionableSelectionList(classes="files-to-include")
                 self.file_list.add_option(
@@ -97,10 +110,6 @@ class CreateExperimentScreen(ModalScreen[None]):
                     )
                 )
                 yield self.file_list
-            yield Checkbox(
-                "Use outputs from other experiments",
-                id="graph-mode",
-            )
 
             with Vertical(id="graph-container", classes="invisible"):
                 with Collapsible(title="Select outputs to use", collapsed=False):
@@ -108,11 +117,6 @@ class CreateExperimentScreen(ModalScreen[None]):
                     self.out_tree.show_root = False
                     yield self.out_tree
 
-            yield Checkbox(
-                "Add example code",
-                id="examples",
-                tooltip="Includes starter code in selected files",
-            )
             with Horizontal(classes="button-row"):
                 yield Button("Create", variant="success", id="create")
                 yield Button("Cancel", variant="error", id="cancel")
@@ -170,7 +174,6 @@ class CreateExperimentScreen(ModalScreen[None]):
                 else:
                     selected.add(out)
                 node.set_label(self._fmt_label(exp, out))
-
 
     def action_cancel(self) -> None:
         self.dismiss(None)

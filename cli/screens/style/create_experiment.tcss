@@ -50,8 +50,7 @@ SelectionList {
 
 .button-row {
     height: auto;
-    align-horizontal: right;
-    margin-top: 2;
+    align-horizontal: left;
 }
 
 Button {

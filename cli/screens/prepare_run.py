@@ -36,9 +36,7 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
             self.options.add_option(Selection("resume", "resume", id="resume"))
             yield self.options
             if self._deletable:
-                yield Static(
-                    "Select data to delete (optional)", id="delete-info"
-                )
+                yield Static("Select data to delete (optional)", id="delete-info")
                 self.list = ActionableSelectionList()
                 for idx, (name, path) in enumerate(self._deletable):
                     self.list.add_option(Selection(f"  {name}: {path}", idx))
@@ -67,9 +65,7 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
                 return
             selections: tuple[int, ...] = ()
             if hasattr(self, "list"):
-                selections = tuple(
-                    v for v in self.list.selected if isinstance(v, int)
-                )
+                selections = tuple(v for v in self.list.selected if isinstance(v, int))
             self.dismiss((self._strategy, selections))
         else:
             self.dismiss(None)

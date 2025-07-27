@@ -36,3 +36,8 @@ The datasource fetches artifact paths for the current replicate and returns them
 ## 3. Example
 
 See [`examples/dag_experiment`](../../../../examples/dag_experiment) for a complete script that averages temperature and humidity data before deriving a comfort index.
+
+You can also scaffold a graph-aware experiment using the interactive CLI. Press
+``c`` on the main screen and enable *Use outputs from other experiments*. Select
+the upstream experiment and choose which outputs should become inputs. The CLI
+adds them to ``config.yaml`` as ``experiment#output`` strings.

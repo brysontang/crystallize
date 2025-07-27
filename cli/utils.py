@@ -111,8 +111,15 @@ def create_experiment_scaffolding(
     outputs: bool = False,
     hypotheses: bool = False,
     examples: bool = False,
+    artifact_inputs: dict[str, str] | None = None,
 ) -> Path:
-    """Create a new experiment folder with optional example code."""
+    """Create a new experiment folder with optional example code.
+
+    Parameters
+    ----------
+    artifact_inputs:
+        Mapping of datasource alias to ``"experiment#output"`` strings.
+    """
 
     if not name or not name.islower() or " " in name:
         raise ValueError("name must be lowercase and contain no spaces")
@@ -123,6 +130,8 @@ def create_experiment_scaffolding(
     exp_dir.mkdir()
 
     config: dict[str, Any] = {"name": name, "datasource": {}, "steps": []}
+    if artifact_inputs:
+        config["datasource"].update(artifact_inputs)
     if outputs:
         config["outputs"] = {}
     if hypotheses:

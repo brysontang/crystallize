@@ -911,12 +911,14 @@ class Experiment:
             ds_spec = tmp
 
         inputs: dict[str, DataSource | Artifact] = {}
+        has_ref = False
         for alias, val in ds_spec.items():
             if isinstance(val, str) and "#" in val:
                 src_exp_name, art_name = val.split("#", 1)
                 art = Artifact(art_name)
                 setattr(art, "_source_experiment", src_exp_name)
                 inputs[alias] = art
+                has_ref = True
             else:
                 if not ds_mod:
                     raise FileNotFoundError(
@@ -925,7 +927,7 @@ class Experiment:
                 fn = _load("datasources", str(val))
                 inputs[alias] = fn()
 
-        if len(inputs) == 1:
+        if len(inputs) == 1 and not has_ref:
             datasource = next(iter(inputs.values()))
         else:
             datasource = ExperimentInput(**inputs)

@@ -17,6 +17,8 @@ from .selection_screens import ActionableSelectionList, SingleSelectionList
 class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     """Collect execution strategy and deletable artifacts."""
 
+    CSS_PATH = "style/prepare_run.tcss"
+
     BINDINGS = [
         ("ctrl+c", "cancel_and_exit", "Cancel"),
         ("escape", "cancel_and_exit", "Cancel"),
@@ -45,6 +47,7 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
             with Horizontal(classes="button-row"):
                 yield Button("Run", variant="success", id="run")
                 yield Button("Cancel", variant="error", id="cancel")
+            yield Static(id="run-feedback")
 
     def on_mount(self) -> None:
         self.options.focus()
@@ -64,6 +67,9 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run":
             if self._strategy is None:
+                self.query_one("#run-feedback", Static).update(
+                    "[red]Select a run strategy to continue[/red]"
+                )
                 return
             selections: tuple[int, ...] = ()
             if hasattr(self, "list"):

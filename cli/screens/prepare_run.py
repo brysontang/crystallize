@@ -41,7 +41,7 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
             yield self.options
             if self._deletable:
                 yield Static("Select data to delete (optional)", id="delete-info")
-                self.list = ActionableSelectionList()
+                self.list = ActionableSelectionList(classes="invisible")
                 for idx, (name, path) in enumerate(self._deletable):
                     self.list.add_option(Selection(f"  {name}: {path}", idx))
                 yield self.list
@@ -58,6 +58,10 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     ) -> None:
         if message.selection_list.selected:
             self._strategy = str(message.selection_list.selected[0])
+            if self._strategy == "resume":
+                self.list.remove_class("invisible")
+            else:
+                self.list.add_class("invisible")
 
     def on_actionable_selection_list_submitted(
         self, message: ActionableSelectionList.Submitted

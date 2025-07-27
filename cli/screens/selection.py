@@ -168,10 +168,10 @@ class SelectionScreen(Screen):
         await horizontal.mount(right_panel)
         await right_panel.mount(Static(id="details", classes="details-panel"))
 
-        btn_container = Container(id="button-container")
+        btn_container = Container(id="select-button-container")
         await right_panel.mount(btn_container)
-        await btn_container.mount(Input(id="replicate-input", placeholder="replicates"))
         await btn_container.mount(Button("Run", id="run-btn"))
+        await btn_container.mount(Input(id="replicate-input", placeholder="replicates"))
 
         if self._load_errors:
             await main_container.mount(

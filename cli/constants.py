@@ -188,6 +188,7 @@ Horizontal {
     width: 50%;
     padding-left: 1;
     height: 1fr;
+
 }
 
 .details-panel {
@@ -244,6 +245,8 @@ Input {
 #replicate-input {
     width: 10;
     margin-right: 1;
+    margin-top: 0;
+    align-vertical: middle;
 }
 
 Input:focus {
@@ -258,5 +261,17 @@ Input:focus {
     height: auto;
     layout: horizontal;
     margin: 1 0;
+    align-vertical: middle;
+}
+
+#select-button-container {
+    height: auto;
+    layout: horizontal;
+    align-vertical: middle;
+}
+
+#run-btn {
+    align-vertical: middle;
+    margin-top: 0;
 }
 """

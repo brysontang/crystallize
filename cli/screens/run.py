@@ -63,12 +63,14 @@ class RunScreen(ModalScreen[None]):
         ("ctrl+c", "cancel_and_exit", "Cancel and Go Back"),
         ("escape", "cancel_and_exit", "Cancel and Go Back"),
         ("q", "cancel_and_exit", "Close"),
+        ("t", "toggle_plain_text", "Toggle Text"),
     ]
 
     node_states: dict[str, str] = reactive({})
     replicate_info: str = reactive("")
     progress_percent: float = reactive(0.0)
     step_states: dict[str, str] = reactive({})
+    plain_text: bool = reactive(False)
 
     def __init__(self, obj: Any, strategy: str, replicates: int | None) -> None:
         super().__init__()
@@ -138,6 +140,16 @@ class RunScreen(ModalScreen[None]):
         bar = "[" + "#" * filled + "-" * (20 - filled) + "]"
         prog_widget.update(f"{bar} {self.progress_percent*100:.0f}%")
 
+    def watch_plain_text(self) -> None:
+        try:
+            log_widget = self.query_one("#live_log", RichLog)
+            toggle_button = self.query_one("#toggle_text", Button)
+        except NoMatches:
+            return
+        log_widget.highlight = not self.plain_text
+        log_widget.markup = not self.plain_text
+        toggle_button.label = "Rich Text" if self.plain_text else "Plain Text"
+
     def _handle_status_event(self, event: str, info: dict[str, Any]) -> None:
         if event == "start":
             self.step_states = {name: "pending" for name in info.get("steps", [])}
@@ -164,6 +176,7 @@ class RunScreen(ModalScreen[None]):
             yield Static(id="progress-display")
             yield Static(id="dag-display", classes="hidden")
             yield RichLog(highlight=True, markup=True, id="live_log")
+            yield Button("Plain Text", id="toggle_text")
             yield Button("Summary", id="summary")
             yield Button("Close", id="close_run")
 
@@ -184,6 +197,7 @@ class RunScreen(ModalScreen[None]):
             self.node_states = {node: "pending" for node in self._obj._graph.nodes}
             self.query_one("#dag-display").remove_class("hidden")
         log = self.query_one("#live_log", RichLog)
+        self.watch_plain_text()
 
         def queue_callback(event: str, info: dict[str, Any]) -> None:
             """A simple, thread-safe callback that puts events onto a queue."""
@@ -250,12 +264,17 @@ class RunScreen(ModalScreen[None]):
     def action_cancel_and_exit(self) -> None:
         self.app.pop_screen()
 
+    def action_toggle_plain_text(self) -> None:
+        self.plain_text = not self.plain_text
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close_run":
             self.app.pop_screen()
         elif event.button.id == "summary":
             if self._result is not None:
                 self.open_summary_screen(self._result)
+        elif event.button.id == "toggle_text":
+            self.action_toggle_plain_text()
 
 
 async def _launch_run(app: App, obj: Any) -> None:

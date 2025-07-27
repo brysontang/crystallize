@@ -6,7 +6,7 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.screen import ModalScreen
-from textual.widgets import Button, Collapsible, Input, Label, Static
+from textual.widgets import Button, Checkbox, Collapsible, Input, Label, Static
 from textual.widgets.selection_list import Selection
 
 from ..utils import create_experiment_scaffolding
@@ -69,10 +69,11 @@ class CreateExperimentScreen(ModalScreen[None]):
                     )
                 )
                 yield self.file_list
-            self.examples = ActionableSelectionList(
-                Selection("Add example code", "examples", id="examples")
+            yield Checkbox(
+                "Add example code",
+                id="examples",
+                tooltip="Includes starter code in selected files",
             )
-            yield self.examples
             with Horizontal(classes="button-row"):
                 yield Button("Create", variant="success", id="create")
                 yield Button("Cancel", variant="error", id="cancel")
@@ -110,7 +111,7 @@ class CreateExperimentScreen(ModalScreen[None]):
         name = self.query_one("#name-input", Input).value.strip()
         base = Path("experiments")
         selections = set(self.file_list.selected)
-        examples = "examples" in self.examples.selected
+        examples = self.query_one("#examples", Checkbox).value
         try:
             create_experiment_scaffolding(
                 name,

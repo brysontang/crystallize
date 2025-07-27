@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, Type
 
+import yaml
+
 from crystallize.experiments.experiment_graph import ExperimentGraph
 
 
@@ -73,6 +75,54 @@ def discover_objects(
                 rel = file
             found[f"{rel}:{name}"] = obj
     return found, errors
+
+
+def discover_configs(
+    directory: Path,
+) -> Tuple[
+    Dict[str, Dict[str, Any]],
+    Dict[str, Dict[str, Any]],
+    Dict[str, BaseException],
+]:
+    """Discover experiments and graphs defined via ``config.yaml``."""
+
+    def _has_ref(val: Any) -> bool:
+        if isinstance(val, str):
+            return "#" in val
+        if isinstance(val, dict):
+            return any(_has_ref(v) for v in val.values())
+        if isinstance(val, list):
+            return any(_has_ref(v) for v in val)
+        return False
+
+    graphs: Dict[str, Dict[str, Any]] = {}
+    experiments: Dict[str, Dict[str, Any]] = {}
+    errors: Dict[str, BaseException] = {}
+
+    abs_directory = directory.resolve()
+    cwd = Path.cwd()
+
+    for cfg in abs_directory.rglob("config.yaml"):
+        try:
+            with cfg.open() as f:
+                data = yaml.safe_load(f) or {}
+            name = data.get("name", cfg.parent.name)
+            desc = data.get("description", "")
+            try:
+                rel = cfg.parent.relative_to(cwd)
+            except ValueError:
+                rel = cfg.parent
+            label = f"{rel} - {name}"
+            info = {"path": cfg, "description": desc, "label": label}
+            is_graph = _has_ref(data.get("datasource"))
+            if is_graph:
+                graphs[label] = info
+            else:
+                experiments[label] = info
+        except BaseException as exc:  # noqa: BLE001
+            errors[str(cfg)] = exc
+
+    return graphs, experiments, errors
 
 
 async def _run_object(obj: Any, strategy: str, replicates: Optional[int]) -> Any:

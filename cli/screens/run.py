@@ -13,12 +13,12 @@ import queue  # Import queue
 import networkx as nx
 from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.containers import VerticalScroll
+from textual.containers import VerticalScroll, Container
 from textual.css.query import NoMatches
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import ModalScreen
-from textual.widgets import Button, Header, RichLog, Static
+from textual.widgets import Button, Header, RichLog, Static, TextArea
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -63,12 +63,14 @@ class RunScreen(ModalScreen[None]):
         ("ctrl+c", "cancel_and_exit", "Cancel and Go Back"),
         ("escape", "cancel_and_exit", "Cancel and Go Back"),
         ("q", "cancel_and_exit", "Close"),
+        ("t", "toggle_plain_text", "Toggle Text"),
     ]
 
     node_states: dict[str, str] = reactive({})
     replicate_info: str = reactive("")
     progress_percent: float = reactive(0.0)
     step_states: dict[str, str] = reactive({})
+    plain_text: bool = reactive(False)
 
     def __init__(self, obj: Any, strategy: str, replicates: int | None) -> None:
         super().__init__()
@@ -77,6 +79,7 @@ class RunScreen(ModalScreen[None]):
         self._replicates = replicates
         self._result: Any = None
         self.event_queue = queue.Queue()
+        self.log_history: list[str] = []
 
     def watch_node_states(self) -> None:
         if not isinstance(self._obj, ExperimentGraph):
@@ -138,6 +141,32 @@ class RunScreen(ModalScreen[None]):
         bar = "[" + "#" * filled + "-" * (20 - filled) + "]"
         prog_widget.update(f"{bar} {self.progress_percent*100:.0f}%")
 
+    def watch_plain_text(self) -> None:
+        """Toggles visibility between the RichLog and the plain text TextArea."""
+        try:
+            log_widget = self.query_one("#live_log", RichLog)
+            text_widget = self.query_one("#plain_log", TextArea)
+            toggle_button = self.query_one("#toggle_text", Button)
+        except NoMatches:
+            return
+
+        toggle_button.label = "Rich Text" if self.plain_text else "Plain Text"
+
+        if self.plain_text:
+            # Switched TO plain text mode
+            # Join the history and load it into the TextArea
+            full_log = "".join(self.log_history)
+            text_widget.load_text(full_log)
+
+            # Hide the RichLog and show the TextArea
+            log_widget.display = False
+            text_widget.display = True
+            text_widget.focus()  # Focus the TextArea so it can be scrolled/selected
+        else:
+            # Switched BACK to rich text mode
+            log_widget.display = True
+            text_widget.display = False
+
     def _handle_status_event(self, event: str, info: dict[str, Any]) -> None:
         if event == "start":
             self.step_states = {name: "pending" for name in info.get("steps", [])}
@@ -163,9 +192,20 @@ class RunScreen(ModalScreen[None]):
             yield Static(id="step-display")
             yield Static(id="progress-display")
             yield Static(id="dag-display", classes="hidden")
-            yield RichLog(highlight=True, markup=True, id="live_log")
-            yield Button("Summary", id="summary")
-            yield Button("Close", id="close_run")
+
+            with Container(id="log-viewer"):
+                yield RichLog(highlight=True, markup=True, id="live_log")
+                yield TextArea(
+                    "",
+                    read_only=True,
+                    show_line_numbers=False,
+                    id="plain_log",
+                    classes="hidden",
+                )
+            with Container(id="button-container"):
+                yield Button("Plain Text", id="toggle_text")
+                yield Button("Summary", id="summary")
+                yield Button("Close", id="close_run")
 
     def open_summary_screen(self, result: Any) -> None:
         self.app.push_screen(SummaryScreen(result))
@@ -199,7 +239,7 @@ class RunScreen(ModalScreen[None]):
 
         def run_experiment_sync() -> None:
             original_stdout = sys.stdout
-            sys.stdout = WidgetWriter(log, self.app)
+            sys.stdout = WidgetWriter(log, self.app, self.log_history)
             result = None
             try:
 
@@ -250,12 +290,17 @@ class RunScreen(ModalScreen[None]):
     def action_cancel_and_exit(self) -> None:
         self.app.pop_screen()
 
+    def action_toggle_plain_text(self) -> None:
+        self.plain_text = not self.plain_text
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close_run":
             self.app.pop_screen()
         elif event.button.id == "summary":
             if self._result is not None:
                 self.open_summary_screen(self._result)
+        elif event.button.id == "toggle_text":
+            self.action_toggle_plain_text()
 
 
 async def _launch_run(app: App, obj: Any) -> None:

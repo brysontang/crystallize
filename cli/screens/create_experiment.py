@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, HorizontalScroll, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widgets import (
@@ -82,11 +82,19 @@ class CreateExperimentScreen(ModalScreen[None]):
                 "Use outputs from other experiments",
                 id="graph-mode",
             )
+
             with Vertical(id="graph-container", classes="invisible"):
-                self.exp_list = SelectionList(id="exp-list")
-                self.out_list = SelectionList(id="out-list")
-                yield self.exp_list
-                yield self.out_list
+                with Collapsible(title="Select outputs to use", collapsed=False):
+                    with Horizontal():
+                        with Vertical(classes="exp-column"):
+                            yield Label("Experiments:")
+                            self.exp_list = SingleSelectionList(id="exp-list")
+                            yield self.exp_list
+                        with Vertical(classes="out-column"):
+                            yield Label("Outputs:")
+                            self.out_list = SelectionList(id="out-list")
+                            yield self.out_list
+
             yield Checkbox(
                 "Add example code",
                 id="examples",
@@ -137,15 +145,23 @@ class CreateExperimentScreen(ModalScreen[None]):
     def on_selection_list_selected_changed(
         self, message: SelectionList.SelectedChanged
     ) -> None:
-        if message.selection_list.id == "exp-list" and message.selection_list.selected:
-            exp = str(message.selection_list.selected[0])
-            self._current_exp = exp
-            out_list = self.query_one("#out-list", SelectionList)
-            out_list.clear_options()
-            for out in self._outputs.get(exp, []):
-                out_list.add_option(Selection(out, out, id=out))
+        if message.selection_list.id == "exp-list":
+            if message.selection_list.selected:
+                exp = str(message.selection_list.selected[0])
+                self._current_exp = exp
+                out_list = self.query_one("#out-list", SelectionList)
+                out_list.clear_options()
+                selected_outs = self._selected.get(exp, set())
+                for out in self._outputs.get(exp, []):
+                    initial_state = out in selected_outs
+                    out_list.add_option(
+                        Selection(out, out, initial_state=initial_state, id=out)
+                    )
+            else:
+                # Optional: Clear outputs if no experiment selected
+                out_list = self.query_one("#out-list", SelectionList)
+                out_list.clear_options()
         elif message.selection_list.id == "out-list" and hasattr(self, "_current_exp"):
-            self._selected.setdefault(self._current_exp, set())
             self._selected[self._current_exp] = {
                 str(val) for val in message.selection_list.selected
             }

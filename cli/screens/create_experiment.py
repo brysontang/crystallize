@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, HorizontalScroll, Vertical, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widgets import (
@@ -14,12 +14,12 @@ from textual.widgets import (
     Input,
     Label,
     Static,
-    SelectionList,
+    Tree,
 )
 from textual.widgets.selection_list import Selection
 
 from ..utils import create_experiment_scaffolding
-from .selection_screens import ActionableSelectionList, SingleSelectionList
+from .selection_screens import ActionableSelectionList
 
 
 class CreateExperimentScreen(ModalScreen[None]):
@@ -32,9 +32,14 @@ class CreateExperimentScreen(ModalScreen[None]):
         ("escape", "cancel", "Cancel"),
         ("q", "cancel", "Close"),
         ("c", "create", "Create"),
+        ("space", "toggle_output", "Select"),
     ]
 
     name_valid = reactive(False)
+
+    def _fmt_label(self, exp: str, out: str) -> str:
+        marker = "[X]" if out in self._selected.get(exp, set()) else "[ ]"
+        return f"{marker} {out}"
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="create-exp-container"):
@@ -85,15 +90,9 @@ class CreateExperimentScreen(ModalScreen[None]):
 
             with Vertical(id="graph-container", classes="invisible"):
                 with Collapsible(title="Select outputs to use", collapsed=False):
-                    with Horizontal():
-                        with Vertical(classes="exp-column"):
-                            yield Label("Experiments:")
-                            self.exp_list = SingleSelectionList(id="exp-list")
-                            yield self.exp_list
-                        with Vertical(classes="out-column"):
-                            yield Label("Outputs:")
-                            self.out_list = SelectionList(id="out-list")
-                            yield self.out_list
+                    self.out_tree = Tree("root", id="out-tree")
+                    self.out_tree.show_root = False
+                    yield self.out_tree
 
             yield Checkbox(
                 "Add example code",
@@ -118,8 +117,12 @@ class CreateExperimentScreen(ModalScreen[None]):
                     outs = list((data.get("outputs") or {}).keys())
                     if outs:
                         self._outputs[p.name] = outs
-        for name in sorted(self._outputs):
-            self.exp_list.add_option(Selection(name, name, id=name))
+        if hasattr(self, "out_tree"):
+            for name in sorted(self._outputs):
+                node = self.out_tree.root.add(name)
+                for out in self._outputs[name]:
+                    leaf = node.add_leaf(self._fmt_label(name, out))
+                    leaf.data = (name, out)
 
     def on_input_changed(self, event: Input.Changed) -> None:
         name = event.value.strip()
@@ -142,29 +145,18 @@ class CreateExperimentScreen(ModalScreen[None]):
             else:
                 container.add_class("invisible")
 
-    def on_selection_list_selected_changed(
-        self, message: SelectionList.SelectedChanged
-    ) -> None:
-        if message.selection_list.id == "exp-list":
-            if message.selection_list.selected:
-                exp = str(message.selection_list.selected[0])
-                self._current_exp = exp
-                out_list = self.query_one("#out-list", SelectionList)
-                out_list.clear_options()
-                selected_outs = self._selected.get(exp, set())
-                for out in self._outputs.get(exp, []):
-                    initial_state = out in selected_outs
-                    out_list.add_option(
-                        Selection(out, out, initial_state=initial_state, id=out)
-                    )
-            else:
-                # Optional: Clear outputs if no experiment selected
-                out_list = self.query_one("#out-list", SelectionList)
-                out_list.clear_options()
-        elif message.selection_list.id == "out-list" and hasattr(self, "_current_exp"):
-            self._selected[self._current_exp] = {
-                str(val) for val in message.selection_list.selected
-            }
+    def action_toggle_output(self) -> None:
+        if hasattr(self, "out_tree"):
+            node = self.out_tree.cursor_node
+            if node is not None and node.data is not None:
+                exp, out = node.data
+                selected = self._selected.setdefault(exp, set())
+                if out in selected:
+                    selected.remove(out)
+                else:
+                    selected.add(out)
+                node.set_label(self._fmt_label(exp, out))
+
 
     def action_cancel(self) -> None:
         self.dismiss(None)

@@ -68,18 +68,8 @@ Button:hover {
     color: $text-muted;
 }
 
-#graph-container {
+#out-tree {
     height: auto;
-    margin: 1 0;
+    margin: 0 0 1 0;
     width: 100%;
-}
-
-.exp-column {
-    width: 1fr;
-    min-width: 30;
-}
-
-.out-column {
-    width: 1fr;
-    min-width: 30;
 }

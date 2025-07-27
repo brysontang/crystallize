@@ -163,6 +163,7 @@ class RunScreen(ModalScreen[None]):
             yield Static(id="progress-display")
             yield Static(id="dag-display", classes="hidden")
             yield RichLog(highlight=True, markup=True, id="live_log")
+            yield Button("Summary", id="summary")
             yield Button("Close", id="close_run")
 
     def open_summary_screen(self, result: Any) -> None:
@@ -232,6 +233,8 @@ class RunScreen(ModalScreen[None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close_run":
             self.app.pop_screen()
+        elif event.button.id == "summary":
+            self.open_summary_screen(self._result)
 
 
 async def _launch_run(app: App, obj: Any) -> None:

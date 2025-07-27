@@ -26,13 +26,13 @@ class ExperimentGraph:
         """Create a graph and optionally infer dependencies from experiments."""
         self._graph = nx.DiGraph()
         self._results: Dict[str, Result] = {}
-        self._name = name
+        self.name = name
 
         if experiments:
             tmp = self.__class__.from_experiments(list(experiments))
             self._graph = tmp._graph
             if name is None:
-                self._name = tmp._name
+                self.name = tmp.name
 
     # ------------------------------------------------------------------ #
     @classmethod
@@ -189,19 +189,25 @@ class ExperimentGraph:
                 for alias, art in ds._inputs.items():
                     if isinstance(art, Artifact) and hasattr(art, "_source_experiment"):
                         key = (getattr(art, "_source_experiment"), art.name)
-                        updated[alias] = artifact_map[key]  # pragma: no cover - integration tested
+                        updated[alias] = artifact_map[
+                            key
+                        ]  # pragma: no cover - integration tested
                     else:
                         updated[alias] = art
                 exp.datasource = ExperimentInput(**updated)
             elif isinstance(ds, Artifact) and hasattr(ds, "_source_experiment"):
                 key = (getattr(ds, "_source_experiment"), ds.name)
-                exp.datasource = artifact_map[key]  # pragma: no cover - integration tested
+                exp.datasource = artifact_map[
+                    key
+                ]  # pragma: no cover - integration tested
 
         return cls.from_experiments(experiments)
 
     # ------------------------------------------------------------------ #
     @classmethod
-    def visualize_from_yaml(cls, config: str | Path) -> None:  # pragma: no cover - utility
+    def visualize_from_yaml(
+        cls, config: str | Path
+    ) -> None:  # pragma: no cover - utility
         """Print dependencies and execution order for a YAML graph."""
 
         graph = cls.from_yaml(config)
@@ -338,6 +344,7 @@ class ExperimentGraph:
                                 hypotheses=exp._verify_hypotheses(
                                     loaded_baseline,
                                     loaded_treatments,
+                                    active_treatments=run_treatments,
                                 ),
                             )
                             self._results[name] = Result(metrics=metrics)

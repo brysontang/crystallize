@@ -1,4 +1,5 @@
 """Object discovery utilities for the CLI."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -36,7 +37,13 @@ def _import_module(
     try:
         if str(root_path) not in sys.path:
             sys.path.insert(0, str(root_path))
-        return importlib.import_module(module_name), None
+
+        if module_name in sys.modules:
+            # If module is already imported, reload it to pick up changes
+            return importlib.reload(sys.modules[module_name]), None
+        else:
+            # Otherwise, import it for the first time
+            return importlib.import_module(module_name), None
     except BaseException as exc:  # noqa: BLE001
         return None, exc
 

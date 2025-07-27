@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from contextlib import contextmanager
+import traceback
 import logging
 import importlib
 import sys
@@ -387,7 +388,10 @@ class Experiment:
                 )
                 provenance[BASELINE_CONDITION] = base_prov
             except Exception as exc:
+                tb_str = traceback.format_exc()
+                setattr(exc, "traceback_str", tb_str)
                 rep_errors[f"baseline_rep_{rep}"] = exc
+
                 return ReplicateResult(
                     baseline_metrics=baseline_result,
                     baseline_seed=baseline_seed,
@@ -412,6 +416,8 @@ class Experiment:
                     treatment_seeds[t.name] = seed
                 provenance[t.name] = prov
             except Exception as exc:
+                tb_str = traceback.format_exc()
+                setattr(exc, "traceback_str", tb_str)
                 rep_errors[f"{t.name}_rep_{rep}"] = exc
 
         return ReplicateResult(
@@ -492,6 +498,8 @@ class Experiment:
         self,
         baseline_metrics: Dict[str, List[Any]],
         treatment_metrics_dict: Dict[str, Dict[str, List[Any]]],
+        # Add this new parameter
+        active_treatments: List[Treatment],
     ) -> List[HypothesisResult]:
         results: List[HypothesisResult] = []
         for hyp in self.hypotheses:
@@ -500,7 +508,9 @@ class Experiment:
                     baseline_metrics=baseline_metrics,
                     treatment_metrics=treatment_metrics_dict[t.name],
                 )
-                for t in self.treatments
+                # Use the new parameter here instead of self.treatments
+                for t in active_treatments
+                if t.name in treatment_metrics_dict
             }
             results.append(
                 HypothesisResult(
@@ -614,7 +624,11 @@ class Experiment:
         if strategy == "resume" and plugin is not None:
             base_dir = Path(plugin.root_dir) / (self.name or self.id) / "v0"
             if base_dir.exists():
-                for cond in [BASELINE_CONDITION] + [t.name for t in run_treatments]:
+                conditions_to_check = [BASELINE_CONDITION] + [
+                    t.name for t in run_treatments
+                ]
+                for cond in conditions_to_check:
+                    # --- END OF FIX ---
                     res_file = base_dir / cond / "results.json"
                     marker = base_dir / cond / ".crystallize_complete"
                     if res_file.exists() and marker.exists():
@@ -694,6 +708,7 @@ class Experiment:
                 hypothesis_results = self._verify_hypotheses(
                     aggregate.baseline_metrics,
                     aggregate.treatment_metrics_dict,
+                    active_treatments=active_treatments,
                 )
 
                 metrics = ExperimentMetrics(
@@ -1012,7 +1027,7 @@ class Experiment:
 
         replicates = int(cfg.get("replicates", 1))
 
-        return cls(
+        exp = cls(
             datasource=datasource,
             pipeline=pipeline,
             plugins=None,
@@ -1024,3 +1039,9 @@ class Experiment:
             hypotheses=hypotheses,
             replicates=replicates,
         )
+
+        exp.outputs = outputs_map
+        for a in exp.outputs.values():
+            a._producer = exp
+
+        return exp

@@ -34,8 +34,8 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
         with Container(id="prepare-run-container"):
             yield Static("Configure Run", id="modal-title")
             self.options = SingleSelectionList(
-                Selection("rerun", "rerun", id="rerun"),
                 Selection("resume", "resume", id="resume"),
+                Selection("rerun", "rerun", id="rerun"),
                 id="run-method",
             )
             yield self.options

@@ -108,8 +108,7 @@ cli:
   priority: 1                  # Sorting within a group (lower first)
   icon: "📊"                   # Emoji shown next to the name
   color: "#85C1E9"             # Hex color for the label
-  hidden: false               # Hide from the main list if true
-  disabled: false             # Completely ignore this experiment
+  hidden: false               # If true, the experiment is ignored
 ```
 
 The selection screen now groups experiments and graphs into collapsible trees

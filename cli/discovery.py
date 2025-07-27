@@ -112,7 +112,7 @@ def discover_configs(
 
             is_graph = _has_ref(data.get("datasource"))
 
-            if cli_cfg.get("disabled"):
+            if cli_cfg.get("hidden"):
                 continue
 
             try:
@@ -127,7 +127,6 @@ def discover_configs(
                 "icon": "📈" if is_graph else "🧪",
                 "color": None,
                 "hidden": False,
-                "disabled": False,
             }
             cli_info = {**cli_defaults, **cli_cfg}
 

@@ -98,10 +98,6 @@ class SelectionScreen(Screen):
         tree.show_root = False
         await left_panel.mount(tree)
 
-        # filter hidden entries
-        graphs = {k: v for k, v in graphs.items() if not v["cli"]["hidden"]}
-        experiments = {k: v for k, v in experiments.items() if not v["cli"]["hidden"]}
-
         groups: dict[str, list[tuple[str, Dict[str, Any]]]] = {}
         for label, info in graphs.items():
             groups.setdefault(info["cli"]["group"], []).append(("Graph", info))
@@ -115,9 +111,9 @@ class SelectionScreen(Screen):
                 label = info["label"]
                 icon = info["cli"]["icon"]
                 color = info["cli"].get("color")
-                text = Text(f"{icon} {label}")
+                text = Text(f"{icon} {label} [dim]({obj_type})[/dim]")
                 if color:
-                    text.stylize(f"color({color})")
+                    text.stylize(color)
                 parent.add_leaf(
                     text,
                     {

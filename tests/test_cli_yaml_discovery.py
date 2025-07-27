@@ -20,7 +20,7 @@ def test_yaml_discovery(tmp_path: Path) -> None:
     cfg2 = {
         "name": "graph",
         "datasource": {"data": "exp#out"},
-        "cli": {"disabled": True},
+        "cli": {"hidden": True},
     }
     (graph_dir / "config.yaml").write_text(yaml.safe_dump(cfg2))
 

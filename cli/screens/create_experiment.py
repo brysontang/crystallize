@@ -107,9 +107,6 @@ class CreateExperimentScreen(ModalScreen[None]):
                 if cfg.exists():
                     with open(cfg) as f:
                         data = yaml.safe_load(f) or {}
-                    cli_cfg = data.get("cli", {}) or {}
-                    if cli_cfg.get("disabled"):
-                        continue
                     outs = list((data.get("outputs") or {}).keys())
                     if outs:
                         self._outputs[p.name] = outs

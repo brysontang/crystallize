@@ -5,6 +5,37 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.23.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.22.0...crystallize-ml@v0.23.0) (2025-07-27)
+
+
+### Features
+
+* **crystallize-ml:** Add CLI presentation controls ([8c19568](https://github.com/brysontang/crystallize/commit/8c19568ea09387e1edee5716878921c4fe612a86))
+* **crystallize-ml:** Add plain text toggle for run logs ([efc2b44](https://github.com/brysontang/crystallize/commit/efc2b444a96825c370d1b1b0fb48744b0c7389e9))
+* **crystallize-ml:** Show outputs in tree on create ([7162080](https://github.com/brysontang/crystallize/commit/7162080af1f97fccf83fa4faab86d6a3c0081251))
+* Improve details panel and replicates input ([be5b085](https://github.com/brysontang/crystallize/commit/be5b08500d3e134242062eb25178a443d04d1447))
+
+
+### Bug Fixes
+
+* Buttons on bottom of run no longer stack ([3224ca9](https://github.com/brysontang/crystallize/commit/3224ca9a7277e07af6ab1c70409c97cef8cc584a))
+* **cli:** Allow selecting outputs with space ([9b6ae95](https://github.com/brysontang/crystallize/commit/9b6ae9508df51107109e75837510dca2e0a8209d))
+* Crash if not deletable ([b89ec5a](https://github.com/brysontang/crystallize/commit/b89ec5aafa85a5b76a08a13257905cb29bac07e2))
+* **crystallize-ml:** Refine cli presentation ([12c2ad7](https://github.com/brysontang/crystallize/commit/12c2ad7c91dc91ac2c15862eeadc0231e07153bd))
+* Don't close creator on error ([5d19a5c](https://github.com/brysontang/crystallize/commit/5d19a5cc0d755c99f3a394e5f90af4732f0a1c91))
+* Enter runs experiment ([83af0c6](https://github.com/brysontang/crystallize/commit/83af0c63a0a799fd526647a594edcab042bdd928))
+* Failing test ([effe292](https://github.com/brysontang/crystallize/commit/effe292f20957e94900141fa2524ae903146dc70))
+* Made two columns ([5cb562d](https://github.com/brysontang/crystallize/commit/5cb562dccb6719332fee066ecb1f35ccfaeadc4e))
+* Plain text toggle works ([3224ca9](https://github.com/brysontang/crystallize/commit/3224ca9a7277e07af6ab1c70409c97cef8cc584a))
+* Removed [dim] ([b89ec5a](https://github.com/brysontang/crystallize/commit/b89ec5aafa85a5b76a08a13257905cb29bac07e2))
+* Run and replicate button now aligned vertically ([6df5ebd](https://github.com/brysontang/crystallize/commit/6df5ebd97f79fcd9d44ddcd4dee907bd617b76a3))
+* Use enter to select input in creator ([9250b27](https://github.com/brysontang/crystallize/commit/9250b27ec07c9c348367c17731249f6aa8736a48))
+
+
+### Documentation
+
+* Note replicates editing in selection screen ([202d665](https://github.com/brysontang/crystallize/commit/202d66571be6ad50a305d6ca72a10a569cdd422c))
+
 ## [0.22.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.21.0...crystallize-ml@v0.22.0) (2025-07-27)
 
 

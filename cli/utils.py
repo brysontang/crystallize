@@ -75,7 +75,8 @@ def _write_experiment_summary(log: RichLog, result: Any) -> None:
     if result.errors:
         log.write("[bold red]Errors occurred[/]")
         for cond, err in result.errors.items():
-            log.write(f"{cond}: {err}")
+            traceback_str = getattr(err, "traceback_str", str(err))
+            log.write(f"[bold yellow]{cond}:[/]\n{traceback_str}")
 
 
 def _write_summary(log: RichLog, result: Any) -> None:

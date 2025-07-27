@@ -21,24 +21,34 @@ class CLIStatusPlugin(BasePlugin):
     completed: int = field(init=False, default=0)
     steps: List[str] = field(init=False, default_factory=list)
 
+    # Add this flag
+    sent_start: bool = field(init=False, default=False)
+
     def before_run(self, experiment: Experiment) -> None:
-        self.steps = [step.__class__.__name__ for step in experiment.pipeline.steps]
-        self.total_steps = len(self.steps)
-        self.total_replicates = experiment.replicates
-        self.total_conditions = len(experiment.treatments) + 1
+        # This hook is now only for internal setup, not for callbacks.
         self.completed = 0
-        self.callback(
-            "start",
-            {
-                "steps": self.steps,
-                "replicates": self.total_replicates,
-                "total": self.total_steps
-                * self.total_replicates
-                * self.total_conditions,
-            },
-        )
+        self.sent_start = False
 
     def before_replicate(self, experiment: Experiment, ctx: FrozenContext) -> None:
+        # Move the 'start' event logic here, guarded by the flag
+        if not self.sent_start:
+            self.steps = [step.__class__.__name__ for step in experiment.pipeline.steps]
+            self.total_steps = len(self.steps)
+            self.total_replicates = experiment.replicates
+            self.total_conditions = len(experiment.treatments) + 1
+            self.callback(
+                "start",
+                {
+                    "steps": self.steps,
+                    "replicates": self.total_replicates,
+                    "total": self.total_steps
+                    * self.total_replicates
+                    * self.total_conditions,
+                },
+            )
+            self.sent_start = True
+
+        # Original before_replicate logic follows
         rep = ctx.get(REPLICATE_KEY, 0) + 1
         condition = ctx.get(CONDITION_KEY, BASELINE_CONDITION)
         if condition == BASELINE_CONDITION:

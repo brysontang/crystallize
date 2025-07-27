@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import shutil
 import sys
+import traceback
 from pathlib import Path
 from typing import Any, Callable, List, Tuple
+import queue  # Import queue
 
 import networkx as nx
 from rich.text import Text
@@ -15,13 +17,18 @@ from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
 from textual.message import Message
 from textual.reactive import reactive
-from textual.widgets import Button, Header, RichLog, Static
 from textual.screen import ModalScreen
+from textual.widgets import Button, Header, RichLog, Static
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.plugins.plugins import ArtifactPlugin
 from ..status_plugin import CLIStatusPlugin
+from ..discovery import _run_object
+from ..widgets.writer import WidgetWriter
+from .delete_data import ConfirmScreen
+from .prepare_run import PrepareRunScreen
+from .summary import SummaryScreen
 
 
 def _inject_status_plugin(
@@ -36,13 +43,6 @@ def _inject_status_plugin(
     else:
         if obj.get_plugin(CLIStatusPlugin) is None:
             obj.plugins.append(CLIStatusPlugin(callback))
-
-
-from ..discovery import _run_object
-from ..widgets.writer import WidgetWriter
-from .delete_data import ConfirmScreen
-from .prepare_run import PrepareRunScreen
-from .summary import SummaryScreen
 
 
 class RunScreen(ModalScreen[None]):
@@ -76,6 +76,7 @@ class RunScreen(ModalScreen[None]):
         self._strategy = strategy
         self._replicates = replicates
         self._result: Any = None
+        self.event_queue = queue.Queue()
 
     def watch_node_states(self) -> None:
         if not isinstance(self._obj, ExperimentGraph):
@@ -169,9 +170,14 @@ class RunScreen(ModalScreen[None]):
     def open_summary_screen(self, result: Any) -> None:
         self.app.push_screen(SummaryScreen(result))
 
-    def status_event(self, event: str, info: dict[str, Any]) -> None:
-        """A picklable callback method for the CLIStatusPlugin."""
-        self.app.call_from_thread(self._handle_status_event, event, info)
+    def process_queue(self) -> None:
+        """Polls the queue and processes events from the worker thread."""
+        try:
+            while not self.event_queue.empty():
+                event, info = self.event_queue.get_nowait()
+                self._handle_status_event(event, info)
+        except queue.Empty:
+            pass
 
     def on_mount(self) -> None:
         if isinstance(self._obj, ExperimentGraph):
@@ -179,7 +185,12 @@ class RunScreen(ModalScreen[None]):
             self.query_one("#dag-display").remove_class("hidden")
         log = self.query_one("#live_log", RichLog)
 
-        _inject_status_plugin(self._obj, self.status_event)
+        def queue_callback(event: str, info: dict[str, Any]) -> None:
+            """A simple, thread-safe callback that puts events onto a queue."""
+            self.event_queue.put((event, info))
+
+        _inject_status_plugin(self._obj, queue_callback)
+        self.queue_timer = self.set_interval(1 / 15, self.process_queue)
 
         async def progress_callback(status: str, name: str) -> None:
             self.app.call_from_thread(
@@ -206,8 +217,11 @@ class RunScreen(ModalScreen[None]):
 
                 result = asyncio.run(run_with_callback())
 
-            except Exception as e:  # pragma: no cover - runtime path
-                print(f"[bold red]An error occurred in the worker:\n{e}[/bold red]")
+            except Exception:
+                tb_str = traceback.format_exc()
+                print(
+                    f"[bold red]An error occurred in the worker:\n{tb_str}[/bold red]"
+                )
             finally:
                 sys.stdout = original_stdout
                 self.app.call_from_thread(
@@ -217,24 +231,31 @@ class RunScreen(ModalScreen[None]):
         self.worker = self.run_worker(run_experiment_sync, thread=True)
 
     def on_experiment_complete(self, message: ExperimentComplete) -> None:
+        self.process_queue()  # Process any final messages
         self._result = message.result
         try:
             if self._result is not None:
                 self.open_summary_screen(self._result)
             self.query_one("#close_run").remove_class("hidden")
-        except NoMatches:  # pragma: no cover - widget missing
+        except NoMatches:
             pass
 
-    def action_cancel_and_exit(self) -> None:
-        if self.worker and not self.worker.is_finished:
+    def on_unmount(self) -> None:
+        """Clean up resources when the screen is removed."""
+        if hasattr(self, "queue_timer"):
+            self.queue_timer.stop()
+        if hasattr(self, "worker") and not self.worker.is_finished:
             self.worker.cancel()
+
+    def action_cancel_and_exit(self) -> None:
         self.app.pop_screen()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "close_run":
             self.app.pop_screen()
         elif event.button.id == "summary":
-            self.open_summary_screen(self._result)
+            if self._result is not None:
+                self.open_summary_screen(self._result)
 
 
 async def _launch_run(app: App, obj: Any) -> None:

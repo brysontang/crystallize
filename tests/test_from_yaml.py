@@ -68,6 +68,13 @@ def test_experiment_from_yaml(tmp_path: Path):
 
 def test_graph_from_yaml(tmp_path: Path):
     exp_dir = create_exp(tmp_path)
+    graph = ExperimentGraph.from_yaml(exp_dir / "config.yaml")
+    res = graph.run()
+    assert res[exp_dir.name].metrics.baseline.metrics["val"] == [2]
+
+
+def test_graph_from_yaml_directory(tmp_path: Path):
+    exp_dir = create_exp(tmp_path)
     graph = ExperimentGraph.from_yaml(tmp_path)
     res = graph.run()
     assert res[exp_dir.name].metrics.baseline.metrics["val"] == [2]
@@ -279,3 +286,61 @@ def test_from_yaml_unused_output(tmp_path: Path):
 
     with pytest.raises(ValueError, match="unused"):
         Experiment.from_yaml(exp_dir / "config.yaml")
+
+
+def test_graph_from_yaml_recursive(tmp_path: Path):
+    prod_dir = create_exp(tmp_path, name="producer")
+    prod = Experiment.from_yaml(prod_dir / "config.yaml")
+    prod.validate()
+    prod.run()
+
+    cons = tmp_path / "consumer"
+    cons.mkdir()
+    (cons / "datasources.py").write_text(
+        "from crystallize import data_source\n"
+        "@data_source\n"
+        "def dummy(ctx):\n    return 0\n"
+    )
+    (cons / "steps.py").write_text(
+        "from crystallize import pipeline_step\n"
+        "@pipeline_step()\n"
+        "def passthrough(data, ctx):\n    ctx.metrics.add('val', 0)\n    return {'val': 0}\n"
+    )
+    cfg = {
+        "name": "consumer",
+        "datasource": {"prev": "producer#artifact"},
+        "steps": ["passthrough"],
+        "treatments": {},
+        "hypotheses": [],
+    }
+    (cons / "config.yaml").write_text(yaml.safe_dump(cfg))
+
+    graph = ExperimentGraph.from_yaml(cons / "config.yaml")
+    res = graph.run()
+    assert "consumer" in res
+
+
+def test_graph_from_yaml_missing(tmp_path: Path):
+    d = tmp_path / "final"
+    d.mkdir()
+    (d / "datasources.py").write_text(
+        "from crystallize import data_source\n"
+        "@data_source\n"
+        "def dummy(ctx):\n    return 0\n"
+    )
+    (d / "steps.py").write_text(
+        "from crystallize import pipeline_step\n"
+        "@pipeline_step()\n"
+        "def passthrough(data, ctx):\n    ctx.metrics.add('val', 0)\n    return {'val': 0}\n"
+    )
+    cfg = {
+        "name": "final",
+        "datasource": {"prev": "missing#artifact"},
+        "steps": ["passthrough"],
+        "treatments": {},
+        "hypotheses": [],
+    }
+    (d / "config.yaml").write_text(yaml.safe_dump(cfg))
+
+    with pytest.raises(FileNotFoundError):
+        ExperimentGraph.from_yaml(d / "config.yaml")

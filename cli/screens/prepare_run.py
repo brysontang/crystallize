@@ -23,19 +23,27 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
         ("ctrl+c", "cancel_and_exit", "Cancel"),
         ("escape", "cancel_and_exit", "Cancel"),
         ("q", "cancel_and_exit", "Close"),
+        ("r", "run", "Run"),
     ]
 
     def __init__(self, deletable: List[Tuple[str, Path]]) -> None:
         super().__init__()
         self._deletable = deletable
-        self._strategy: str | None = None
+        self._strategy: str | None = "rerun"
 
     def compose(self) -> ComposeResult:
         with Container(id="prepare-run-container"):
             yield Static("Configure Run", id="modal-title")
+            yield Static("Press r to run", id="run-hint")
+
             self.options = SingleSelectionList(
-                Selection("resume", "resume", id="resume"),
-                Selection("rerun", "rerun", id="rerun"),
+                Selection(
+                    "rerun - Will overwrite existing data",
+                    "rerun",
+                    id="rerun",
+                    initial_state=True,
+                ),
+                Selection("resume - Will skip existing data", "resume", id="resume"),
                 id="run-method",
             )
             yield self.options
@@ -65,9 +73,17 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
             if self._strategy == "resume" and self._deletable:
                 self.list.remove_class("invisible")
                 self.query_one("#delete-info").remove_class("invisible")
-            elif self._deletable:
+            elif self._strategy == "rerun" and self._deletable:
                 self.query_one("#delete-info").add_class("invisible")
                 self.list.add_class("invisible")
+
+    def action_run(self) -> None:
+        if self._strategy is None:
+            self.query_one("#run-feedback", Static).update(
+                f"[red]Select a run strategy to continue[/red]"
+            )
+            return
+        self.dismiss((self._strategy, ()))
 
     def on_actionable_selection_list_submitted(
         self, message: ActionableSelectionList.Submitted

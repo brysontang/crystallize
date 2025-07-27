@@ -1,6 +1,6 @@
 #create-exp-container {
     layout: vertical;
-    width: 70%;
+    width: 90%;
     height: auto;
     border: round $primary-darken-1;
     background: $panel-darken-1;
@@ -49,8 +49,8 @@ SelectionList {
 }
 
 .button-row {
-    align-horizontal: center;
-    margin-top: 2;
+    height: auto;
+    align-horizontal: left;
 }
 
 Button {
@@ -65,4 +65,10 @@ Button:hover {
 #name-feedback {
     height: 1;
     color: $text-muted;
+}
+
+#out-tree {
+    height: auto;
+    margin: 0 0 1 0;
+    width: 100%;
 }

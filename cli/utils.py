@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from rich.table import Table
 from rich.text import Text
@@ -28,6 +28,12 @@ def _build_experiment_table(result: Any) -> Optional[Table]:
             row.append(str(metrics.treatments[t].metrics.get(name)))
         table.add_row(*row)
     return table
+
+
+def filter_mapping(mapping: Dict[str, Any], query: str) -> Dict[str, Any]:
+    """Return subset of mapping where key contains ``query`` (case-insensitive)."""
+    q = query.lower()
+    return {k: v for k, v in mapping.items() if q in k.lower()}
 
 
 def _build_hypothesis_tables(result: Any) -> list[Table]:

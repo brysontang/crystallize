@@ -10,10 +10,12 @@ from textual.containers import Container, Horizontal
 from textual.css.query import NoMatches
 from textual.screen import Screen
 from textual.widgets import (
+    Button,
     Footer,
     Header,
     ListItem,
     ListView,
+    Input,
     LoadingIndicator,
     Static,
     TabbedContent,
@@ -34,11 +36,21 @@ class SelectionScreen(Screen):
         ("r", "refresh", "Refresh"),
         ("c", "create_experiment", "Create Experiment"),
         ("e", "show_errors", "Errors"),
+        ("enter", "run_selected", "Run"),
     ]
 
     def __init__(self) -> None:
         super().__init__()
         self._load_errors: Dict[str, BaseException] = {}
+        self._experiments: Dict[str, Any] = {}
+        self._graphs: Dict[str, Any] = {}
+        self._selected_obj: Any | None = None
+
+    async def _filter_list(self, query: str, selector: str) -> None:
+        list_view = self.query_one(selector, ListView)
+        for item in list_view.children:
+            label = item.data.get("label", "").lower()
+            item.display = query.lower() in label
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -72,6 +84,8 @@ class SelectionScreen(Screen):
         worker = self.run_worker(self._discover_sync, thread=True)
         graphs, experiments, errors = await worker.wait()
         self._load_errors = errors
+        self._experiments = experiments
+        self._graphs = graphs
 
         main_container = self.query_one("#main-container")
         await main_container.remove_children()
@@ -92,6 +106,8 @@ class SelectionScreen(Screen):
             tab_pane_exp = TabPane("Experiments", id="experiments")
             await tabbed_content.add_pane(tab_pane_exp)
 
+            search_exp = Input(placeholder="Search experiments...", id="search-exp")
+            await tab_pane_exp.mount(search_exp)
             list_view_exp = ListView(classes="experiment-list")
             await tab_pane_exp.mount(list_view_exp)
 
@@ -108,6 +124,7 @@ class SelectionScreen(Screen):
                     )
                 item.data = {
                     "obj": obj,
+                    "label": label,
                     "type": "Experiment",
                     "doc": obj.__doc__ or "No documentation available.",
                 }
@@ -118,6 +135,8 @@ class SelectionScreen(Screen):
             tab_pane_graph = TabPane("Graphs", id="graphs")
             await tabbed_content.add_pane(tab_pane_graph)
 
+            search_graph = Input(placeholder="Search graphs...", id="search-graph")
+            await tab_pane_graph.mount(search_graph)
             list_view_graph = ListView(classes="graph-list")
             await tab_pane_graph.mount(list_view_graph)
 
@@ -134,6 +153,7 @@ class SelectionScreen(Screen):
                     )
                 item.data = {
                     "obj": obj,
+                    "label": label,
                     "type": "Graph",
                     "doc": obj.__doc__ or "No documentation available.",
                 }
@@ -147,6 +167,7 @@ class SelectionScreen(Screen):
         right_panel = Container(classes="right-panel")
         await horizontal.mount(right_panel)
         await right_panel.mount(Static(id="details", classes="details-panel"))
+        await right_panel.mount(Button("Run", id="run-btn"))
 
         if self._load_errors:
             await main_container.mount(
@@ -167,18 +188,35 @@ class SelectionScreen(Screen):
     async def _run_interactive_and_exit(self, obj: Any) -> None:
         await _launch_run(self.app, obj)
 
+    def action_run_selected(self) -> None:
+        if self._selected_obj is not None:
+            self.run_worker(self._run_interactive_and_exit(self._selected_obj))
+
     async def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         if event.item is not None:
             data = event.item.data
             details = self.query_one("#details", Static)
             details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
+            self._selected_obj = data["obj"]
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
-        obj = event.item.data["obj"]
-        self.run_worker(self._run_interactive_and_exit(obj))
+        data = event.item.data
+        details = self.query_one("#details", Static)
+        details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
+        self._selected_obj = data["obj"]
+
+    async def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "search-exp":
+            await self._filter_list(event.value, ".experiment-list")
+        elif event.input.id == "search-graph":
+            await self._filter_list(event.value, ".graph-list")
 
     def action_show_errors(self) -> None:
         if self._load_errors:
             from ..screens.load_errors import LoadErrorsScreen
 
             self.app.push_screen(LoadErrorsScreen(self._load_errors))
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "run-btn":
+            self.action_run_selected()

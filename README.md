@@ -115,7 +115,10 @@ The selection screen now groups experiments and graphs into collapsible trees
 using these settings. Clicking a node shows its details in the right panel with
 a **Run** button. Press <kbd>Enter</kbd> to run the highlighted object.
 
-Press ``c`` in the main screen to scaffold a new experiment folder.
+Press ``c`` in the main screen to scaffold a new experiment folder. The details
+panel also displays the current replicate count from each ``config.yaml``. Edit
+the number in the input field and press <kbd>Enter</kbd> to save it back to the
+file.
 
 ```bash
 # Discover and run a single experiment

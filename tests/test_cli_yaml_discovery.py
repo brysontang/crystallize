@@ -3,6 +3,7 @@ from pathlib import Path
 import yaml
 
 from cli.discovery import discover_configs
+from cli.utils import update_replicates
 
 
 def test_yaml_discovery(tmp_path: Path) -> None:
@@ -12,6 +13,7 @@ def test_yaml_discovery(tmp_path: Path) -> None:
         "name": "exp",
         "datasource": {"n": "numbers"},
         "cli": {"group": "Data", "priority": 1, "icon": "X", "color": "#111111"},
+        "replicates": 5,
     }
     (exp_dir / "config.yaml").write_text(yaml.safe_dump(cfg1))
 
@@ -45,10 +47,25 @@ def test_yaml_discovery(tmp_path: Path) -> None:
     assert info["cli"]["priority"] == 1
     assert info["cli"]["icon"] == "X"
     assert info["cli"]["color"] == "#111111"
+    assert info["replicates"] == 5
     default_key = next(
         k for k, v in experiments.items() if v["path"] == other / "config.yaml"
     )
     default_info = experiments[default_key]
     assert default_info["cli"]["group"] == "Experiments"
     assert default_info["cli"]["icon"] == "🧪"
+    assert default_info["replicates"] == 1
     assert not errors
+
+
+def test_update_replicates(tmp_path: Path) -> None:
+    cfg = tmp_path / "config.yaml"
+    with cfg.open("w") as f:
+        yaml.safe_dump({"name": "e", "datasource": {"n": "numbers"}}, f)
+
+    update_replicates(cfg, 7)
+
+    with cfg.open() as f:
+        data = yaml.safe_load(f)
+
+    assert data["replicates"] == 7

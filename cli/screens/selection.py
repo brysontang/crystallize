@@ -13,6 +13,7 @@ from textual.widgets import (
     Button,
     Footer,
     Header,
+    Input,
     LoadingIndicator,
     Static,
     Tree,
@@ -25,6 +26,7 @@ from ..constants import ASCII_ART_ARRAY
 from ..discovery import discover_configs
 from ..screens.create_experiment import CreateExperimentScreen
 from ..screens.run import _launch_run
+from ..utils import update_replicates
 
 
 class SelectionScreen(Screen):
@@ -43,6 +45,16 @@ class SelectionScreen(Screen):
         self._experiments: Dict[str, Dict[str, Any]] = {}
         self._graphs: Dict[str, Dict[str, Any]] = {}
         self._selected_obj: Dict[str, Any] | None = None
+
+    def _update_details(self, data: Dict[str, Any]) -> None:
+        details = self.query_one("#details", Static)
+        info = yaml.safe_load(Path(data["path"]).read_text()) or {}
+        repl = info.get("replicates", data.get("replicates", 1))
+        details.update(
+            f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}\nReplicates: {repl}"
+        )
+        rep_input = self.query_one("#replicate-input", Input)
+        rep_input.value = str(repl)
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -126,6 +138,7 @@ class SelectionScreen(Screen):
         right_panel = Container(classes="right-panel")
         await horizontal.mount(right_panel)
         await right_panel.mount(Static(id="details", classes="details-panel"))
+        await right_panel.mount(Input(id="replicate-input", placeholder="replicates"))
         await right_panel.mount(Button("Run", id="run-btn"))
 
         if self._load_errors:
@@ -162,15 +175,13 @@ class SelectionScreen(Screen):
     async def on_tree_node_highlighted(self, event: Tree.NodeHighlighted) -> None:
         if event.node.data is not None:
             data = event.node.data
-            details = self.query_one("#details", Static)
-            details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
+            self._update_details(data)
             self._selected_obj = data
 
     async def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         if event.node.data is not None:
             data = event.node.data
-            details = self.query_one("#details", Static)
-            details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
+            self._update_details(data)
             self._selected_obj = data
 
     def action_show_errors(self) -> None:
@@ -182,3 +193,14 @@ class SelectionScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":
             self.action_run_selected()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "replicate-input" and self._selected_obj is not None:
+            try:
+                new_val = int(event.value)
+            except ValueError:
+                self.app.bell()
+                return
+            update_replicates(Path(self._selected_obj["path"]), new_val)
+            self._selected_obj["replicates"] = new_val
+            self._update_details(self._selected_obj)

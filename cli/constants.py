@@ -247,4 +247,10 @@ Input:focus {
 .invisible {
     display: none;
 }
+
+#button-container {
+    height: auto;
+    layout: horizontal;
+    margin: 1 0;
+}
 """

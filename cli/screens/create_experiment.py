@@ -186,7 +186,7 @@ class CreateExperimentScreen(ModalScreen[None]):
         if event.button.id == "create" and self.name_valid:
             self._create()
         else:
-            self.dismiss(None)
+            return
 
     def _create(self) -> None:
         name = self.query_one("#name-input", Input).value.strip()

@@ -17,6 +17,7 @@ from textual.widgets import (
     Static,
     Tree,
 )
+from textual.binding import Binding
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -25,6 +26,27 @@ from ..constants import ASCII_ART_ARRAY
 from ..discovery import discover_configs
 from ..screens.create_experiment import CreateExperimentScreen
 from ..screens.run import _launch_run
+
+
+class ExperimentTree(Tree):
+    """Tree widget with custom binding for experiment selection."""
+
+    BINDINGS = [b for b in Tree.BINDINGS if getattr(b, "key", "") != "enter"] + [
+        Binding("enter", "run_selected", "Run", show=True)
+    ]
+
+    def action_run_selected(self) -> None:  # pragma: no cover - delegates
+        screen = self.screen
+        if screen is not None and hasattr(screen, "action_run_selected"):
+            screen.action_run_selected()
+
+        try:
+            line = self._tree_lines[self.cursor_line]
+        except IndexError:
+            pass
+        else:
+            node = line.path[-1]
+            self.post_message(Tree.NodeSelected(node))
 
 
 class SelectionScreen(Screen):
@@ -93,7 +115,7 @@ class SelectionScreen(Screen):
         left_panel = Container(classes="left-panel")
         await horizontal.mount(left_panel)
 
-        tree = Tree("root", id="object-tree")
+        tree = ExperimentTree("root", id="object-tree")
         tree.show_root = False
         await left_panel.mount(tree)
 
@@ -165,6 +187,10 @@ class SelectionScreen(Screen):
             details = self.query_one("#details", Static)
             details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
             self._selected_obj = data
+        else:
+            details = self.query_one("#details", Static)
+            details.update("")
+            self._selected_obj = None
 
     async def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         if event.node.data is not None:

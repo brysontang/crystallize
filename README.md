@@ -99,10 +99,21 @@ Crystallize ships with an interactive CLI for discovering and executing
 experiments or experiment graphs. After each run, the summary screen now displays
 both recorded metrics and hypothesis results.
 
-Use the search field above each list to quickly filter experiments or graphs.
-Clicking an item shows its details in the right panel with a **Run** button to
-start execution. Pressing <kbd>Enter</kbd> while a list is focused also runs the
-selected object.
+Experiments can define a `cli` section in `config.yaml` to control how they
+appear in the interface:
+
+```yaml
+cli:
+  group: "Data Preprocessing"  # Collapsible group name
+  priority: 1                  # Sorting within a group (lower first)
+  icon: "📊"                   # Emoji shown next to the name
+  color: "#85C1E9"             # Hex color for the label
+  hidden: false               # If true, the experiment is ignored
+```
+
+The selection screen now groups experiments and graphs into collapsible trees
+using these settings. Clicking a node shows its details in the right panel with
+a **Run** button. Press <kbd>Enter</kbd> to run the highlighted object.
 
 Press ``c`` in the main screen to scaffold a new experiment folder.
 

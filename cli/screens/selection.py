@@ -8,19 +8,14 @@ import yaml
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
-from textual.css.query import NoMatches
 from textual.screen import Screen
 from textual.widgets import (
     Button,
     Footer,
     Header,
-    Input,
-    ListItem,
-    ListView,
     LoadingIndicator,
     Static,
-    TabbedContent,
-    TabPane,
+    Tree,
 )
 
 from crystallize.experiments.experiment import Experiment
@@ -48,12 +43,6 @@ class SelectionScreen(Screen):
         self._experiments: Dict[str, Dict[str, Any]] = {}
         self._graphs: Dict[str, Dict[str, Any]] = {}
         self._selected_obj: Dict[str, Any] | None = None
-
-    async def _filter_list(self, query: str, selector: str) -> None:
-        list_view = self.query_one(selector, ListView)
-        for item in list_view.children:
-            label = item.data.get("label", "").lower()
-            item.display = query.lower() in label
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -104,72 +93,35 @@ class SelectionScreen(Screen):
         left_panel = Container(classes="left-panel")
         await horizontal.mount(left_panel)
 
-        tabbed_content = TabbedContent()
-        await left_panel.mount(tabbed_content)
+        tree = Tree("root", id="object-tree")
+        tree.show_root = False
+        await left_panel.mount(tree)
 
-        initial_tab = None
+        groups: dict[str, list[tuple[str, Dict[str, Any]]]] = {}
+        for label, info in graphs.items():
+            groups.setdefault(info["cli"]["group"], []).append(("Graph", info))
+        for label, info in experiments.items():
+            groups.setdefault(info["cli"]["group"], []).append(("Experiment", info))
 
-        if graphs:
-            tab_pane_graph = TabPane("Graphs", id="graphs")
-            await tabbed_content.add_pane(tab_pane_graph)
-
-            search_graph = Input(placeholder="Search graphs...", id="search-graph")
-            await tab_pane_graph.mount(search_graph)
-            list_view_graph = ListView(classes="graph-list")
-            await tab_pane_graph.mount(list_view_graph)
-
-            for label, info in graphs.items():
-                item = ListItem(classes="graph-item")
-                await list_view_graph.append(item)
-                await item.mount(Static(Text(f"📈 {label}")))
-                if info["description"]:
-                    await item.mount(
-                        Static(
-                            info["description"].strip()[:200] + "...",
-                            classes="item-doc dim",
-                        )
-                    )
-                item.data = {
-                    "path": info["path"],
-                    "label": label,
-                    "type": "Graph",
-                    "doc": info["description"] or "No description available.",
-                }
-
-            initial_tab = "graphs"
-
-        if experiments:
-            tab_pane_exp = TabPane("Experiments", id="experiments")
-            await tabbed_content.add_pane(tab_pane_exp)
-
-            search_exp = Input(placeholder="Search experiments...", id="search-exp")
-            await tab_pane_exp.mount(search_exp)
-            list_view_exp = ListView(classes="experiment-list")
-            await tab_pane_exp.mount(list_view_exp)
-
-            for label, info in experiments.items():
-                item = ListItem(classes="experiment-item")
-                await list_view_exp.append(item)
-                await item.mount(Static(Text(f"🧪 {label}")))
-                if info["description"]:
-                    await item.mount(
-                        Static(
-                            info["description"].strip()[:200] + "...",
-                            classes="item-doc dim",
-                        )
-                    )
-                item.data = {
-                    "path": info["path"],
-                    "label": label,
-                    "type": "Experiment",
-                    "doc": info["description"] or "No description available.",
-                }
-
-            if initial_tab is None:
-                initial_tab = "experiments"
-
-        if initial_tab:
-            tabbed_content.active = initial_tab
+        for group_name in sorted(groups):
+            parent = tree.root.add(group_name, expand=True)
+            items = sorted(groups[group_name], key=lambda t: t[1]["cli"]["priority"])
+            for obj_type, info in items:
+                label = info["label"]
+                icon = info["cli"]["icon"]
+                color = info["cli"].get("color")
+                text = Text(f"{icon} {label} ({obj_type})")
+                if color:
+                    text.stylize(color)
+                parent.add_leaf(
+                    text,
+                    {
+                        "path": info["path"],
+                        "label": label,
+                        "type": obj_type,
+                        "doc": info["description"] or "No description available.",
+                    },
+                )
 
         right_panel = Container(classes="right-panel")
         await horizontal.mount(right_panel)
@@ -184,13 +136,7 @@ class SelectionScreen(Screen):
                 )
             )
 
-        try:
-            self.query_one(".graph-list", ListView).focus()
-        except NoMatches:
-            try:
-                self.query_one(".experiment-list", ListView).focus()
-            except NoMatches:
-                pass
+        tree.focus()
 
     async def _run_interactive_and_exit(self, info: Dict[str, Any]) -> None:
         cfg = info["path"]
@@ -213,24 +159,19 @@ class SelectionScreen(Screen):
         if self._selected_obj is not None:
             self.run_worker(self._run_interactive_and_exit(self._selected_obj))
 
-    async def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
-        if event.item is not None:
-            data = event.item.data
+    async def on_tree_node_highlighted(self, event: Tree.NodeHighlighted) -> None:
+        if event.node.data is not None:
+            data = event.node.data
             details = self.query_one("#details", Static)
             details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
             self._selected_obj = data
 
-    async def on_list_view_selected(self, event: ListView.Selected) -> None:
-        data = event.item.data
-        details = self.query_one("#details", Static)
-        details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
-        self._selected_obj = data
-
-    async def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id == "search-exp":
-            await self._filter_list(event.value, ".experiment-list")
-        elif event.input.id == "search-graph":
-            await self._filter_list(event.value, ".graph-list")
+    async def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
+        if event.node.data is not None:
+            data = event.node.data
+            details = self.query_one("#details", Static)
+            details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
+            self._selected_obj = data
 
     def action_show_errors(self) -> None:
         if self._load_errors:

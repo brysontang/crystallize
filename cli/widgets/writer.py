@@ -39,11 +39,16 @@ import os
 class WidgetWriter:
     """A thread-safe, file-like object that writes to a RichLog widget."""
 
-    def __init__(self, widget, app) -> None:
+    def __init__(self, widget, app, history: list[str] | None = None) -> None:
         self.widget = widget
         self.app = app
+        self.history = history
 
     def write(self, message: str) -> None:
+        if self.history is not None:
+            # Store the raw message in our history list
+            self.history.append(message)
+
         if message:
             self.app.call_from_thread(self.widget.write, message)
             self.app.call_from_thread(self.widget.refresh)

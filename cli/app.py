@@ -25,6 +25,11 @@ class CrystallizeApp(App):
 
     CSS = CSS
 
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("ctrl+c", "quit", "Quit"),
+    ]
+
     def on_mount(self) -> None:
         self.push_screen(SelectionScreen())
 

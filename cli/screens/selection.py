@@ -33,7 +33,6 @@ class SelectionScreen(Screen):
         ("q", "quit", "Quit"),
         ("r", "refresh", "Refresh"),
         ("c", "create_experiment", "Create Experiment"),
-        ("ctrl+c", "quit", "Quit"),
         ("e", "show_errors", "Errors"),
     ]
 
@@ -183,4 +182,3 @@ class SelectionScreen(Screen):
             from ..screens.load_errors import LoadErrorsScreen
 
             self.app.push_screen(LoadErrorsScreen(self._load_errors))
-

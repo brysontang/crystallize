@@ -105,10 +105,71 @@ class ExperimentGraph:
     # ------------------------------------------------------------------ #
 
     @classmethod
-    def from_yaml(cls, directory: str | Path) -> "ExperimentGraph":
-        """Load all experiments in ``directory`` and build a graph."""
+    def from_yaml(cls, config: str | Path) -> "ExperimentGraph":
+        """Load an experiment graph starting from ``config``.
 
-        base = Path(directory)
+        The ``config`` argument should point to a ``config.yaml`` file for the
+        final experiment. All upstream experiments referenced via
+        ``experiment#artifact`` notation are discovered recursively in sibling
+        directories.
+        """
+
+        path = Path(config)
+
+        if path.is_dir():
+            return cls._from_directory(path)
+
+        root = path.parent.parent
+        loaded: dict[str, Experiment] = {}
+
+        def _load(cfg: Path) -> None:
+            exp = Experiment.from_yaml(cfg)
+            name = exp.name or cfg.parent.name
+            if name in loaded:  # pragma: no cover - handled via check
+                return
+            loaded[name] = exp
+
+            refs: list[str] = []
+            ds = exp.datasource
+            if isinstance(ds, ExperimentInput):  # pragma: no cover - simple mapping
+                for art in ds._inputs.values():
+                    if isinstance(art, Artifact) and hasattr(art, "_source_experiment"):
+                        refs.append(getattr(art, "_source_experiment"))
+            elif isinstance(ds, Artifact) and hasattr(ds, "_source_experiment"):
+                refs.append(getattr(ds, "_source_experiment"))
+
+            for ref in refs:
+                if ref in loaded:
+                    continue
+                upstream_cfg = root / ref / "config.yaml"
+                if not upstream_cfg.exists():  # pragma: no cover - user error
+                    raise FileNotFoundError(f"Experiment '{ref}' not found")
+                _load(upstream_cfg)
+
+        _load(path)
+
+        for exp in loaded.values():
+            ds = exp.datasource
+            if isinstance(ds, ExperimentInput):  # pragma: no cover - integration tested
+                updated = {}
+                for alias, art in ds._inputs.items():
+                    if isinstance(art, Artifact) and hasattr(art, "_source_experiment"):
+                        upstream = loaded[getattr(art, "_source_experiment")]
+                        updated[alias] = upstream.outputs[art.name]
+                    else:
+                        updated[alias] = art
+                exp.datasource = ExperimentInput(**updated)
+            elif isinstance(ds, Artifact) and hasattr(ds, "_source_experiment"):
+                upstream = loaded[getattr(ds, "_source_experiment")]
+                exp.datasource = upstream.outputs[ds.name]
+
+        return cls.from_experiments(list(loaded.values()))
+
+    @classmethod
+    def _from_directory(cls, directory: Path) -> "ExperimentGraph":
+        """Legacy loader for directories containing multiple experiments."""
+
+        base = directory
         experiments: list[Experiment] = []
         artifact_map: dict[tuple[str, str], Artifact] = {}
 
@@ -137,6 +198,20 @@ class ExperimentGraph:
                 exp.datasource = artifact_map[key]  # pragma: no cover - integration tested
 
         return cls.from_experiments(experiments)
+
+    # ------------------------------------------------------------------ #
+    @classmethod
+    def visualize_from_yaml(cls, config: str | Path) -> None:  # pragma: no cover - utility
+        """Print dependencies and execution order for a YAML graph."""
+
+        graph = cls.from_yaml(config)
+
+        print("Dependencies:")
+        for up, down in graph._graph.edges():
+            print(f"{up} -> {down}")
+
+        order = list(nx.topological_sort(graph._graph))
+        print("Execution order:", " -> ".join(order))
 
     # ------------------------------------------------------------------ #
     def add_experiment(self, experiment: Experiment) -> None:

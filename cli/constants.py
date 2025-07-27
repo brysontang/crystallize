@@ -233,4 +233,14 @@ ListItem:hover {
     color: $error;
     margin-top: 1;
 }
+
+Input {
+    border: tall $secondary;
+    margin-bottom: 1;
+    width: 100%;
+}
+
+Input:focus {
+    border: tall $accent;
+}
 """

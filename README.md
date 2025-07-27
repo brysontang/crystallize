@@ -99,6 +99,11 @@ Crystallize ships with an interactive CLI for discovering and executing
 experiments or experiment graphs. After each run, the summary screen now displays
 both recorded metrics and hypothesis results.
 
+Use the search field above each list to quickly filter experiments or graphs.
+Clicking an item shows its details in the right panel with a **Run** button to
+start execution. Pressing <kbd>Enter</kbd> while a list is focused also runs the
+selected object.
+
 Press ``c`` in the main screen to scaffold a new experiment folder.
 
 ```bash

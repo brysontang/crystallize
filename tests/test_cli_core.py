@@ -10,6 +10,7 @@ from cli.utils import (
     _build_hypothesis_tables,
     _write_experiment_summary,
     _write_summary,
+    filter_mapping,
 )
 from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment
@@ -255,3 +256,8 @@ def test_write_summary_dict():
     _write_summary(log, {"exp": res})
     assert any(str(m) == "exp" for m in log.written if not hasattr(m, "columns"))
     assert any(hasattr(m, "columns") for m in log.written)
+
+
+def test_filter_mapping():
+    data = {"ExpOne": 1, "Another": 2, "expTwo": 3}
+    assert filter_mapping(data, "exp") == {"ExpOne": 1, "expTwo": 3}

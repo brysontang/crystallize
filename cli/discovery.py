@@ -108,12 +108,43 @@ def discover_configs(
                 data = yaml.safe_load(f) or {}
             name = data.get("name", cfg.parent.name)
             desc = data.get("description", "")
+            info_lines = []
+            if desc:
+                info_lines.append(desc)
+            if "replicates" in data:
+                info_lines.append(f"Replicates: {data['replicates']}")
+            if "steps" in data:
+                steps = data["steps"]
+                count = len(steps) if isinstance(steps, list) else 0
+                info_lines.append(f"Steps: {count}")
+            datasource = data.get("datasource")
+            if datasource is not None:
+                if isinstance(datasource, dict):
+                    info_lines.append(
+                        "Datasource: " + ", ".join(sorted(datasource.keys()))
+                    )
+                else:
+                    info_lines.append("Datasource: configured")
+            if "treatments" in data:
+                tr = data["treatments"]
+                count = len(tr) if isinstance(tr, (list, dict)) else 0
+                info_lines.append(f"Treatments: {count}")
+            if "outputs" in data and isinstance(data["outputs"], dict):
+                info_lines.append(f"Outputs: {len(data['outputs'])}")
+            summary = (
+                "\n".join(info_lines) if info_lines else "No description available."
+            )
             try:
                 rel = cfg.parent.relative_to(cwd)
             except ValueError:
                 rel = cfg.parent
             label = f"{rel} - {name}"
-            info = {"path": cfg, "description": desc, "label": label}
+            info = {
+                "path": cfg,
+                "description": desc,
+                "summary": summary,
+                "label": label,
+            }
             is_graph = _has_ref(data.get("datasource"))
             if is_graph:
                 graphs[label] = info

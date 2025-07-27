@@ -133,7 +133,7 @@ class SelectionScreen(Screen):
                     "path": info["path"],
                     "label": label,
                     "type": "Graph",
-                    "doc": info["description"] or "No description available.",
+                    "doc": info["summary"],
                 }
 
             initial_tab = "graphs"
@@ -162,7 +162,7 @@ class SelectionScreen(Screen):
                     "path": info["path"],
                     "label": label,
                     "type": "Experiment",
-                    "doc": info["description"] or "No description available.",
+                    "doc": info["summary"],
                 }
 
             if initial_tab is None:

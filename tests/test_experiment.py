@@ -136,6 +136,21 @@ def test_experiment_run_treatments_no_hypotheses():
     assert result.metrics.treatments["treat"].metrics["metric"] == [1]
 
 
+def test_treatment_named_baseline_updates_baseline():
+    pipeline = Pipeline([PassStep()])
+    datasource = DummyDataSource()
+    baseline_t = Treatment("baseline", {"increment": 2})
+
+    experiment = Experiment(
+        datasource=datasource,
+        pipeline=pipeline,
+    )
+    experiment.validate()
+    result = experiment.run(treatments=[baseline_t])
+    assert result.metrics.baseline.metrics["metric"] == [2]
+    assert "baseline" not in result.metrics.treatments
+
+
 def test_experiment_run_hypothesis_without_treatments_raises():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()
@@ -612,6 +627,7 @@ def test_process_pool_respects_max_workers(monkeypatch):
     from crystallize.experiments.run_results import ReplicateResult
 
     def dummy_remote(args):
+        # args now include baseline_treatment as last element
         return ReplicateResult(None, None, {}, {}, {}, {})
 
     monkeypatch.setattr(

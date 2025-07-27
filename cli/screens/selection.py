@@ -36,7 +36,6 @@ class SelectionScreen(Screen):
         ("r", "refresh", "Refresh"),
         ("c", "create_experiment", "Create Experiment"),
         ("e", "show_errors", "Errors"),
-        ("enter", "run_selected", "Run"),
     ]
 
     def __init__(self) -> None:
@@ -102,34 +101,6 @@ class SelectionScreen(Screen):
         await left_panel.mount(tabbed_content)
 
         initial_tab = None
-        if experiments:
-            tab_pane_exp = TabPane("Experiments", id="experiments")
-            await tabbed_content.add_pane(tab_pane_exp)
-
-            search_exp = Input(placeholder="Search experiments...", id="search-exp")
-            await tab_pane_exp.mount(search_exp)
-            list_view_exp = ListView(classes="experiment-list")
-            await tab_pane_exp.mount(list_view_exp)
-
-            for label, obj in experiments.items():
-                item = ListItem(classes="experiment-item")
-                await list_view_exp.append(item)
-                await item.mount(Static(Text(f"🧪 {label}")))
-                if obj.__doc__:
-                    await item.mount(
-                        Static(
-                            obj.__doc__.strip()[:200] + "...",
-                            classes="item-doc dim",
-                        )
-                    )
-                item.data = {
-                    "obj": obj,
-                    "label": label,
-                    "type": "Experiment",
-                    "doc": obj.__doc__ or "No documentation available.",
-                }
-
-            initial_tab = "experiments"
 
         if graphs:
             tab_pane_graph = TabPane("Graphs", id="graphs")
@@ -158,8 +129,37 @@ class SelectionScreen(Screen):
                     "doc": obj.__doc__ or "No documentation available.",
                 }
 
+            initial_tab = "graphs"
+
+        if experiments:
+            tab_pane_exp = TabPane("Experiments", id="experiments")
+            await tabbed_content.add_pane(tab_pane_exp)
+
+            search_exp = Input(placeholder="Search experiments...", id="search-exp")
+            await tab_pane_exp.mount(search_exp)
+            list_view_exp = ListView(classes="experiment-list")
+            await tab_pane_exp.mount(list_view_exp)
+
+            for label, obj in experiments.items():
+                item = ListItem(classes="experiment-item")
+                await list_view_exp.append(item)
+                await item.mount(Static(Text(f"🧪 {label}")))
+                if obj.__doc__:
+                    await item.mount(
+                        Static(
+                            obj.__doc__.strip()[:200] + "...",
+                            classes="item-doc dim",
+                        )
+                    )
+                item.data = {
+                    "obj": obj,
+                    "label": label,
+                    "type": "Experiment",
+                    "doc": obj.__doc__ or "No documentation available.",
+                }
+
             if initial_tab is None:
-                initial_tab = "graphs"
+                initial_tab = "experiments"
 
         if initial_tab:
             tabbed_content.active = initial_tab
@@ -178,10 +178,10 @@ class SelectionScreen(Screen):
             )
 
         try:
-            self.query_one(".experiment-list", ListView).focus()
+            self.query_one(".graph-list", ListView).focus()
         except NoMatches:
             try:
-                self.query_one(".graph-list", ListView).focus()
+                self.query_one(".experiment-list", ListView).focus()
             except NoMatches:
                 pass
 

@@ -16,10 +16,24 @@ from textual.widgets import (
     Static,
     Tree,
 )
+from textual.binding import Binding
 from textual.widgets.selection_list import Selection
 
 from ..utils import create_experiment_scaffolding
 from .selection_screens import ActionableSelectionList
+
+
+class OutputTree(Tree):
+    """Tree widget with custom binding for output selection."""
+
+    BINDINGS = [
+        b for b in Tree.BINDINGS if getattr(b, "key", "") != "space"
+    ] + [Binding("space", "toggle_output", "Select", show=True)]
+
+    def action_toggle_output(self) -> None:  # pragma: no cover - delegates
+        screen = self.screen
+        if screen is not None and hasattr(screen, "action_toggle_output"):
+            screen.action_toggle_output()
 
 
 class CreateExperimentScreen(ModalScreen[None]):
@@ -90,7 +104,7 @@ class CreateExperimentScreen(ModalScreen[None]):
 
             with Vertical(id="graph-container", classes="invisible"):
                 with Collapsible(title="Select outputs to use", collapsed=False):
-                    self.out_tree = Tree("root", id="out-tree")
+                    self.out_tree = OutputTree("root", id="out-tree")
                     self.out_tree.show_root = False
                     yield self.out_tree
 

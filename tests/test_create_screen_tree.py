@@ -3,9 +3,8 @@ from pathlib import Path
 import yaml
 import pytest
 from textual.app import App
-from textual.widgets import Tree
 
-from cli.screens.create_experiment import CreateExperimentScreen
+from cli.screens.create_experiment import CreateExperimentScreen, OutputTree
 
 
 @pytest.mark.asyncio
@@ -25,7 +24,7 @@ async def test_output_tree(tmp_path: Path) -> None:
         async with App().run_test() as pilot:
             screen = CreateExperimentScreen()
             await pilot.app.push_screen(screen)
-            tree = screen.query_one("#out-tree", Tree)
+            tree = screen.query_one("#out-tree", OutputTree)
             labels = {str(child.label) for child in tree.root.children}
             assert labels == {"exp1", "exp2"}
     finally:

@@ -8,7 +8,7 @@ from typing import List, Tuple
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
-from textual.widgets import Button, Static
+from textual.widgets import Button, Static, SelectionList
 from textual.widgets.selection_list import Selection
 
 from .selection_screens import ActionableSelectionList, SingleSelectionList
@@ -36,6 +36,7 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
             self.options = SingleSelectionList(
                 Selection("rerun", "rerun", id="rerun"),
                 Selection("resume", "resume", id="resume"),
+                id="run-method",
             )
             yield self.options
             if self._deletable:
@@ -52,8 +53,8 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     def on_mount(self) -> None:
         self.options.focus()
 
-    def on_single_selection_list_selected_changed(
-        self, message: SingleSelectionList.SelectedChanged
+    def on_selection_list_selected_changed(
+        self, message: SelectionList.SelectedChanged
     ) -> None:
         if message.selection_list.selected:
             self._strategy = str(message.selection_list.selected[0])
@@ -68,7 +69,7 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
         if event.button.id == "run":
             if self._strategy is None:
                 self.query_one("#run-feedback", Static).update(
-                    "[red]Select a run strategy to continue[/red]"
+                    f"[red]Select a run strategy to continue[/red]"
                 )
                 return
             selections: tuple[int, ...] = ()

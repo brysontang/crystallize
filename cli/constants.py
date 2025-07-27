@@ -243,4 +243,8 @@ Input {
 Input:focus {
     border: tall $accent;
 }
+
+.invisible {
+    display: none;
+}
 """

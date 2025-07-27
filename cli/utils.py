@@ -75,7 +75,8 @@ def _write_experiment_summary(log: RichLog, result: Any) -> None:
     if result.errors:
         log.write("[bold red]Errors occurred[/]")
         for cond, err in result.errors.items():
-            log.write(f"{cond}: {err}")
+            traceback_str = getattr(err, "traceback_str", str(err))
+            log.write(f"[bold yellow]{cond}:[/]\n{traceback_str}")
 
 
 def _write_summary(log: RichLog, result: Any) -> None:
@@ -111,8 +112,15 @@ def create_experiment_scaffolding(
     outputs: bool = False,
     hypotheses: bool = False,
     examples: bool = False,
+    artifact_inputs: dict[str, str] | None = None,
 ) -> Path:
-    """Create a new experiment folder with optional example code."""
+    """Create a new experiment folder with optional example code.
+
+    Parameters
+    ----------
+    artifact_inputs:
+        Mapping of datasource alias to ``"experiment#output"`` strings.
+    """
 
     if not name or not name.islower() or " " in name:
         raise ValueError("name must be lowercase and contain no spaces")
@@ -123,6 +131,8 @@ def create_experiment_scaffolding(
     exp_dir.mkdir()
 
     config: dict[str, Any] = {"name": name, "datasource": {}, "steps": []}
+    if artifact_inputs:
+        config["datasource"].update(artifact_inputs)
     if outputs:
         config["outputs"] = {}
     if hypotheses:
@@ -177,11 +187,21 @@ def create_experiment_scaffolding(
             hyp_code += "\n@verifier\ndef always_sig(baseline, treatment):\n    return {'p_value': 0.01, 'significant': True}\n"
         (exp_dir / "hypotheses.py").write_text(hyp_code)
 
-    (exp_dir / "main.py").write_text(
-        "from pathlib import Path\n"
-        "from crystallize.experiments.experiment import Experiment\n"
-        "\n"
-        "exp = Experiment.from_yaml(Path(__file__).parent / 'config.yaml')\n"
+    main_code = ""
+
+    experiment_class = "Experiment"
+    if artifact_inputs:
+        experiment_class = "ExperimentGraph"
+
+    main_code += "from pathlib import Path\n"
+    main_code += f"from crystallize import {experiment_class}\n"
+    main_code += "\n"
+    main_code += (
+        f"exp = {experiment_class}.from_yaml(Path(__file__).parent / 'config.yaml')\n"
     )
+    main_code += "\n"
+    main_code += "if __name__ == '__main__':\n"
+    main_code += "    exp.run()\n"
+    (exp_dir / "main.py").write_text(main_code)
 
     return exp_dir

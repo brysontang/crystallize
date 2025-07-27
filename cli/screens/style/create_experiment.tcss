@@ -42,6 +42,12 @@ SelectionList {
     width: 100%;
 }
 
+#graph-container {
+    height: auto;
+    margin: 1 0;
+    width: 100%;
+}
+
 .button-row {
     align-horizontal: center;
     margin-top: 2;
@@ -60,4 +66,3 @@ Button:hover {
     height: 1;
     color: $text-muted;
 }
-

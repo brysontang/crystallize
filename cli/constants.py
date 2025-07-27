@@ -196,6 +196,7 @@ Horizontal {
     padding: 1;
     height: 1fr;
     content-align: left top;
+    overflow: auto;
 }
 
 TabbedContent {
@@ -238,6 +239,11 @@ Input {
     border: tall $secondary;
     margin-bottom: 1;
     width: 100%;
+}
+
+#replicate-input {
+    width: 10;
+    margin-right: 1;
 }
 
 Input:focus {

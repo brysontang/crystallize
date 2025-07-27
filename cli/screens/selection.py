@@ -47,12 +47,41 @@ class SelectionScreen(Screen):
         self._selected_obj: Dict[str, Any] | None = None
 
     def _update_details(self, data: Dict[str, Any]) -> None:
+        """Populate the details panel with information from ``data``."""
+
         details = self.query_one("#details", Static)
         info = yaml.safe_load(Path(data["path"]).read_text()) or {}
+
+        desc = info.get("description", data.get("doc", ""))
         repl = info.get("replicates", data.get("replicates", 1))
-        details.update(
-            f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}\nReplicates: {repl}"
-        )
+        steps = info.get("steps", [])
+        treatments = list((info.get("treatments") or {}).keys())
+        outputs = [
+            v.get("file_name", k) if isinstance(v, dict) else str(v)
+            for k, v in (info.get("outputs") or {}).items()
+        ]
+
+        details_text = [
+            f"[bold]Type: {data['type']}[/bold]",
+            "",
+            desc,
+            f"Replicates: {repl}",
+        ]
+
+        if steps:
+            details_text.append("[bold]Steps:[/bold]")
+            details_text.extend(f"- {s}" for s in steps)
+
+        if treatments:
+            details_text.append("[bold]Treatments:[/bold]")
+            details_text.extend(f"- {t}" for t in treatments)
+
+        if outputs:
+            details_text.append("[bold]Outputs:[/bold]")
+            details_text.extend(f"- {o}" for o in outputs)
+
+        details.update("\n".join(details_text))
+
         rep_input = self.query_one("#replicate-input", Input)
         rep_input.value = str(repl)
 
@@ -138,8 +167,11 @@ class SelectionScreen(Screen):
         right_panel = Container(classes="right-panel")
         await horizontal.mount(right_panel)
         await right_panel.mount(Static(id="details", classes="details-panel"))
-        await right_panel.mount(Input(id="replicate-input", placeholder="replicates"))
-        await right_panel.mount(Button("Run", id="run-btn"))
+
+        btn_container = Container(id="button-container")
+        await right_panel.mount(btn_container)
+        await btn_container.mount(Input(id="replicate-input", placeholder="replicates"))
+        await btn_container.mount(Button("Run", id="run-btn"))
 
         if self._load_errors:
             await main_container.mount(

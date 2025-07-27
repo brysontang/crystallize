@@ -5,6 +5,26 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.22.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.21.0...crystallize-ml@v0.22.0) (2025-07-27)
+
+
+### Features
+
+* **crystallize-ml:** Add search and run controls to selection screen ([08f6e2a](https://github.com/brysontang/crystallize/commit/08f6e2a2dbabc9b2f4c2d80ceec836b35e250704))
+* **crystallize-ml:** Move experiment selection to screen ([b4e1749](https://github.com/brysontang/crystallize/commit/b4e17492a808c4b5efe7ca6c9e1040cee016f4d1))
+* **crystallize-ml:** Refine experiment creator ui ([a0f1549](https://github.com/brysontang/crystallize/commit/a0f15491a8189480bfec5ec0c5f1cc4cfdb173c6))
+* **crystallize-ml:** Show load errors in cli ([fe062ea](https://github.com/brysontang/crystallize/commit/fe062ea7a1b82cb1dd8309191e6f84033a02044d))
+* **crystallize-ml:** Support tuple metrics in pipeline steps ([b92304f](https://github.com/brysontang/crystallize/commit/b92304f69f5938d24c181892169882f85ce7f62e))
+* **crystallize-ml:** Support tuple returns in pipeline steps ([8e62d60](https://github.com/brysontang/crystallize/commit/8e62d60454abf8205a0aeadf9d4eee8834b6b329))
+* **crystallize-ml:** Validate outputs and pickle loaders ([3e5642a](https://github.com/brysontang/crystallize/commit/3e5642ac2ce5660a4b8737962a45abd69925b88c))
+* Display CLI load errors ([be44d7c](https://github.com/brysontang/crystallize/commit/be44d7ca6c1e656cfea55df68332f63de8f29c51))
+* Improve YAML artifact mapping ([f583542](https://github.com/brysontang/crystallize/commit/f5835422780fc6a23bac47e9f9508a21c9601a6c))
+
+
+### Bug Fixes
+
+* Dill issue ([3229589](https://github.com/brysontang/crystallize/commit/322958956f8c5b37b58d5dd0d164c974e434cfb8))
+
 ## [0.21.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.20.2...crystallize-ml@v0.21.0) (2025-07-26)
 
 

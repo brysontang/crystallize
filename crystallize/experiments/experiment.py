@@ -884,7 +884,6 @@ class Experiment:
     def from_yaml(cls, config_path: str | Path) -> "Experiment":
         """Instantiate an experiment from a folder-based YAML config."""
 
-        from importlib import import_module
         import yaml
 
         path = Path(config_path)

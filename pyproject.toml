@@ -42,6 +42,9 @@ crystallize = "cli.app:run"
 where = ["."]
 include = ["crystallize*", "cli*"]
 
+[tool.setuptools.package-data]
+"cli" = ["style/*.tcss", "screens/style/*.tcss"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 

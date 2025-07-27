@@ -11,7 +11,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Static, SelectionList
 from textual.widgets.selection_list import Selection
 
-from .selection_screens import ActionableSelectionList, SingleSelectionList
+from ..widgets import ActionableSelectionList, SingleSelectionList
 
 
 class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):

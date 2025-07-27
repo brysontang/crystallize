@@ -14,34 +14,11 @@ from textual.widgets import (
     Input,
     Label,
     Static,
-    Tree,
 )
-from textual.binding import Binding
 from textual.widgets.selection_list import Selection
 
 from ..utils import create_experiment_scaffolding
-from .selection_screens import ActionableSelectionList
-
-
-class OutputTree(Tree):
-    """Tree widget with custom binding for output selection."""
-
-    BINDINGS = [b for b in Tree.BINDINGS if getattr(b, "key", "") != "enter"] + [
-        Binding("enter", "toggle_output", "Select", show=True)
-    ]
-
-    def action_toggle_output(self) -> None:  # pragma: no cover - delegates
-        screen = self.screen
-        if screen is not None and hasattr(screen, "action_toggle_output"):
-            screen.action_toggle_output()
-
-        try:
-            line = self._tree_lines[self.cursor_line]
-        except IndexError:
-            pass
-        else:
-            node = line.path[-1]
-            self.post_message(Tree.NodeSelected(node))
+from ..widgets import ActionableSelectionList, OutputTree
 
 
 class CreateExperimentScreen(ModalScreen[None]):

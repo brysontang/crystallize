@@ -4,7 +4,8 @@ import yaml
 import pytest
 from textual.app import App
 
-from cli.screens.create_experiment import CreateExperimentScreen, OutputTree
+from cli.screens.create_experiment import CreateExperimentScreen
+from cli.widgets import OutputTree
 
 
 @pytest.mark.asyncio

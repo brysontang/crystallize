@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from textual.app import App
 
-from .constants import CSS
+from .constants import CSS_PATH
 from .discovery import _import_module, _run_object, discover_objects
 from .utils import _build_experiment_table, _write_experiment_summary, _write_summary
 from .screens.selection import SelectionScreen
@@ -23,7 +23,7 @@ __all__ = [
 class CrystallizeApp(App):
     """Textual application for running crystallize objects."""
 
-    CSS = CSS
+    CSS_PATH = CSS_PATH
 
     BINDINGS = [
         ("q", "quit", "Quit"),

@@ -1,5 +1,3 @@
-"""Reusable selection widgets for the CLI."""
-
 from __future__ import annotations
 
 from typing import Any
@@ -13,7 +11,7 @@ class ActionableSelectionList(SelectionList):
     """A SelectionList that emits a Submitted message on Enter."""
 
     class Submitted(Message):
-        def __init__(self, selected: tuple[Any, ...]) -> None:
+        def __init__(self, selected: tuple[Any, ...]) -> None:  # noqa: D401
             self.selected = selected
             super().__init__()
 

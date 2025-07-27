@@ -26,7 +26,7 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     def __init__(self, deletable: List[Tuple[str, Path]]) -> None:
         super().__init__()
         self._deletable = deletable
-        self._strategy = "rerun"
+        self._strategy: str | None = None
 
     def compose(self) -> ComposeResult:
         with Container(id="prepare-run-container"):
@@ -58,10 +58,13 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     def on_actionable_selection_list_submitted(
         self, message: ActionableSelectionList.Submitted
     ) -> None:
-        self.dismiss((self._strategy, message.selected))
+        if self._strategy is not None:
+            self.dismiss((self._strategy, message.selected))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run":
+            if self._strategy is None:
+                return
             selections: tuple[int, ...] = ()
             if hasattr(self, "list"):
                 selections = tuple(

@@ -37,15 +37,9 @@ Label {
     width: 100%;
 }
 
-Checkbox {
+SelectionList {
     margin: 0 0 1 0;
     width: 100%;
-    content-align: left middle;
-    min-width: 20;  /* Ensures enough space for longer labels */
-}
-
-Checkbox:hover {
-    background: $accent-darken-1;
 }
 
 .button-row {

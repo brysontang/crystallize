@@ -7,11 +7,11 @@ from typing import List, Tuple
 
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
-from textual.widgets import Button, OptionList, Static
-from textual.widgets.selection_list import Selection
 from textual.screen import ModalScreen
+from textual.widgets import Button, Static
+from textual.widgets.selection_list import Selection
 
-from .selection_screens import ActionableSelectionList
+from .selection_screens import ActionableSelectionList, SingleSelectionList
 
 
 class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
@@ -31,9 +31,10 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     def compose(self) -> ComposeResult:
         with Container(id="prepare-run-container"):
             yield Static("Configure Run", id="modal-title")
-            self.options = OptionList()
-            self.options.add_option(Selection("rerun", "rerun", id="rerun"))
-            self.options.add_option(Selection("resume", "resume", id="resume"))
+            self.options = SingleSelectionList(
+                Selection("rerun", "rerun", id="rerun"),
+                Selection("resume", "resume", id="resume"),
+            )
             yield self.options
             if self._deletable:
                 yield Static("Select data to delete (optional)", id="delete-info")
@@ -48,10 +49,11 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     def on_mount(self) -> None:
         self.options.focus()
 
-    def on_option_list_option_selected(
-        self, message: OptionList.OptionSelected
+    def on_single_selection_list_selected_changed(
+        self, message: SingleSelectionList.SelectedChanged
     ) -> None:
-        self._strategy = message.option.id
+        if message.selection_list.selected:
+            self._strategy = str(message.selection_list.selected[0])
 
     def on_actionable_selection_list_submitted(
         self, message: ActionableSelectionList.Submitted

@@ -61,14 +61,16 @@ from crystallize.utils.constants import (
 
 
 def _run_replicate_remote(
-    args: Tuple["Experiment", int, List[Treatment]],
+    args: Tuple["Experiment", int, List[Treatment], Optional[Treatment]],
 ) -> ReplicateResult:
     """Wrapper for parallel executor to run a single replicate."""
 
-    exp, rep, treatments = args
+    exp, rep, treatments, baseline_treatment = args
     import asyncio
 
-    return asyncio.run(exp._execute_replicate(rep, treatments))
+    return asyncio.run(
+        exp._execute_replicate(rep, treatments, baseline_treatment=baseline_treatment)
+    )
 
 
 class Experiment:
@@ -185,13 +187,17 @@ class Experiment:
         treatments: List[Treatment],
         hypotheses: List[Hypothesis],
         replicates: int,
+        baseline_treatment: Optional[Treatment] = None,
     ):
         old_treatments = getattr(self, "_treatments", None)
         old_hypotheses = getattr(self, "_hypotheses", None)
         old_replicates = getattr(self, "_replicates", None)
+        old_baseline = getattr(self, "_baseline_treatment", None)
         self._treatments = treatments
         self._hypotheses = hypotheses
         self._replicates = replicates
+        if baseline_treatment is not None:
+            self._baseline_treatment = baseline_treatment
         try:
             yield
         finally:
@@ -207,6 +213,11 @@ class Experiment:
                 delattr(self, "_replicates")
             else:
                 self._replicates = old_replicates
+            if baseline_treatment is not None:
+                if old_baseline is None:
+                    delattr(self, "_baseline_treatment")
+                else:
+                    self._baseline_treatment = old_baseline
 
     # ------------------------------------------------------------------ #
 
@@ -352,6 +363,7 @@ class Experiment:
         treatments: List[Treatment],
         *,
         run_baseline: bool = True,
+        baseline_treatment: Optional[Treatment] = None,
     ) -> ReplicateResult:
         baseline_result: Optional[Mapping[str, Any]] = None
         baseline_seed: Optional[int] = None
@@ -370,7 +382,8 @@ class Experiment:
         if run_baseline:
             try:
                 baseline_result, baseline_seed, base_prov = await self._run_condition(
-                    base_ctx
+                    base_ctx,
+                    baseline_treatment,
                 )
                 provenance[BASELINE_CONDITION] = base_prov
             except Exception as exc:
@@ -568,6 +581,15 @@ class Experiment:
                 raise
 
         run_treatments = treatments if treatments is not None else self.treatments
+        baseline_treatment = next(
+            (t for t in run_treatments if t.name == BASELINE_CONDITION),
+            None,
+        )
+        if baseline_treatment is not None:
+            run_treatments = [t for t in run_treatments if t.name != BASELINE_CONDITION]
+            self._baseline_treatment = baseline_treatment
+        else:
+            self._baseline_treatment = None
         run_hypotheses = hypotheses if hypotheses is not None else self.hypotheses
 
         datasource_reps = getattr(self.datasource, "replicates", None)
@@ -607,8 +629,14 @@ class Experiment:
 
         run_baseline = BASELINE_CONDITION in to_run
         active_treatments = [t for t in run_treatments if t.name in to_run]
+        baseline_treatment = getattr(self, "_baseline_treatment", None)
 
-        with self._runtime_state(run_treatments, run_hypotheses, replicates):
+        with self._runtime_state(
+            run_treatments,
+            run_hypotheses,
+            replicates,
+            baseline_treatment=baseline_treatment,
+        ):
             for plugin in self.plugins:
                 plugin.before_run(self)
 
@@ -629,6 +657,7 @@ class Experiment:
                                     rep,
                                     active_treatments,
                                     run_baseline=run_baseline,
+                                    baseline_treatment=baseline_treatment,
                                 )
                             )
 
@@ -639,6 +668,7 @@ class Experiment:
                                 rep,
                                 active_treatments,
                                 run_baseline=run_baseline,
+                                baseline_treatment=baseline_treatment,
                             )
 
                     loop_result = execution_plugin.run_experiment_loop(

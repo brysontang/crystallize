@@ -35,18 +35,18 @@ async def test_run_screen_toggle_plain_text():
         button = screen.query_one("#toggle_text", Button)
 
         # Initially RichLog visible, TextArea hidden
-        assert log.display == True
-        assert text_area.display == False
+        assert log.display
+        assert not text_area.display
         assert button.label == "Plain Text"
 
         # Toggle to plain text mode
         await pilot.press("t")
-        assert log.display == False
-        assert text_area.display == True
+        assert not log.display
+        assert text_area.display
         assert button.label == "Rich Text"
 
         # Toggle back to rich text mode
         await pilot.press("t")
-        assert log.display == True
-        assert text_area.display == False
+        assert log.display
+        assert not text_area.display
         assert button.label == "Plain Text"

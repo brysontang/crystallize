@@ -242,8 +242,7 @@ Input {
     width: 100%;
 }
 
-#replicate-input {
-    width: 10;
+#config-btn {
     margin-right: 1;
     margin-top: 0;
     align-vertical: middle;

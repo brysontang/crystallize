@@ -13,7 +13,6 @@ from textual.widgets import (
     Button,
     Footer,
     Header,
-    Input,
     LoadingIndicator,
     Static,
     Tree,
@@ -27,7 +26,6 @@ from ..constants import ASCII_ART_ARRAY
 from ..discovery import discover_configs
 from ..screens.create_experiment import CreateExperimentScreen
 from ..screens.run import _launch_run
-from ..utils import update_replicates
 
 
 class ExperimentTree(Tree):
@@ -193,7 +191,7 @@ class SelectionScreen(Screen):
         btn_container = Container(id="select-button-container")
         await right_panel.mount(btn_container)
         await btn_container.mount(Button("Run", id="run-btn"))
-        await btn_container.mount(Input(id="replicate-input", placeholder="replicates"))
+        await btn_container.mount(Button("Config", id="config-btn"))
 
         if self._load_errors:
             await main_container.mount(
@@ -251,14 +249,7 @@ class SelectionScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":
             self.action_run_selected()
+        elif event.button.id == "config-btn" and self._selected_obj is not None:
+            from .config_editor import ConfigEditorScreen
 
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id == "replicate-input" and self._selected_obj is not None:
-            try:
-                new_val = int(event.value)
-            except ValueError:
-                self.app.bell()
-                return
-            update_replicates(Path(self._selected_obj["path"]), new_val)
-            self._selected_obj["replicates"] = new_val
-            self._update_details(self._selected_obj)
+            self.app.push_screen(ConfigEditorScreen(Path(self._selected_obj["path"])))

@@ -3,46 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Tuple
+
 
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, VerticalScroll
 from textual.widgets import Button, Static
 from textual.screen import ModalScreen
-from textual.widgets.selection_list import Selection
 
-from .selection_screens import ActionableSelectionList
-
-
-class DeleteDataScreen(ModalScreen[tuple[int, ...] | None]):
-    BINDINGS = [
-        ("ctrl+c", "cancel_and_exit", "Cancel"),
-        ("escape", "cancel_and_exit", "Cancel"),
-        ("q", "cancel_and_exit", "Close"),
-    ]
-
-    def __init__(self, deletable: List[Tuple[str, Path]]) -> None:
-        super().__init__()
-        self._deletable = deletable
-
-    def compose(self) -> ComposeResult:
-        with Container():
-            yield Static("Use space to toggle, enter to confirm.", id="modal-title")
-            self.list = ActionableSelectionList()
-            for idx, (name, path) in enumerate(self._deletable):
-                self.list.add_option(Selection(f"  {name}: {path}", idx))
-            yield self.list
-
-    def on_mount(self) -> None:
-        self.query_one(ActionableSelectionList).focus()
-
-    def on_actionable_selection_list_submitted(
-        self, message: ActionableSelectionList.Submitted
-    ) -> None:
-        self.dismiss(message.selected)
-
-    def action_cancel_and_exit(self) -> None:
-        self.dismiss(None)
 
 
 class ConfirmScreen(ModalScreen[bool]):

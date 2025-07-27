@@ -91,7 +91,7 @@ ModalScreen {
     align: center middle;
 }
 
-DeleteDataScreen Container {
+PrepareRunScreen Container {
     border: round $warning;
     background: $panel;
     width: 80%;

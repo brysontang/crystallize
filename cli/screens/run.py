@@ -40,8 +40,8 @@ def _inject_status_plugin(
 
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
-from .delete_data import ConfirmScreen, DeleteDataScreen
-from .strategy import StrategyScreen
+from .delete_data import ConfirmScreen
+from .prepare_run import PrepareRunScreen
 from .summary import SummaryScreen
 
 
@@ -236,8 +236,8 @@ class RunScreen(ModalScreen[None]):
 
 async def _launch_run(app: App, obj: Any) -> None:
     selected = obj
+    deletable: List[Tuple[str, Path]] = []
     if isinstance(selected, ExperimentGraph):
-        deletable: List[Tuple[str, Path]] = []
         for node in selected._graph.nodes:
             exp: Experiment = selected._graph.nodes[node]["experiment"]
             plugin = exp.get_plugin(ArtifactPlugin)
@@ -246,22 +246,19 @@ async def _launch_run(app: App, obj: Any) -> None:
             base = Path(plugin.root_dir) / exp.name
             if base.exists():
                 deletable.append((node, base))
-        if deletable:
-            idxs = await app.push_screen_wait(DeleteDataScreen(deletable))
-            if idxs is None:
-                return
-            if idxs:
-                paths_to_delete = [deletable[i][1] for i in idxs]
-                confirm = await app.push_screen_wait(ConfirmScreen(paths_to_delete))
-                if confirm:
-                    for p in paths_to_delete:
-                        try:
-                            shutil.rmtree(p)
-                        except OSError:
-                            pass
-                else:
-                    return
-    strategy = await app.push_screen_wait(StrategyScreen())
-    if strategy is None:
+
+    result = await app.push_screen_wait(PrepareRunScreen(deletable))
+    if result is None:
         return
+    strategy, idxs = result
+    paths_to_delete = [deletable[i][1] for i in idxs]
+    if paths_to_delete:
+        confirm = await app.push_screen_wait(ConfirmScreen(paths_to_delete))
+        if not confirm:
+            return
+        for p in paths_to_delete:
+            try:
+                shutil.rmtree(p)
+            except OSError:
+                pass
     await app.push_screen(RunScreen(selected, strategy, None))

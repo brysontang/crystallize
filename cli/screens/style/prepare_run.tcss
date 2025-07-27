@@ -1,4 +1,4 @@
-#create-exp-container {
+#prepare-run-container {
     layout: vertical;
     width: 70%;
     height: auto;
@@ -14,27 +14,6 @@
     text-style: bold;
     color: $accent;
     margin-bottom: 1;
-}
-
-Input {
-    border: tall $secondary;
-    margin: 1 0;
-    width: 100%;
-}
-
-Input:focus {
-    border: tall $accent;
-}
-
-Label {
-    color: $text-muted;
-    margin: 0 0 1 0;
-}
-
-.files-to-include {
-    height: auto;
-    margin: 1 0;
-    width: 100%;
 }
 
 SelectionList {
@@ -56,8 +35,7 @@ Button:hover {
     background: $accent;
 }
 
-#name-feedback {
+#run-feedback {
     height: 1;
     color: $text-muted;
 }
-

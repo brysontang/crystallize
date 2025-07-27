@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widgets import Button, Checkbox, Collapsible, Input, Label, Static
 from textual.screen import ModalScreen
+from textual.widgets import Button, Checkbox, Collapsible, Input, Label, Static
+from textual.widgets.selection_list import Selection
 
 from ..utils import create_experiment_scaffolding
+from .selection_screens import ActionableSelectionList
 
 
 class CreateExperimentScreen(ModalScreen[None]):
@@ -33,28 +36,39 @@ class CreateExperimentScreen(ModalScreen[None]):
             )
             yield Label(id="name-feedback")  # For validation feedback
             with Collapsible(title="Files to include", collapsed=False):
-                yield Checkbox(
-                    "steps.py",
-                    value=True,
-                    id="steps",
-                    tooltip="Defines experiment steps and logic",
+                self.file_list = ActionableSelectionList(classes="files-to-include")
+                self.file_list.add_option(
+                    Selection(
+                        "steps.py",
+                        "steps",
+                        initial_state=True,
+                        id="steps",
+                        disabled=False,
+                    )
                 )
-                yield Checkbox(
-                    "datasources.py",
-                    value=True,
-                    id="datasources",
-                    tooltip="Handles data input sources",
+                self.file_list.add_option(
+                    Selection(
+                        "datasources.py",
+                        "datasources",
+                        initial_state=True,
+                        id="datasources",
+                    )
                 )
-                yield Checkbox(
-                    "outputs.py",
-                    id="outputs",
-                    tooltip="Manages experiment outputs and results",
+                self.file_list.add_option(
+                    Selection(
+                        "outputs.py",
+                        "outputs",
+                        id="outputs",
+                    )
                 )
-                yield Checkbox(
-                    "hypotheses.py",
-                    id="hypotheses",
-                    tooltip="Documents hypotheses and assumptions",
+                self.file_list.add_option(
+                    Selection(
+                        "hypotheses.py",
+                        "hypotheses",
+                        id="hypotheses",
+                    )
                 )
+                yield self.file_list
             yield Checkbox(
                 "Add example code",
                 id="examples",
@@ -96,15 +110,17 @@ class CreateExperimentScreen(ModalScreen[None]):
     def _create(self) -> None:
         name = self.query_one("#name-input", Input).value.strip()
         base = Path("experiments")
+        selections = set(self.file_list.selected)
+        examples = self.query_one("#examples", Checkbox).value
         try:
             create_experiment_scaffolding(
                 name,
                 directory=base,
-                steps=self.query_one("#steps", Checkbox).value,
-                datasources=self.query_one("#datasources", Checkbox).value,
-                outputs=self.query_one("#outputs", Checkbox).value,
-                hypotheses=self.query_one("#hypotheses", Checkbox).value,
-                examples=self.query_one("#examples", Checkbox).value,
+                steps="steps" in selections,
+                datasources="datasources" in selections,
+                outputs="outputs" in selections,
+                hypotheses="hypotheses" in selections,
+                examples=examples,
             )
         except FileExistsError:
             self.app.bell()

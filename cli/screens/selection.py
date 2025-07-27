@@ -4,6 +4,7 @@ import random
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
+import yaml
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
@@ -13,19 +14,22 @@ from textual.widgets import (
     Button,
     Footer,
     Header,
+    Input,
     ListItem,
     ListView,
-    Input,
     LoadingIndicator,
     Static,
     TabbedContent,
     TabPane,
 )
 
-from ..constants import ASCII_ART_ARRAY, OBJ_TYPES
-from ..discovery import discover_objects
-from ..screens.run import _launch_run
+from crystallize.experiments.experiment import Experiment
+from crystallize.experiments.experiment_graph import ExperimentGraph
+
+from ..constants import ASCII_ART_ARRAY
+from ..discovery import discover_configs
 from ..screens.create_experiment import CreateExperimentScreen
+from ..screens.run import _launch_run
 
 
 class SelectionScreen(Screen):
@@ -41,9 +45,9 @@ class SelectionScreen(Screen):
     def __init__(self) -> None:
         super().__init__()
         self._load_errors: Dict[str, BaseException] = {}
-        self._experiments: Dict[str, Any] = {}
-        self._graphs: Dict[str, Any] = {}
-        self._selected_obj: Any | None = None
+        self._experiments: Dict[str, Dict[str, Any]] = {}
+        self._graphs: Dict[str, Dict[str, Any]] = {}
+        self._selected_obj: Dict[str, Any] | None = None
 
     async def _filter_list(self, query: str, selector: str) -> None:
         list_view = self.query_one(selector, ListView)
@@ -73,11 +77,14 @@ class SelectionScreen(Screen):
 
     def _discover_sync(
         self,
-    ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, BaseException]]:
-        path = Path(".")
-        graphs, graph_errors = discover_objects(path, OBJ_TYPES["graph"])
-        experiments, exp_errors = discover_objects(path, OBJ_TYPES["experiment"])
-        return graphs, experiments, {**graph_errors, **exp_errors}
+    ) -> Tuple[
+        Dict[str, Dict[str, Any]],
+        Dict[str, Dict[str, Any]],
+        Dict[str, BaseException],
+    ]:
+        """Locate ``config.yaml`` files and classify them."""
+
+        return discover_configs(Path("."))
 
     async def _discover(self) -> None:
         worker = self.run_worker(self._discover_sync, thread=True)
@@ -111,22 +118,22 @@ class SelectionScreen(Screen):
             list_view_graph = ListView(classes="graph-list")
             await tab_pane_graph.mount(list_view_graph)
 
-            for label, obj in graphs.items():
+            for label, info in graphs.items():
                 item = ListItem(classes="graph-item")
                 await list_view_graph.append(item)
                 await item.mount(Static(Text(f"📈 {label}")))
-                if obj.__doc__:
+                if info["description"]:
                     await item.mount(
                         Static(
-                            obj.__doc__.strip()[:200] + "...",
+                            info["description"].strip()[:200] + "...",
                             classes="item-doc dim",
                         )
                     )
                 item.data = {
-                    "obj": obj,
+                    "path": info["path"],
                     "label": label,
                     "type": "Graph",
-                    "doc": obj.__doc__ or "No documentation available.",
+                    "doc": info["description"] or "No description available.",
                 }
 
             initial_tab = "graphs"
@@ -140,22 +147,22 @@ class SelectionScreen(Screen):
             list_view_exp = ListView(classes="experiment-list")
             await tab_pane_exp.mount(list_view_exp)
 
-            for label, obj in experiments.items():
+            for label, info in experiments.items():
                 item = ListItem(classes="experiment-item")
                 await list_view_exp.append(item)
                 await item.mount(Static(Text(f"🧪 {label}")))
-                if obj.__doc__:
+                if info["description"]:
                     await item.mount(
                         Static(
-                            obj.__doc__.strip()[:200] + "...",
+                            info["description"].strip()[:200] + "...",
                             classes="item-doc dim",
                         )
                     )
                 item.data = {
-                    "obj": obj,
+                    "path": info["path"],
                     "label": label,
                     "type": "Experiment",
-                    "doc": obj.__doc__ or "No documentation available.",
+                    "doc": info["description"] or "No description available.",
                 }
 
             if initial_tab is None:
@@ -185,7 +192,21 @@ class SelectionScreen(Screen):
             except NoMatches:
                 pass
 
-    async def _run_interactive_and_exit(self, obj: Any) -> None:
+    async def _run_interactive_and_exit(self, info: Dict[str, Any]) -> None:
+        cfg = info["path"]
+        obj_type = info["type"]
+        try:
+            if obj_type == "Graph":
+                obj = ExperimentGraph.from_yaml(cfg)
+            else:
+                obj = Experiment.from_yaml(cfg)
+        except BaseException as exc:  # noqa: BLE001
+            self._load_errors[str(cfg)] = exc
+            from ..screens.load_errors import LoadErrorsScreen
+
+            self.app.push_screen(LoadErrorsScreen({str(cfg): exc}))
+            return
+
         await _launch_run(self.app, obj)
 
     def action_run_selected(self) -> None:
@@ -197,13 +218,13 @@ class SelectionScreen(Screen):
             data = event.item.data
             details = self.query_one("#details", Static)
             details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
-            self._selected_obj = data["obj"]
+            self._selected_obj = data
 
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         data = event.item.data
         details = self.query_one("#details", Static)
         details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
-        self._selected_obj = data["obj"]
+        self._selected_obj = data
 
     async def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "search-exp":

@@ -884,7 +884,6 @@ class Experiment:
     def from_yaml(cls, config_path: str | Path) -> "Experiment":
         """Instantiate an experiment from a folder-based YAML config."""
 
-        from importlib import import_module
         import yaml
 
         path = Path(config_path)
@@ -901,7 +900,11 @@ class Experiment:
                 module_name = ".".join(rel.with_suffix("").parts)
                 if str(root) not in sys.path:
                     sys.path.insert(0, str(root))
-                module = import_module(module_name)
+
+                if module_name in sys.modules:
+                    module = importlib.reload(sys.modules[module_name])
+                else:
+                    module = importlib.import_module(module_name)
             except ValueError:
                 spec = importlib.util.spec_from_file_location(mod_path.stem, mod_path)
                 if spec and spec.loader:

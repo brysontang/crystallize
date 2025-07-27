@@ -5,6 +5,48 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.22.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.21.0...crystallize-ml@v0.22.0) (2025-07-27)
+
+
+### Features
+
+* **cli:** Use selection lists for experiment setup ([58052e4](https://github.com/brysontang/crystallize/commit/58052e451f0f2ed227c8a019af167bf6df4d2cb7))
+* **crystallize-ml:** Add search and run controls to selection screen ([08f6e2a](https://github.com/brysontang/crystallize/commit/08f6e2a2dbabc9b2f4c2d80ceec836b35e250704))
+* **crystallize-ml:** Combine run setup screens ([e0dd2b2](https://github.com/brysontang/crystallize/commit/e0dd2b2157c8c0c000367d9a514e3a8a80d184d8))
+* **crystallize-ml:** Graph inputs in CLI create ([d02e4b6](https://github.com/brysontang/crystallize/commit/d02e4b643aaa0751266f239f8b3f3ca95c96cacf))
+* **crystallize-ml:** Move experiment selection to screen ([b4e1749](https://github.com/brysontang/crystallize/commit/b4e17492a808c4b5efe7ca6c9e1040cee016f4d1))
+* **crystallize-ml:** Recursive graph loading ([5f2abdf](https://github.com/brysontang/crystallize/commit/5f2abdf0a805bd253d431282c143c1648fcc7d7f))
+* **crystallize-ml:** Recursive graph loading ([5fcfb48](https://github.com/brysontang/crystallize/commit/5fcfb48de0c6cd64c641b82a5d68ee229d3cbd56))
+* **crystallize-ml:** Refine experiment creator ui ([a0f1549](https://github.com/brysontang/crystallize/commit/a0f15491a8189480bfec5ec0c5f1cc4cfdb173c6))
+* **crystallize-ml:** Show load errors in cli ([fe062ea](https://github.com/brysontang/crystallize/commit/fe062ea7a1b82cb1dd8309191e6f84033a02044d))
+* **crystallize-ml:** Support tuple metrics in pipeline steps ([b92304f](https://github.com/brysontang/crystallize/commit/b92304f69f5938d24c181892169882f85ce7f62e))
+* **crystallize-ml:** Support tuple returns in pipeline steps ([8e62d60](https://github.com/brysontang/crystallize/commit/8e62d60454abf8205a0aeadf9d4eee8834b6b329))
+* **crystallize-ml:** Use yaml-based discovery ([34c7911](https://github.com/brysontang/crystallize/commit/34c7911dc476ba8feaf47d36407a36bda38b0758))
+* **crystallize-ml:** Validate outputs and pickle loaders ([3e5642a](https://github.com/brysontang/crystallize/commit/3e5642ac2ce5660a4b8737962a45abd69925b88c))
+* Display CLI load errors ([be44d7c](https://github.com/brysontang/crystallize/commit/be44d7ca6c1e656cfea55df68332f63de8f29c51))
+* Improve YAML artifact mapping ([f583542](https://github.com/brysontang/crystallize/commit/f5835422780fc6a23bac47e9f9508a21c9601a6c))
+
+
+### Bug Fixes
+
+* Added summary button to runner ([75b14f2](https://github.com/brysontang/crystallize/commit/75b14f2ec3a31e1ca38e28e695567cf0a7281d82))
+* Cli refresh updates import ([aee7a11](https://github.com/brysontang/crystallize/commit/aee7a11cf63b1583be29f987db2be18ad711130d))
+* **cli:** Require strategy selection ([da6ce61](https://github.com/brysontang/crystallize/commit/da6ce61d5dc83c283a0eefa1be020eab1b5642f1))
+* Correctly hide/display input experiments ([7de6fe0](https://github.com/brysontang/crystallize/commit/7de6fe0c3186a5379bbeb622b9977150ddb079e7))
+* **crystallize-ml:** Ensure ExperimentInput for upstream refs ([f0bd67b](https://github.com/brysontang/crystallize/commit/f0bd67bc683ebc1fc9fbbc2e6f7cbba443025139))
+* **crystallize-ml:** Show feedback when run strategy missing ([3732137](https://github.com/brysontang/crystallize/commit/3732137dbba19b80e47c5e6b662c277e76847ead))
+* **crystallize-ml:** Treat baseline-named treatment as baseline ([6ba1ff1](https://github.com/brysontang/crystallize/commit/6ba1ff1c09cc2dd87a797354933dc0781506a34d))
+* Default to graph view ([1c56315](https://github.com/brysontang/crystallize/commit/1c563156776c8311932045c25b609951a348bef4))
+* Delete data only visible when on resume mode ([f5e6257](https://github.com/brysontang/crystallize/commit/f5e6257a2d8220a2e54dc3e7f719e0c5b37706a8))
+* Dill issue ([3229589](https://github.com/brysontang/crystallize/commit/322958956f8c5b37b58d5dd0d164c974e434cfb8))
+* Experiment not being able to be run ([e0556b0](https://github.com/brysontang/crystallize/commit/e0556b018072c7988cc2f043d9fa1bd0abd5c589))
+* From_yaml reloads module ([1f179b1](https://github.com/brysontang/crystallize/commit/1f179b1c68c8a8f1ceecfe97084e4822409aed05))
+* If inputs, make experiment graph instead ([7de6fe0](https://github.com/brysontang/crystallize/commit/7de6fe0c3186a5379bbeb622b9977150ddb079e7))
+* Linting error ([98b74e6](https://github.com/brysontang/crystallize/commit/98b74e6c0b5b691be11b6b2d39555c63df1cc32a))
+* Provide examples is checkbox again ([5540967](https://github.com/brysontang/crystallize/commit/5540967e6d4c88c5799f36b4fde61fa7a617ca8e))
+* Put rerun first in order ([88aff59](https://github.com/brysontang/crystallize/commit/88aff5928f368cd860a3bc73086e70fa71dc7e1f))
+* Show traceback of error ([aee7a11](https://github.com/brysontang/crystallize/commit/aee7a11cf63b1583be29f987db2be18ad711130d))
+
 ## [0.21.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.20.2...crystallize-ml@v0.21.0) (2025-07-26)
 
 

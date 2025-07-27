@@ -108,13 +108,36 @@ def discover_configs(
                 data = yaml.safe_load(f) or {}
             name = data.get("name", cfg.parent.name)
             desc = data.get("description", "")
+            cli_cfg = data.get("cli", {}) or {}
+
+            is_graph = _has_ref(data.get("datasource"))
+
+            if cli_cfg.get("disabled"):
+                continue
+
             try:
                 rel = cfg.parent.relative_to(cwd)
             except ValueError:
                 rel = cfg.parent
             label = f"{rel} - {name}"
-            info = {"path": cfg, "description": desc, "label": label}
-            is_graph = _has_ref(data.get("datasource"))
+
+            cli_defaults = {
+                "group": "Graphs" if is_graph else "Experiments",
+                "priority": 999,
+                "icon": "📈" if is_graph else "🧪",
+                "color": None,
+                "hidden": False,
+                "disabled": False,
+            }
+            cli_info = {**cli_defaults, **cli_cfg}
+
+            info = {
+                "path": cfg,
+                "description": desc,
+                "label": label,
+                "cli": cli_info,
+            }
+
             if is_graph:
                 graphs[label] = info
             else:

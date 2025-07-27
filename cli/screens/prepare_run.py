@@ -58,9 +58,9 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     ) -> None:
         if message.selection_list.selected:
             self._strategy = str(message.selection_list.selected[0])
-            if self._strategy == "resume":
+            if self._strategy == "resume" and self._deletable:
                 self.list.remove_class("invisible")
-            else:
+            elif self._deletable:
                 self.list.add_class("invisible")
 
     def on_actionable_selection_list_submitted(

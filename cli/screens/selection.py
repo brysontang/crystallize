@@ -44,7 +44,6 @@ class SelectionScreen(Screen):
         self._graphs: Dict[str, Dict[str, Any]] = {}
         self._selected_obj: Dict[str, Any] | None = None
 
-
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Static(random.choice(ASCII_ART_ARRAY), id="title")
@@ -111,7 +110,7 @@ class SelectionScreen(Screen):
                 label = info["label"]
                 icon = info["cli"]["icon"]
                 color = info["cli"].get("color")
-                text = Text(f"{icon} {label} [dim]({obj_type})[/dim]")
+                text = Text(f"{icon} {label} ({obj_type})")
                 if color:
                     text.stylize(color)
                 parent.add_leaf(
@@ -173,7 +172,6 @@ class SelectionScreen(Screen):
             details = self.query_one("#details", Static)
             details.update(f"[bold]Type: {data['type']}[/bold]\n\n{data['doc']}")
             self._selected_obj = data
-
 
     def action_show_errors(self) -> None:
         if self._load_errors:

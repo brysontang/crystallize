@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widgets import (
@@ -37,7 +37,7 @@ class CreateExperimentScreen(ModalScreen[None]):
     name_valid = reactive(False)
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="create-exp-container"):
+        with VerticalScroll(id="create-exp-container"):
             yield Static("Create New Experiment", id="modal-title")
             yield Input(
                 placeholder="Enter experiment name (lowercase, no spaces)",
@@ -82,9 +82,9 @@ class CreateExperimentScreen(ModalScreen[None]):
                 "Use outputs from other experiments",
                 id="graph-mode",
             )
-            with Horizontal(id="graph-container", classes="hidden"):
-                self.exp_list = SingleSelectionList(id="exp-list")
-                self.out_list = ActionableSelectionList(id="out-list")
+            with Vertical(id="graph-container", classes="invisible"):
+                self.exp_list = SelectionList(id="exp-list")
+                self.out_list = SelectionList(id="out-list")
                 yield self.exp_list
                 yield self.out_list
             yield Checkbox(
@@ -130,9 +130,9 @@ class CreateExperimentScreen(ModalScreen[None]):
         if event.checkbox.id == "graph-mode":
             container = self.query_one("#graph-container")
             if event.value:
-                container.remove_class("hidden")
+                container.remove_class("invisible")
             else:
-                container.add_class("hidden")
+                container.add_class("invisible")
 
     def on_selection_list_selected_changed(
         self, message: SelectionList.SelectedChanged
@@ -140,7 +140,7 @@ class CreateExperimentScreen(ModalScreen[None]):
         if message.selection_list.id == "exp-list" and message.selection_list.selected:
             exp = str(message.selection_list.selected[0])
             self._current_exp = exp
-            out_list = self.query_one("#out-list", ActionableSelectionList)
+            out_list = self.query_one("#out-list", SelectionList)
             out_list.clear_options()
             for out in self._outputs.get(exp, []):
                 out_list.add_option(Selection(out, out, id=out))

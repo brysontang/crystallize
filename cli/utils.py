@@ -186,11 +186,21 @@ def create_experiment_scaffolding(
             hyp_code += "\n@verifier\ndef always_sig(baseline, treatment):\n    return {'p_value': 0.01, 'significant': True}\n"
         (exp_dir / "hypotheses.py").write_text(hyp_code)
 
-    (exp_dir / "main.py").write_text(
-        "from pathlib import Path\n"
-        "from crystallize.experiments.experiment import Experiment\n"
-        "\n"
-        "exp = Experiment.from_yaml(Path(__file__).parent / 'config.yaml')\n"
+    main_code = ""
+
+    experiment_class = "Experiment"
+    if artifact_inputs:
+        experiment_class = "ExperimentGraph"
+
+    main_code += "from pathlib import Path\n"
+    main_code += f"from crystallize import {experiment_class}\n"
+    main_code += "\n"
+    main_code += (
+        f"exp = {experiment_class}.from_yaml(Path(__file__).parent / 'config.yaml')\n"
     )
+    main_code += "\n"
+    main_code += "if __name__ == '__main__':\n"
+    main_code += "    exp.run()\n"
+    (exp_dir / "main.py").write_text(main_code)
 
     return exp_dir

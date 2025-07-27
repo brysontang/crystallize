@@ -67,3 +67,6 @@ Button:hover {
     color: $text-muted;
 }
 
+.invisible {
+    display: none;
+}

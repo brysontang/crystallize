@@ -7,6 +7,7 @@ from typing import Any
 from textual.message import Message
 from textual.widgets import SelectionList
 from textual.widgets.selection_list import Selection
+from textual.binding import Binding
 
 
 class ActionableSelectionList(SelectionList):
@@ -17,7 +18,18 @@ class ActionableSelectionList(SelectionList):
             self.selected = selected
             super().__init__()
 
-    BINDINGS = [("escape", "cancel", "Cancel")]
+    BINDINGS = [
+        Binding("a", "all", "Select All"),
+        Binding("d", "deselect_all", "Deselect All"),
+    ]
+
+    def action_all(self) -> None:
+        self.select_all()
+        self.refresh()
+
+    def action_deselect_all(self) -> None:
+        self.deselect_all()
+        self.refresh()
 
     def action_submit(self) -> None:
         selected_indices = tuple(
@@ -26,7 +38,7 @@ class ActionableSelectionList(SelectionList):
         self.post_message(self.Submitted(selected_indices))
 
 
-class SingleSelectionList(ActionableSelectionList):
+class SingleSelectionList(SelectionList):
     """A SelectionList that allows only a single selection."""
 
     def select(self, selection: Selection | Any) -> "SingleSelectionList":

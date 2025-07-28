@@ -8,8 +8,9 @@ from typing import List, Tuple
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
-from textual.widgets import Button, Static, SelectionList
+from textual.widgets import Button, Footer, Static, SelectionList
 from textual.widgets.selection_list import Selection
+from textual.binding import Binding
 
 from .selection_screens import ActionableSelectionList, SingleSelectionList
 
@@ -20,10 +21,10 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     CSS_PATH = "style/prepare_run.tcss"
 
     BINDINGS = [
-        ("ctrl+c", "cancel_and_exit", "Cancel"),
-        ("escape", "cancel_and_exit", "Cancel"),
-        ("q", "cancel_and_exit", "Close"),
-        ("r", "run", "Run"),
+        Binding("r", "run", "Run"),
+        Binding("escape", "cancel_and_exit", "Cancel"),
+        Binding("ctrl+c", "cancel_and_exit", "Cancel", show=False),
+        Binding("q", "cancel_and_exit", "Close", show=False),
     ]
 
     def __init__(self, deletable: List[Tuple[str, Path]]) -> None:
@@ -34,7 +35,6 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     def compose(self) -> ComposeResult:
         with Container(id="prepare-run-container"):
             yield Static("Configure Run", id="modal-title")
-            yield Static("Press r to run", id="run-hint")
 
             self.options = SingleSelectionList(
                 Selection(
@@ -61,6 +61,7 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
                 yield Button("Run", variant="success", id="run")
                 yield Button("Cancel", variant="error", id="cancel")
             yield Static(id="run-feedback")
+        yield Footer()
 
     def on_mount(self) -> None:
         self.options.focus()

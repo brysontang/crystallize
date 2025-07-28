@@ -61,11 +61,11 @@ class RunScreen(Screen):
             super().__init__()
 
     BINDINGS = [
-        Binding("escape", "cancel_and_exit", "Close"),
         Binding("q", "cancel_and_exit", "Close", show=False),
         Binding("ctrl+c", "cancel_and_exit", "Close", show=False),
-        Binding("t", "toggle_plain_text", "Toggle Plain Text"),
         Binding("s", "summary", "Summary"),
+        Binding("t", "toggle_plain_text", "Toggle Plain Text"),
+        Binding("escape", "cancel_and_exit", "Close"),
     ]
 
     node_states: dict[str, str] = reactive({})

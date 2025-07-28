@@ -13,6 +13,7 @@ from textual.widgets import (
     Collapsible,
     Input,
     Label,
+    Footer,
     Static,
     Tree,
 )
@@ -27,7 +28,7 @@ class OutputTree(Tree):
     """Tree widget with custom binding for output selection."""
 
     BINDINGS = [b for b in Tree.BINDINGS if getattr(b, "key", "") != "enter"] + [
-        Binding("enter", "toggle_output", "Select", show=True)
+        Binding("enter", "toggle_output", "Toggle", show=True)
     ]
 
     def action_toggle_output(self) -> None:  # pragma: no cover - delegates
@@ -50,11 +51,11 @@ class CreateExperimentScreen(ModalScreen[None]):
     CSS_PATH = "style/create_experiment.tcss"
 
     BINDINGS = [
-        ("ctrl+c", "cancel", "Cancel"),
-        ("escape", "cancel", "Cancel"),
-        ("q", "cancel", "Close"),
-        ("c", "create", "Create"),
-        ("enter", "toggle_output", "Select"),
+        Binding("ctrl+c", "cancel", "Cancel", show=False),
+        Binding("q", "cancel", "Close", show=False),
+        Binding("c", "create", "Create"),
+        Binding("enter", "toggle_output", "Select"),
+        Binding("escape", "cancel", "Cancel"),
     ]
 
     name_valid = reactive(False)
@@ -128,6 +129,7 @@ class CreateExperimentScreen(ModalScreen[None]):
             with Horizontal(classes="button-row"):
                 yield Button("Create", variant="success", id="create")
                 yield Button("Cancel", variant="error", id="cancel")
+        yield Footer()
 
     def on_mount(self) -> None:
         self.query_one("#name-input", Input).focus()

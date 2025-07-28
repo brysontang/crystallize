@@ -7,16 +7,18 @@ from pathlib import Path
 
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, VerticalScroll
-from textual.widgets import Button, Static
+from textual.widgets import Button, Footer, Static
 from textual.screen import ModalScreen
-
+from textual.binding import Binding
 
 
 class ConfirmScreen(ModalScreen[bool]):
     BINDINGS = [
-        ("ctrl+c", "cancel_and_exit", "Cancel"),
-        ("y", "confirm_and_exit", "Confirm"),
-        ("n", "cancel_and_exit", "Cancel"),
+        Binding("ctrl+c", "cancel_and_exit", "Cancel", show=False),
+        Binding("q", "cancel_and_exit", "Close", show=False),
+        Binding("y", "confirm_and_exit", "Confirm"),
+        Binding("escape", "cancel_and_exit", "Cancel"),
+        Binding("n", "cancel_and_exit", "Cancel", show=False),
     ]
 
     def __init__(self, paths_to_delete: list[Path]) -> None:
@@ -33,11 +35,12 @@ class ConfirmScreen(ModalScreen[bool]):
                     yield Static("  (Nothing selected)")
                 for path in self._paths:
                     yield Static(f"• {path}")
-            yield Static("\nAre you sure you want to proceed? (y/n)")
+            yield Static("\nAre you sure you want to proceed?")
             yield Horizontal(
-                Button("Yes, Delete", variant="error", id="yes"),
-                Button("No, Cancel", variant="primary", id="no"),
+                Button("Yes, Delete", id="yes"),
+                Button("No, Cancel", id="no"),
             )
+        yield Footer()
 
     def on_mount(self) -> None:
         self.query_one("#no", Button).focus()

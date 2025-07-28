@@ -7,7 +7,7 @@ from typing import Any, List
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Static, Tree
+from textual.widgets import Button, Footer, Input, Static, Tree
 from textual.binding import Binding
 from textual import work
 
@@ -57,8 +57,8 @@ class ConfigTree(Tree):
         Binding("e", "edit", "Edit"),
         Binding("k", "move_up", "Move Up"),
         Binding("j", "move_down", "Move Down"),
-        Binding("o", "expand_all", "Expand All"),
-        Binding("c", "collapse_all", "Collapse All"),
+        # Binding("o", "expand_all", "Expand All"),
+        # Binding("c", "collapse_all", "Collapse All"),
     ]
 
     def __init__(self, data: Any) -> None:
@@ -110,10 +110,10 @@ class ConfigEditorScreen(ModalScreen[None]):
     """Full screen editor for a config YAML file."""
 
     BINDINGS = [
-        ("ctrl+c", "close", "Close"),
-        ("escape", "close", "Close"),
-        ("q", "close", "Close"),
-        ("s", "save", "Save"),
+        Binding("s", "save", "Save"),
+        Binding("ctrl+c", "close", "Close", show=False),
+        Binding("q", "close", "Close", show=False),
+        Binding("escape", "close", "Close"),
     ]
 
     def __init__(self, path: Path) -> None:
@@ -130,6 +130,7 @@ class ConfigEditorScreen(ModalScreen[None]):
             with Horizontal(classes="button-row"):
                 yield Button("Save", id="save")
                 yield Button("Close", id="close")
+        yield Footer()
 
     async def action_close(self) -> None:
         self.dismiss(None)

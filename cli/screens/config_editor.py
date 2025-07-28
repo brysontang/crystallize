@@ -369,7 +369,7 @@ class ConfigEditorScreen(ModalScreen[None]):
                         value = int(value)
                 except ValueError:
                     value = result["value"]
-                tr[result["name"]] = {result["context_field"]: value}
+                tr[result["name"]] = {result["context_field"]: result["value"]}
             self.cfg_tree.root.remove_children()
             self.cfg_tree._build_tree(self.cfg_tree.root, self._data, [])
             self.cfg_tree.focus()

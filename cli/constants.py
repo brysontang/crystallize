@@ -176,10 +176,6 @@ LoadingIndicator {
     padding: 1;
 }
 
-Horizontal {
-    height: 1fr;
-}
-
 .left-panel {
     width: 50%;
     height: 1fr;

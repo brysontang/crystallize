@@ -7,7 +7,7 @@ from cli.status_plugin import CLIStatusPlugin
 from cli.screens.run import _inject_status_plugin
 
 
-events = []
+events: list[tuple[str, dict[str, object]]] = []
 
 
 def record(event: str, info: dict[str, object]) -> None:
@@ -30,6 +30,7 @@ def step_b(data, ctx):
 
 
 def test_cli_status_plugin_progress():
+    events.clear()
     plugin = CLIStatusPlugin(record)
     treatment = Treatment("t", {})
     exp = Experiment(
@@ -44,8 +45,8 @@ def test_cli_status_plugin_progress():
 
     assert events[0][0] == "start"
     assert any(evt == "replicate" for evt, _ in events)
-    step_events = [info for evt, info in events if evt == "step"]
-    assert step_events[-1]["percent"] == 1.0
+    step_events = [info for evt, info in events if evt == "step_finished"]
+    assert len(step_events) == len(exp.pipeline.steps) * (len(exp.treatments) + 1) * exp.replicates
     rep_events = [info for evt, info in events if evt == "replicate"]
     assert len(rep_events) == 4
 

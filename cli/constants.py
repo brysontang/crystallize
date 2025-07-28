@@ -134,7 +134,10 @@ SelectionList {
     height: auto;
     border: round $primary;
     padding: 0 1;
-    margin-bottom: 1;
+}
+
+#log-viewer {
+    margin-top: 1;
 }
 
 RichLog {

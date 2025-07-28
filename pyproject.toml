@@ -90,6 +90,7 @@ build = ">=1.2.2.post1,<2"
 twine = ">=5.1.0,<6"
 diff-cover = "*"
 textual = "*"
+textual-serve = "*"
 
 [tool.pixi.feature.extras.pypi-dependencies]
 crystallize-ml = "*"
@@ -99,6 +100,10 @@ crystallize-ml = "*"
 
 [tool.pixi.feature.vllm.pypi-dependencies]
 crystallize-ml = "*"
+
+[tool.pixi.feature.cli.pypi-dependencies]
+textual = "*"
+textual-serve = "*"
 
 [tool.uv.sources]
 crystallize-ml = { path = ".", editable = true }

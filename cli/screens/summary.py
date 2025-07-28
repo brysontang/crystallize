@@ -6,8 +6,9 @@ from typing import Any
 
 from textual.app import ComposeResult
 from textual.containers import Container
-from textual.widgets import Button, RichLog, Static
+from textual.widgets import Button, Footer, RichLog, Static
 from textual.screen import ModalScreen
+from textual.binding import Binding
 
 from ..utils import _write_summary
 
@@ -16,9 +17,9 @@ class SummaryScreen(ModalScreen[None]):
     """Display the summary of an experiment run."""
 
     BINDINGS = [
-        ("ctrl+c", "close", "Close"),
-        ("escape", "close", "Close"),
-        ("q", "close", "Close"),
+        Binding("escape", "close", "Close"),
+        Binding("ctrl+c", "close", "Close", show=False),
+        Binding("q", "close", "Close", show=False),
     ]
 
     def __init__(self, result: Any) -> None:
@@ -30,7 +31,7 @@ class SummaryScreen(ModalScreen[None]):
             yield Static("Execution Summary", id="modal-title")
             self.log_widget = RichLog()
             yield self.log_widget
-            yield Button("Close", id="close")
+            yield Footer()
 
     async def on_mount(self) -> None:
         _write_summary(self.log_widget, self._result)

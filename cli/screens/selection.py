@@ -53,10 +53,10 @@ class SelectionScreen(Screen):
     """Main screen for selecting experiments or graphs."""
 
     BINDINGS = [
-        ("q", "quit", "Quit"),
+        ("n", "create_experiment", "New Experiment"),
+        ("c", "config", "Config Editor"),
         ("r", "refresh", "Refresh"),
-        ("c", "create_experiment", "Create Experiment"),
-        ("e", "show_errors", "Errors"),
+        ("q", "quit", "Quit"),
     ]
 
     def __init__(self) -> None:
@@ -65,6 +65,7 @@ class SelectionScreen(Screen):
         self._experiments: Dict[str, Dict[str, Any]] = {}
         self._graphs: Dict[str, Dict[str, Any]] = {}
         self._selected_obj: Dict[str, Any] | None = None
+        self._selected_line: int | None = None
 
     def _update_details(self, data: Dict[str, Any]) -> None:
         """Populate the details panel with information from ``data``."""
@@ -102,9 +103,6 @@ class SelectionScreen(Screen):
 
         details.update("\n".join(details_text))
 
-        rep_input = self.query_one("#replicate-input", Input)
-        rep_input.value = str(repl)
-
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Static(random.choice(ASCII_ART_ARRAY), id="title")
@@ -123,7 +121,10 @@ class SelectionScreen(Screen):
         self.run_worker(self._discover())
 
     def action_create_experiment(self) -> None:
-        self.app.push_screen(CreateExperimentScreen())
+        def _refresh_sync(inp: Any) -> None:
+            self.run_worker(self._discover())
+
+        self.app.push_screen(CreateExperimentScreen(), _refresh_sync)
 
     def _discover_sync(
         self,
@@ -200,6 +201,10 @@ class SelectionScreen(Screen):
                     id="error-msg",
                 )
             )
+        if self._selected_line is not None:
+            tree.move_cursor_to_line(self._selected_line)
+        else:
+            tree.move_cursor_to_line(0)  # pragma: no cover
 
         tree.focus()
 
@@ -229,22 +234,37 @@ class SelectionScreen(Screen):
             data = event.node.data
             self._update_details(data)
             self._selected_obj = data
+            self._selected_line = event.node.line
         else:
             details = self.query_one("#details", Static)
             details.update("")
             self._selected_obj = None
+            if not event.node.is_root:
+                self._selected_line = event.node.line
 
     async def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         if event.node.data is not None:
             data = event.node.data
             self._update_details(data)
             self._selected_obj = data
+            self._selected_line = event.node.line
 
     def action_show_errors(self) -> None:
         if self._load_errors:
             from ..screens.load_errors import LoadErrorsScreen
 
             self.app.push_screen(LoadErrorsScreen(self._load_errors))
+
+    def action_config(self) -> None:
+        def _refresh_sync(inp: Any) -> None:
+            self.run_worker(self._discover)
+
+        if self._selected_obj is not None:
+            from .config_editor import ConfigEditorScreen
+
+            self.app.push_screen(
+                ConfigEditorScreen(Path(self._selected_obj["path"])), _refresh_sync
+            )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":

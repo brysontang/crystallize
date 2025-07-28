@@ -9,6 +9,7 @@ from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Static, Tree
 from textual.binding import Binding
+from textual import work
 
 
 class ValueEditScreen(ModalScreen[str | None]):
@@ -33,6 +34,9 @@ class ValueEditScreen(ModalScreen[str | None]):
                 yield Button("Save", id="save")
                 yield Button("Cancel", id="cancel")
 
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.action_save()
+
     def action_save(self) -> None:
         self.dismiss(self.input.value)
 
@@ -45,20 +49,46 @@ class ValueEditScreen(ModalScreen[str | None]):
         else:
             self.action_cancel()
 
+
 class ConfigTree(Tree):
     """Tree widget for displaying and editing YAML data."""
 
     BINDINGS = [
-        Binding("enter", "edit", "Edit", show=True),
-        Binding("K", "move_up", "Move Up"),
-        Binding("J", "move_down", "Move Down"),
-    ] + [b for b in Tree.BINDINGS if getattr(b, "key", "") != "enter"]
+        Binding("e", "edit", "Edit"),
+        Binding("k", "move_up", "Move Up"),
+        Binding("j", "move_down", "Move Down"),
+        Binding("o", "expand_all", "Expand All"),
+        Binding("c", "collapse_all", "Collapse All"),
+    ]
 
     def __init__(self, data: Any) -> None:
         super().__init__("root")
         self.data = data
         self.show_root = False
         self._build_tree(self.root, data, [])
+
+    async def action_edit(self) -> None:  # pragma: no cover - delegates
+        screen = self.screen
+        if screen is not None and hasattr(screen, "action_edit"):
+            await screen.action_edit()
+
+    def action_move_up(self) -> None:  # pragma: no cover - delegates
+        screen = self.screen
+        if screen is not None and hasattr(screen, "action_move_up"):
+            screen.action_move_up()
+
+    def action_move_down(self) -> None:  # pragma: no cover - delegates
+        screen = self.screen
+        if screen is not None and hasattr(screen, "action_move_down"):
+            screen.action_move_down()
+
+    def action_collapse_all(self) -> None:  # pragma: no cover - delegates
+        print("collapse_all")
+        self.root.collapse_all()
+
+    def action_expand_all(self) -> None:  # pragma: no cover - delegates
+        print("expand_all")
+        self.root.expand_all()
 
     def _build_tree(self, node: Tree.Node, value: Any, path: List[Any]) -> None:
         if isinstance(value, dict):
@@ -83,6 +113,7 @@ class ConfigEditorScreen(ModalScreen[None]):
         ("ctrl+c", "close", "Close"),
         ("escape", "close", "Close"),
         ("q", "close", "Close"),
+        ("s", "save", "Save"),
     ]
 
     def __init__(self, path: Path) -> None:
@@ -105,13 +136,33 @@ class ConfigEditorScreen(ModalScreen[None]):
 
     async def action_edit(self) -> None:
         node = self.cfg_tree.cursor_node
+        if node.parent.is_root:
+            return
         if node is None or node.data is None:
             return
+
+        def _edit_sync(result: str | None) -> None:
+            print("edit_sync", result)
+            if result is not None:
+                try:
+                    new_value = yaml.safe_load(result)
+                    self._set_value(node.data, new_value)
+                    print(node.children)
+
+                    if not node.children:
+                        node.set_label(str(new_value))
+                    else:
+                        pass
+                except yaml.YAMLError:
+                    return
+
         value = self._get_value(node.data)
-        result = await self.app.push_screen_wait(ValueEditScreen(str(value)))
-        if result is not None:
-            self._set_value(node.data, yaml.safe_load(result))
-            node.set_label(str(result))
+        await self.app.push_screen(ValueEditScreen(str(value)), _edit_sync)
+
+    def action_save(self) -> None:
+        with open(self._path, "w") as f:
+            yaml.dump(self._data, f, sort_keys=False)
+        self.dismiss(None)
 
     def action_move_up(self) -> None:
         self._move_selected(-1)
@@ -124,7 +175,7 @@ class ConfigEditorScreen(ModalScreen[None]):
             with open(self._path, "w") as f:
                 yaml.dump(self._data, f, sort_keys=False)
         self.dismiss(None)
-        
+
     def _get_value(self, path: List[Any]) -> Any:
         val = self._data
         for p in path:

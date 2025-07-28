@@ -15,10 +15,11 @@ from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.containers import VerticalScroll, Container
 from textual.css.query import NoMatches
+from textual.binding import Binding
 from textual.message import Message
 from textual.reactive import reactive
-from textual.screen import ModalScreen
-from textual.widgets import Button, Header, RichLog, Static, TextArea
+from textual.screen import Screen
+from textual.widgets import Button, Footer, Header, RichLog, Static, TextArea
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -45,7 +46,7 @@ def _inject_status_plugin(
             obj.plugins.append(CLIStatusPlugin(callback))
 
 
-class RunScreen(ModalScreen[None]):
+class RunScreen(Screen):
     """Display live output of a running experiment."""
 
     class NodeStatusChanged(Message):
@@ -60,10 +61,11 @@ class RunScreen(ModalScreen[None]):
             super().__init__()
 
     BINDINGS = [
-        ("ctrl+c", "cancel_and_exit", "Cancel and Go Back"),
-        ("escape", "cancel_and_exit", "Cancel and Go Back"),
-        ("q", "cancel_and_exit", "Close"),
-        ("t", "toggle_plain_text", "Toggle Text"),
+        Binding("escape", "cancel_and_exit", "Close"),
+        Binding("q", "cancel_and_exit", "Close", show=False),
+        Binding("ctrl+c", "cancel_and_exit", "Close", show=False),
+        Binding("t", "toggle_plain_text", "Toggle Plain Text"),
+        Binding("s", "summary", "Summary"),
     ]
 
     node_states: dict[str, str] = reactive({})
@@ -146,11 +148,8 @@ class RunScreen(ModalScreen[None]):
         try:
             log_widget = self.query_one("#live_log", RichLog)
             text_widget = self.query_one("#plain_log", TextArea)
-            toggle_button = self.query_one("#toggle_text", Button)
         except NoMatches:
             return
-
-        toggle_button.label = "Rich Text" if self.plain_text else "Plain Text"
 
         if self.plain_text:
             # Switched TO plain text mode
@@ -191,7 +190,7 @@ class RunScreen(ModalScreen[None]):
             yield Static("Run started", id="replicate-display")
             yield Static(id="step-display")
             yield Static(id="progress-display")
-            yield Static(id="dag-display", classes="hidden")
+            yield Static(id="dag-display", classes="invisible")
 
             with Container(id="log-viewer"):
                 yield RichLog(highlight=True, markup=True, id="live_log")
@@ -202,10 +201,7 @@ class RunScreen(ModalScreen[None]):
                     id="plain_log",
                     classes="hidden",
                 )
-            with Container(id="button-container"):
-                yield Button("Plain Text", id="toggle_text")
-                yield Button("Summary", id="summary")
-                yield Button("Close", id="close_run")
+            yield Footer()
 
     def open_summary_screen(self, result: Any) -> None:
         self.app.push_screen(SummaryScreen(result))
@@ -222,8 +218,9 @@ class RunScreen(ModalScreen[None]):
     def on_mount(self) -> None:
         if isinstance(self._obj, ExperimentGraph):
             self.node_states = {node: "pending" for node in self._obj._graph.nodes}
-            self.query_one("#dag-display").remove_class("hidden")
+            self.query_one("#dag-display").remove_class("invisible")
         log = self.query_one("#live_log", RichLog)
+        print("self.app._disable_tooltips", self.app._disable_tooltips)
 
         def queue_callback(event: str, info: dict[str, Any]) -> None:
             """A simple, thread-safe callback that puts events onto a queue."""
@@ -276,7 +273,6 @@ class RunScreen(ModalScreen[None]):
         try:
             if self._result is not None:
                 self.open_summary_screen(self._result)
-            self.query_one("#close_run").remove_class("hidden")
         except NoMatches:
             pass
 
@@ -293,14 +289,9 @@ class RunScreen(ModalScreen[None]):
     def action_toggle_plain_text(self) -> None:
         self.plain_text = not self.plain_text
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "close_run":
-            self.app.pop_screen()
-        elif event.button.id == "summary":
-            if self._result is not None:
-                self.open_summary_screen(self._result)
-        elif event.button.id == "toggle_text":
-            self.action_toggle_plain_text()
+    def action_summary(self) -> None:
+        if self._result is not None:
+            self.open_summary_screen(self._result)
 
 
 async def _launch_run(app: App, obj: Any) -> None:

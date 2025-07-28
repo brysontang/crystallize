@@ -134,7 +134,10 @@ SelectionList {
     height: auto;
     border: round $primary;
     padding: 0 1;
-    margin-bottom: 1;
+}
+
+#log-viewer {
+    margin-top: 1;
 }
 
 RichLog {
@@ -199,6 +202,15 @@ Horizontal {
     content-align: left top;
     overflow: auto;
 }
+#config-widget {
+    background: $panel-darken-1;
+    border: round $secondary;
+    padding: 1;
+    height: 1fr;
+    content-align: left top;
+    overflow: auto;
+}
+
 
 TabbedContent {
     height: 1fr;
@@ -242,12 +254,6 @@ Input {
     width: 100%;
 }
 
-#replicate-input {
-    width: 10;
-    margin-right: 1;
-    margin-top: 0;
-    align-vertical: middle;
-}
 
 Input:focus {
     border: tall $accent;

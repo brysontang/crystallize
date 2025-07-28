@@ -45,7 +45,7 @@ def create_exp(tmp, name="exp"):
     d.mkdir()
     (d / "datasources.py").write_text("from test_from_yaml import constant\n")
     (d / "steps.py").write_text("from test_from_yaml import add_one_out\n")
-    (d / "hypotheses.py").write_text("from test_from_yaml import always_sig\n")
+    (d / "verifiers.py").write_text("from test_from_yaml import always_sig\n")
     cfg = {
         "name": name,
         "datasource": {"x": "constant"},
@@ -191,6 +191,7 @@ def test_from_yaml_output_default_mapping(tmp_path: Path):
         / "out.txt"
     )
     assert out_path.read_text() == "1"
+
 
 def test_from_yaml_multiple_outputs(tmp_path: Path):
     exp_dir = tmp_path / "exp_multi"

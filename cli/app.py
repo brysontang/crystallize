@@ -35,4 +35,14 @@ class CrystallizeApp(App):
 
 
 def run() -> None:
+    import sys
+
+    if "--serve" in sys.argv:
+        from textual_serve.server import Server
+
+        server = Server("crystallize")
+
+        server.serve()
+        return
+
     CrystallizeApp().run()

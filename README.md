@@ -116,9 +116,9 @@ using these settings. Clicking a node shows its details in the right panel with
 a **Run** button. Press <kbd>Enter</kbd> to run the highlighted object.
 
 Press ``c`` in the main screen to scaffold a new experiment folder. The details
-panel is scrollable and lists steps, treatments, output file names and the
-current replicate count from each ``config.yaml``. Edit the number next to the
-**Run** button and press <kbd>Enter</kbd> to save it back to the file.
+panel now displays a short description followed by a live config tree where you
+can modify values inline and save changes back to ``config.yaml``. Move focus
+between the tree and other widgets with the Tab key.
 
 ```bash
 # Discover and run a single experiment

@@ -917,7 +917,7 @@ class Experiment:
         ds_mod = (base / "datasources.py").exists()
         steps_mod = (base / "steps.py").exists()
         outs_mod = (base / "outputs.py").exists()
-        hyps_mod = (base / "hypotheses.py").exists()
+        ver_mod = (base / "verifiers.py").exists()
 
         exp_name = cfg.get("name", base.name)
 
@@ -1019,9 +1019,9 @@ class Experiment:
             raise TypeError("Treatments must be specified as a dictionary")
 
         hypotheses: list[Hypothesis] = []
-        if hyps_mod:
+        if ver_mod:
             for h in cfg.get("hypotheses", []):
-                v_fn = _load("hypotheses", h["verifier"])()
+                v_fn = _load("verifiers", h["verifier"])()
                 metrics = h.get("metrics")
                 h_name = h.get("name")
                 hypotheses.append(

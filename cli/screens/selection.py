@@ -13,7 +13,6 @@ from textual.widgets import (
     Button,
     Footer,
     Header,
-    Input,
     LoadingIndicator,
     Static,
     Tree,
@@ -27,7 +26,8 @@ from ..constants import ASCII_ART_ARRAY
 from ..discovery import discover_configs
 from ..screens.create_experiment import CreateExperimentScreen
 from ..screens.run import _launch_run
-from ..utils import update_replicates
+
+from ..widgets import ConfigEditorWidget
 
 
 class ExperimentTree(Tree):
@@ -55,10 +55,9 @@ class SelectionScreen(Screen):
     """Main screen for selecting experiments or graphs."""
 
     BINDINGS = [
-        ("q", "quit", "Quit"),
+        ("n", "create_experiment", "New Experiment"),
         ("r", "refresh", "Refresh"),
-        ("c", "create_experiment", "Create Experiment"),
-        ("e", "show_errors", "Errors"),
+        ("q", "quit", "Quit"),
     ]
 
     def __init__(self) -> None:
@@ -67,45 +66,20 @@ class SelectionScreen(Screen):
         self._experiments: Dict[str, Dict[str, Any]] = {}
         self._graphs: Dict[str, Dict[str, Any]] = {}
         self._selected_obj: Dict[str, Any] | None = None
+        self._selected_line: int | None = None
 
-    def _update_details(self, data: Dict[str, Any]) -> None:
+    async def _update_details(self, data: Dict[str, Any]) -> None:
         """Populate the details panel with information from ``data``."""
 
-        details = self.query_one("#details", Static)
+        # details = self.query_one("#details", Static)
         info = yaml.safe_load(Path(data["path"]).read_text()) or {}
 
         desc = info.get("description", data.get("doc", ""))
-        repl = info.get("replicates", data.get("replicates", 1))
-        steps = info.get("steps", [])
-        treatments = list((info.get("treatments") or {}).keys())
-        outputs = [
-            v.get("file_name", k) if isinstance(v, dict) else str(v)
-            for k, v in (info.get("outputs") or {}).items()
-        ]
+        # details.update(desc)
 
-        details_text = [
-            f"[bold]Type: {data['type']}[/bold]",
-            "",
-            desc,
-            f"Replicates: {repl}",
-        ]
-
-        if steps:
-            details_text.append("[bold]Steps:[/bold]")
-            details_text.extend(f"- {s}" for s in steps)
-
-        if treatments:
-            details_text.append("[bold]Treatments:[/bold]")
-            details_text.extend(f"- {t}" for t in treatments)
-
-        if outputs:
-            details_text.append("[bold]Outputs:[/bold]")
-            details_text.extend(f"- {o}" for o in outputs)
-
-        details.update("\n".join(details_text))
-
-        rep_input = self.query_one("#replicate-input", Input)
-        rep_input.value = str(repl)
+        container = self.query_one("#config-container")
+        await container.remove_children()
+        await container.mount(ConfigEditorWidget(Path(data["path"])))
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -125,7 +99,10 @@ class SelectionScreen(Screen):
         self.run_worker(self._discover())
 
     def action_create_experiment(self) -> None:
-        self.app.push_screen(CreateExperimentScreen())
+        def _refresh_sync(inp: Any) -> None:
+            self.run_worker(self._discover())
+
+        self.app.push_screen(CreateExperimentScreen(), _refresh_sync)
 
     def _discover_sync(
         self,
@@ -188,12 +165,12 @@ class SelectionScreen(Screen):
 
         right_panel = Container(classes="right-panel")
         await horizontal.mount(right_panel)
-        await right_panel.mount(Static(id="details", classes="details-panel"))
+        # await right_panel.mount(Static(id="details", classes="details-panel"))
+        await right_panel.mount(Container(id="config-container"))
 
         btn_container = Container(id="select-button-container")
         await right_panel.mount(btn_container)
         await btn_container.mount(Button("Run", id="run-btn"))
-        await btn_container.mount(Input(id="replicate-input", placeholder="replicates"))
 
         if self._load_errors:
             await main_container.mount(
@@ -202,6 +179,13 @@ class SelectionScreen(Screen):
                     id="error-msg",
                 )
             )
+        if self._selected_line is not None:
+            tree.move_cursor_to_line(self._selected_line)
+        else:
+            try:
+                tree.move_cursor_to_line(0)  # pragma: no cover
+            except IndexError:
+                pass
 
         tree.focus()
 
@@ -227,20 +211,28 @@ class SelectionScreen(Screen):
             self.run_worker(self._run_interactive_and_exit(self._selected_obj))
 
     async def on_tree_node_highlighted(self, event: Tree.NodeHighlighted) -> None:
+        if event.control.id != "object-tree":
+            return
         if event.node.data is not None:
             data = event.node.data
-            self._update_details(data)
+            await self._update_details(data)
             self._selected_obj = data
+            self._selected_line = event.node.line
         else:
-            details = self.query_one("#details", Static)
-            details.update("")
+            # details = self.query_one("#details", Static)
+            # details.update("")
             self._selected_obj = None
+            if not event.node.is_root:
+                self._selected_line = event.node.line
 
     async def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
+        if event.control.id != "object-tree":
+            return
         if event.node.data is not None:
             data = event.node.data
-            self._update_details(data)
+            await self._update_details(data)
             self._selected_obj = data
+            self._selected_line = event.node.line
 
     def action_show_errors(self) -> None:
         if self._load_errors:
@@ -251,14 +243,3 @@ class SelectionScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":
             self.action_run_selected()
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        if event.input.id == "replicate-input" and self._selected_obj is not None:
-            try:
-                new_val = int(event.value)
-            except ValueError:
-                self.app.bell()
-                return
-            update_replicates(Path(self._selected_obj["path"]), new_val)
-            self._selected_obj["replicates"] = new_val
-            self._update_details(self._selected_obj)

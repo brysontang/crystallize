@@ -78,3 +78,22 @@ async def test_add_placeholders(
 
         text = (tmp_path / fname).read_text()
         assert fragment in text
+
+
+@pytest.mark.asyncio
+async def test_help_screen(tmp_path: Path) -> None:
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(yaml.safe_dump({"name": "e"}))
+    async with App().run_test() as pilot:
+        widget = ConfigEditorWidget(cfg)
+        await pilot.app.mount(widget)
+
+        screens: list[str] = []
+
+        async def fake_push(screen):
+            screens.append(type(screen).__name__)
+
+        widget.app.push_screen = fake_push  # type: ignore[assignment]
+        await widget.action_help()
+
+        assert "ConfigHelpScreen" in screens

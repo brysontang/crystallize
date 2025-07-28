@@ -190,6 +190,40 @@ class ConfigTree(Tree):
             node.add_leaf(str(value), data=path)
 
 
+class ConfigHelpScreen(ModalScreen[None]):
+    """Popup explaining root config properties."""
+
+    CSS_PATH = "style/config_editor.tcss"
+
+    BINDINGS = [
+        Binding("ctrl+c", "close", "Close", show=False),
+        Binding("q", "close", "Close", show=False),
+        Binding("escape", "close", "Close"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        with Container(id="help-container"):
+            yield Static("Configuration Help", id="modal-title")
+            help_text = "\n".join(
+                [
+                    "`name` - experiment name used for artifact storage",
+                    "`replicates` - number of runs per treatment",
+                    "`datasource` - mapping of data sources or experiment outputs",
+                    "`steps` - ordered list of pipeline step names",
+                    "`outputs` - optional artifact definitions",
+                    "`hypotheses` - list of hypotheses to verify",
+                    "`treatments` - context modifications for each variant",
+                    "`cli` - CLI display metadata (group, icon, etc.)",
+                ]
+            )
+            yield Static(help_text, id="help-text")
+            yield Button("Close", id="close")
+        yield Footer()
+
+    def action_close(self) -> None:
+        self.dismiss(None)
+
+
 class ConfigEditorWidget(Container):
     """Widget for editing a config YAML file."""
 
@@ -197,6 +231,7 @@ class ConfigEditorWidget(Container):
         Binding("e", "edit", "Edit"),
         Binding("k", "move_up", "Move Up"),
         Binding("j", "move_down", "Move Down"),
+        Binding("h", "help", "Help"),
     ]
 
     def __init__(self, path: Path) -> None:
@@ -255,6 +290,9 @@ class ConfigEditorWidget(Container):
 
     def action_move_down(self) -> None:
         self._move_selected(1)
+
+    async def action_help(self) -> None:
+        await self.app.push_screen(ConfigHelpScreen())
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.remove()

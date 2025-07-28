@@ -42,6 +42,8 @@ You can also scaffold a graph-aware experiment using the interactive CLI. Press
 tree lists available experiments. Expand a node to see its outputs and press
 <kbd>Space</kbd> to select them. The CLI adds your selections to ``config.yaml``
 as ``experiment#output`` strings.
+Press <kbd>h</kbd> in the configuration editor for a short explanation of each
+root property and its purpose.
 
 You can load such a workflow directly from the final experiment's YAML file:
 

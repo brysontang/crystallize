@@ -1,5 +1,5 @@
 ---
-title: "Tutorial: Your First CLI Experiment"
+title: 'Tutorial: Your First CLI Experiment'
 description: A complete, story-driven walkthrough of creating, configuring, and running an experiment from the command line.
 ---
 
@@ -58,8 +58,3 @@ A single run is great, but for statistical confidence we need more replicates.
 4. When you reach the **Execution Summary**, you'll see metrics from all 10 runs, giving you a much more robust statistical result for your hypotheses.
 
 Congratulations! You've just seen the full power of the CLI workflow: scaffolding a working experiment, running it, and scaling it up for statistical significance, all in just a few minutes.
-
-## Next Steps
-
-- **Configure Your Experiment:** Learn the details of every field in [`config.yaml`](./how-to-configure.md).
-- **Chain Experiments:** Build on this tutorial in [Putting It All Together - Building a Graph Experiment](./tutorial-graph-experiment.md).

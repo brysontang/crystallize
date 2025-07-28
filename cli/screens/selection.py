@@ -27,6 +27,7 @@ from ..discovery import discover_configs
 from ..screens.create_experiment import CreateExperimentScreen
 from ..screens.run import _launch_run
 
+from ..widgets import ConfigEditorWidget
 
 class ExperimentTree(Tree):
     """Tree widget with custom binding for experiment selection."""
@@ -188,6 +189,7 @@ class SelectionScreen(Screen):
         right_panel = Container(classes="right-panel")
         await horizontal.mount(right_panel)
         await right_panel.mount(Static(id="details", classes="details-panel"))
+        await right_panel.mount(Container(id="config-container"))
 
         btn_container = Container(id="select-button-container")
         await right_panel.mount(btn_container)
@@ -256,20 +258,15 @@ class SelectionScreen(Screen):
             self.app.push_screen(LoadErrorsScreen(self._load_errors))
 
     def action_config(self) -> None:
-        def _refresh_sync(inp: Any) -> None:
-            self.run_worker(self._discover)
-
         if self._selected_obj is not None:
-            from .config_editor import ConfigEditorScreen
-
-            self.app.push_screen(
-                ConfigEditorScreen(Path(self._selected_obj["path"])), _refresh_sync
-            )
+            container = self.query_one("#config-container")
+            container.remove_children()
+            container.mount(ConfigEditorWidget(Path(self._selected_obj["path"])))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":
             self.action_run_selected()
         elif event.button.id == "config-btn" and self._selected_obj is not None:
-            from .config_editor import ConfigEditorScreen
-
-            self.app.push_screen(ConfigEditorScreen(Path(self._selected_obj["path"])))
+            container = self.query_one("#config-container")
+            container.remove_children()
+            container.mount(ConfigEditorWidget(Path(self._selected_obj["path"])))

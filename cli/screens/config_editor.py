@@ -12,13 +12,19 @@ from textual.binding import Binding
 from textual import work
 
 
+class IndentDumper(yaml.SafeDumper):
+    def increase_indent(self, flow=False, indentless=False):
+        return super().increase_indent(flow, False)
+
+
 class ValueEditScreen(ModalScreen[str | None]):
     """Popup to edit a single value."""
 
     BINDINGS = [
-        ("ctrl+c", "cancel", "Cancel"),
-        ("escape", "cancel", "Cancel"),
-        ("enter", "save", "Save"),
+        Binding("ctrl+c", "cancel", "Cancel", show=False),
+        Binding("q", "cancel", "Close", show=False),
+        Binding("ctrl+s", "save", "Save"),
+        Binding("escape", "cancel", "Cancel"),
     ]
 
     def __init__(self, value: str) -> None:
@@ -33,6 +39,7 @@ class ValueEditScreen(ModalScreen[str | None]):
             with Horizontal(classes="button-row"):
                 yield Button("Save", id="save")
                 yield Button("Cancel", id="cancel")
+        yield Footer()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         self.action_save()
@@ -83,11 +90,9 @@ class ConfigTree(Tree):
             screen.action_move_down()
 
     def action_collapse_all(self) -> None:  # pragma: no cover - delegates
-        print("collapse_all")
         self.root.collapse_all()
 
     def action_expand_all(self) -> None:  # pragma: no cover - delegates
-        print("expand_all")
         self.root.expand_all()
 
     def _build_tree(self, node: Tree.Node, value: Any, path: List[Any]) -> None:
@@ -98,10 +103,14 @@ class ConfigTree(Tree):
                 self._build_tree(child, val, path + [key])
         elif isinstance(value, list):
             for idx, item in enumerate(value):
-                label = str(item) if not isinstance(item, (dict, list)) else f"{idx}"
-                child = node.add(label)
-                child.data = path + [idx]
-                self._build_tree(child, item, path + [idx])
+                if isinstance(item, (dict, list)):
+                    label = f"{idx}"
+                    child = node.add(label)
+                    child.data = path + [idx]
+                    self._build_tree(child, item, path + [idx])
+                else:
+                    label = str(item)
+                    node.add_leaf(str(label), data=path + [idx])
         else:
             node.add_leaf(str(value), data=path)
 
@@ -110,7 +119,6 @@ class ConfigEditorScreen(ModalScreen[None]):
     """Full screen editor for a config YAML file."""
 
     BINDINGS = [
-        Binding("s", "save", "Save"),
         Binding("ctrl+c", "close", "Close", show=False),
         Binding("q", "close", "Close", show=False),
         Binding("escape", "close", "Close"),
@@ -128,7 +136,6 @@ class ConfigEditorScreen(ModalScreen[None]):
             self.cfg_tree = ConfigTree(self._data)
             yield self.cfg_tree
             with Horizontal(classes="button-row"):
-                yield Button("Save", id="save")
                 yield Button("Close", id="close")
         yield Footer()
 
@@ -143,26 +150,27 @@ class ConfigEditorScreen(ModalScreen[None]):
             return
 
         def _edit_sync(result: str | None) -> None:
-            print("edit_sync", result)
             if result is not None:
                 try:
                     new_value = yaml.safe_load(result)
                     self._set_value(node.data, new_value)
-                    print(node.children)
-
                     if not node.children:
                         node.set_label(str(new_value))
                     else:
                         pass
                 except yaml.YAMLError:
                     return
+                self._save()
 
         value = self._get_value(node.data)
         await self.app.push_screen(ValueEditScreen(str(value)), _edit_sync)
 
-    def action_save(self) -> None:
+    def _save(self) -> None:
         with open(self._path, "w") as f:
-            yaml.dump(self._data, f, sort_keys=False)
+            yaml.dump(self._data, f, Dumper=IndentDumper, sort_keys=False)
+
+    def action_save(self) -> None:
+        self._save()
         self.dismiss(None)
 
     def action_move_up(self) -> None:
@@ -172,9 +180,6 @@ class ConfigEditorScreen(ModalScreen[None]):
         self._move_selected(1)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "save":
-            with open(self._path, "w") as f:
-                yaml.dump(self._data, f, sort_keys=False)
         self.dismiss(None)
 
     def _get_value(self, path: List[Any]) -> Any:

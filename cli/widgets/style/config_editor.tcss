@@ -1,8 +1,18 @@
-#create-exp-container {
+#config-container {
+    layout: vertical;
+    width: 80%;
+    height: auto;
+    border: round $primary-darken-1;
+    background: $panel-darken-1;
+    padding: 2;
+    align: center middle;
+    box-sizing: border-box;
+}
+
+#edit-container {
     layout: vertical;
     width: 60%;
     height: auto;
-    border: round $primary-darken-1;
     background: $panel-darken-1;
     padding: 2;
     align: center middle;
@@ -26,28 +36,6 @@ Input:focus {
     border: tall $accent;
 }
 
-Label {
-    color: $text-muted;
-    margin: 0 0 1 0;
-}
-
-.files-to-include {
-    height: auto;
-    margin: 1 0;
-    width: 100%;
-}
-
-SelectionList {
-    margin: 0 0 1 0;
-    width: 100%;
-}
-
-#graph-container {
-    height: auto;
-    margin: 1 0;
-    width: 100%;
-}
-
 .button-row {
     height: auto;
     align-horizontal: right;
@@ -61,15 +49,4 @@ Button {
 
 Button:hover {
     background: $accent;
-}
-
-#name-feedback {
-    height: 1;
-    color: $text-muted;
-}
-
-#out-tree {
-    height: auto;
-    margin: 0 0 1 0;
-    width: 100%;
 }

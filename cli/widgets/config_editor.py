@@ -22,6 +22,8 @@ class IndentDumper(yaml.SafeDumper):
 class ValueEditScreen(ModalScreen[str | None]):
     """Popup to edit a single value."""
 
+    CSS_PATH = "style/config_editor.tcss"
+
     BINDINGS = [
         Binding("ctrl+c", "cancel", "Cancel", show=False),
         Binding("q", "cancel", "Close", show=False),
@@ -61,6 +63,8 @@ class ValueEditScreen(ModalScreen[str | None]):
 
 class AddItemScreen(ModalScreen[Dict[str, str] | None]):
     """Popup to collect fields for a new config item."""
+
+    CSS_PATH = "style/config_editor.tcss"
 
     BINDINGS = [
         Binding("ctrl+c", "cancel", "Cancel", show=False),

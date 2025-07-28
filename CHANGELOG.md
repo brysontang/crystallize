@@ -5,6 +5,19 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.2](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.1...crystallize-ml@v0.24.2) (2025-07-28)
+
+
+### Bug Fixes
+
+* Comment ([8f7b483](https://github.com/brysontang/crystallize/commit/8f7b48333183e088535b73d55e33dc2b46f96940))
+* Put css in python file ([02bfd6b](https://github.com/brysontang/crystallize/commit/02bfd6b6164a43a3b6869ca1b67d743969a40c3a))
+
+
+### Documentation
+
+* Removed next steps on first cli ([a0450b8](https://github.com/brysontang/crystallize/commit/a0450b8ca72fe617ffd7869779862ca54bd59db1))
+
 ## [0.24.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.0...crystallize-ml@v0.24.1) (2025-07-28)
 
 

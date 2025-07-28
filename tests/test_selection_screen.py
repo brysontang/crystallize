@@ -25,7 +25,7 @@ async def test_update_details_mounts_widget(tmp_path: Path) -> None:
 
             tree = screen.query_one("#object-tree")
             node = tree.root.children[0].children[0]
-            screen._update_details(node.data)
+            await screen._update_details(node.data)
 
             container = screen.query_one("#config-container")
             assert any(

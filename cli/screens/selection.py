@@ -71,11 +71,11 @@ class SelectionScreen(Screen):
     async def _update_details(self, data: Dict[str, Any]) -> None:
         """Populate the details panel with information from ``data``."""
 
-        # details = self.query_one("#details", Static)
+        details = self.query_one("#details", Static)
         info = yaml.safe_load(Path(data["path"]).read_text()) or {}
 
         desc = info.get("description", data.get("doc", ""))
-        # details.update(desc)
+        details.update(str(info["cli"]["icon"]) + " " + data["label"])
 
         container = self.query_one("#config-container")
         await container.remove_children()
@@ -165,7 +165,7 @@ class SelectionScreen(Screen):
 
         right_panel = Container(classes="right-panel")
         await horizontal.mount(right_panel)
-        # await right_panel.mount(Static(id="details", classes="details-panel"))
+        await right_panel.mount(Static(id="details", classes="details-panel"))
         await right_panel.mount(Container(id="config-container"))
 
         btn_container = Container(id="select-button-container")

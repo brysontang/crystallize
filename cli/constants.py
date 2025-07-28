@@ -194,7 +194,7 @@ LoadingIndicator {
     background: $panel-darken-1;
     border: round $secondary;
     padding: 1;
-    height: 1fr;
+    height: auto;
     content-align: left top;
     overflow: auto;
 }

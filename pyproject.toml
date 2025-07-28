@@ -17,10 +17,12 @@ classifiers = [
 ]
 dependencies = [
     "pyyaml >=6.0.2,<7",
-    "networkx >=3.4.2,<4",
+    "networkx >=3.4.2,<4", 
     "tqdm",
     "rich >=13.8.1,<14",
     "dill >=0.3.7,<0.4",
+    "textual >=4.0.0,<5",
+    "textual-serve >=1.1.2,<2",
 ]
 
 [project.optional-dependencies]
@@ -89,8 +91,6 @@ lazydocs = ">=0.4.8,<0.5"
 build = ">=1.2.2.post1,<2"
 twine = ">=5.1.0,<6"
 diff-cover = "*"
-textual = "*"
-textual-serve = "*"
 
 [tool.pixi.feature.extras.pypi-dependencies]
 crystallize-ml = "*"
@@ -100,10 +100,6 @@ crystallize-ml = "*"
 
 [tool.pixi.feature.vllm.pypi-dependencies]
 crystallize-ml = "*"
-
-[tool.pixi.feature.cli.pypi-dependencies]
-textual = "*"
-textual-serve = "*"
 
 [tool.uv.sources]
 crystallize-ml = { path = ".", editable = true }

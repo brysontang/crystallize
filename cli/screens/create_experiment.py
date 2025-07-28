@@ -22,6 +22,7 @@ from textual.widgets.selection_list import Selection
 
 from ..utils import create_experiment_scaffolding
 from .selection_screens import ActionableSelectionList
+from .style.create_experiment import CSS
 
 
 class OutputTree(Tree):
@@ -48,7 +49,7 @@ class OutputTree(Tree):
 class CreateExperimentScreen(ModalScreen[None]):
     """Interactive screen for creating a new experiment folder."""
 
-    CSS_PATH = "style/create_experiment.tcss"
+    CSS_PATH = CSS
 
     BINDINGS = [
         Binding("ctrl+c", "cancel", "Cancel", show=False),

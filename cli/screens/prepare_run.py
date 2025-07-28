@@ -13,12 +13,13 @@ from textual.widgets.selection_list import Selection
 from textual.binding import Binding
 
 from .selection_screens import ActionableSelectionList, SingleSelectionList
+from .style.prepare_run import CSS
 
 
 class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     """Collect execution strategy and deletable artifacts."""
 
-    CSS_PATH = "style/prepare_run.tcss"
+    CSS_PATH = CSS
 
     BINDINGS = [
         Binding("r", "run", "Run"),

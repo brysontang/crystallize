@@ -1,3 +1,4 @@
+CSS = """
 #create-exp-container {
     layout: vertical;
     width: 60%;
@@ -73,3 +74,4 @@ Button:hover {
     margin: 0 0 1 0;
     width: 100%;
 }
+"""

@@ -1,3 +1,4 @@
+CSS = """
 #prepare-run-container {
     layout: vertical;
     width: 70%;
@@ -47,3 +48,4 @@ Button:hover {
     height: 1;
     color: $text-muted;
 }
+"""

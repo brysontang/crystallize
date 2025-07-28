@@ -30,8 +30,8 @@ Crystallize has just built a complete, working experiment in `experiments/hello-
 Let's run our new experiment without any modifications.
 
 1. Back on the main screen, your `hello-crystallize` experiment is highlighted. Press <kbd>Enter</kbd>.
-2. The **Prepare Run** screen appears. Select `rerun` to execute everything from scratch and press the **Run** button.
-3. The view switches to a live log, showing the experiment running its pipeline for both a baseline and two example treatments.
+2. The **Prepare Run** screen appears. Make sure only **datasource** and **steps** are enabled and select `rerun` to execute everything from scratch.
+3. Press **Run** to start. The view switches to a live log, showing the pipeline for both the baseline and two example treatments.
 
 ### Step 3: The Summary Screen – Instant Results!
 
@@ -62,4 +62,4 @@ Congratulations! You've just seen the full power of the CLI workflow: scaffoldin
 ## Next Steps
 
 - **Configure Your Experiment:** Learn the details of every field in [`config.yaml`](./how-to-configure.md).
-- **Master the UI:** Dive deeper into the TUI in our [Interactive Management Guide](./how-to-interactive.md).
+- **Chain Experiments:** Build on this tutorial in [Putting It All Together - Building a Graph Experiment](./tutorial-graph-experiment.md).

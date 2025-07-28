@@ -202,6 +202,15 @@ Horizontal {
     content-align: left top;
     overflow: auto;
 }
+#config-widget {
+    background: $panel-darken-1;
+    border: round $secondary;
+    padding: 1;
+    height: 1fr;
+    content-align: left top;
+    overflow: auto;
+}
+
 
 TabbedContent {
     height: 1fr;
@@ -245,11 +254,6 @@ Input {
     width: 100%;
 }
 
-#config-btn {
-    margin-right: 1;
-    margin-top: 0;
-    align-vertical: middle;
-}
 
 Input:focus {
     border: tall $accent;

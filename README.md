@@ -40,95 +40,89 @@ Crystallize revolves around several key abstractions:
 
 ## Getting Started
 
+Crystallize is a powerful framework that can be used in two primary ways: via the interactive **CLI** for managing file-based experiments, or as a **Python library** for full programmatic control.
+
 ### Installation
 
-Crystallize uses `pixi` for managing dependencies and environments:
+Install the framework and its CLI using pixi:
 
 ```bash
 pixi install crystallize-ml
 ```
 
-### Quick Example
+#### Option 1: The Interactive CLI (Recommended Workflow)
+
+This is the fastest way to create, manage, and run a suite of experiments.
+
+Launch the interactive terminal UI:
+
+```bash
+crystallize
+```
+
+Scaffold a new experiment:
+
+Inside the UI, press the `n` key to open the "Create New Experiment" screen. Fill out the details to generate a new experiment folder under `experiments/`.
+
+Run your experiment:
+
+The UI will automatically discover your new experiment. Highlight it in the list and press <kbd>Enter</kbd> to run it.
+
+#### Option 2: The Python Library (Programmatic Workflow)
+
+Use the library directly in your Python scripts for advanced use cases and integrations.
 
 ```python
 from crystallize import (
-    DataSource,
-    Hypothesis,
+    Experiment,
     Pipeline,
     Treatment,
-    Experiment,
+    Hypothesis,
     SeedPlugin,
     ParallelExecution,
 )
 
-# Example setup (simple)
+# Define your datasource, pipeline, treatments, etc.
 pipeline = Pipeline([...])
 datasource = DataSource(...)
-t_test = WelchTTest()
+treatment = Treatment(...)
+hypothesis = Hypothesis(...)
 
-@hypothesis(verifier=t_test, metrics="accuracy")
-def rank_by_p(result):
-    return result["p_value"]
-
-hypothesis = rank_by_p()
-
-treatment = Treatment(name="experiment_variant", apply_fn=lambda ctx: ctx.update({"learning_rate": 0.001}))
-
+# Build and run the experiment programmatically
 experiment = Experiment(
     datasource=datasource,
     pipeline=pipeline,
     plugins=[SeedPlugin(seed=42), ParallelExecution(max_workers=4)],
 )
-experiment.validate()  # optional
 result = experiment.run(
     treatments=[treatment],
     hypotheses=[hypothesis],
-    replicates=3,
+    replicates=10,
 )
 print(result.metrics)
-print(result.hypothesis_result)
-result.print_tree()
 ```
-
-For a minimal YAML-driven setup with treatments and artifact output,
-see [`examples/folder_experiment`](examples/folder_experiment).
 
 ### Command Line Interface
 
-Crystallize ships with an interactive CLI for discovering and executing
-experiments or experiment graphs. After each run, the summary screen now displays
-both recorded metrics and hypothesis results.
+The `crystallize` command opens a terminal UI for browsing and executing experiments. Highlight an experiment or graph to view its details and press <kbd>Enter</kbd> to run it. The details panel includes a live config editor so you can adjust values directly in `config.yaml`.
 
-Experiments can define a `cli` section in `config.yaml` to control how they
-appear in the interface:
+Experiments can define a `cli` section in `config.yaml` to control grouping and style:
 
 ```yaml
 cli:
-  group: "Data Preprocessing"  # Collapsible group name
-  priority: 1                  # Sorting within a group (lower first)
-  icon: "📊"                   # Emoji shown next to the name
-  color: "#85C1E9"             # Hex color for the label
-  hidden: false               # If true, the experiment is ignored
+  group: "Data Preprocessing"
+  priority: 1
+  icon: "📊"
+  color: "#85C1E9"
+  hidden: false
 ```
 
-The selection screen now groups experiments and graphs into collapsible trees
-using these settings. Clicking a node shows its details in the right panel with
-a **Run** button. Press <kbd>Enter</kbd> to run the highlighted object.
-
-Press ``c`` in the main screen to scaffold a new experiment folder. The details
-panel now displays a short description followed by a live config tree where you
-can modify values inline and save changes back to ``config.yaml``. Move focus
-between the tree and other widgets with the Tab key.
+You can also run experiments without the UI:
 
 ```bash
-# Discover and run a single experiment
-crystallize run experiment
-
-# Discover and run a graph from a specific directory
-crystallize run graph --path ./my_project/experiments
-
-# Preview actions without executing
-crystallize run graph --dry-run
+crystallize run experiment  # run a single experiment
+crystallize run graph --path ./my_project/experiments  # run an experiment graph
+crystallize run graph --dry-run  # preview actions without executing
 ```
 
 ### Project Structure

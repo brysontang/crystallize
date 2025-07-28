@@ -29,6 +29,7 @@ from ..screens.run import _launch_run
 
 from ..widgets import ConfigEditorWidget
 
+
 class ExperimentTree(Tree):
     """Tree widget with custom binding for experiment selection."""
 
@@ -67,18 +68,18 @@ class SelectionScreen(Screen):
         self._selected_obj: Dict[str, Any] | None = None
         self._selected_line: int | None = None
 
-    def _update_details(self, data: Dict[str, Any]) -> None:
+    async def _update_details(self, data: Dict[str, Any]) -> None:
         """Populate the details panel with information from ``data``."""
 
-        details = self.query_one("#details", Static)
+        # details = self.query_one("#details", Static)
         info = yaml.safe_load(Path(data["path"]).read_text()) or {}
 
         desc = info.get("description", data.get("doc", ""))
-        details.update(desc)
+        # details.update(desc)
 
         container = self.query_one("#config-container")
-        container.remove_children()
-        container.mount(ConfigEditorWidget(Path(data["path"])))
+        await container.remove_children()
+        await container.mount(ConfigEditorWidget(Path(data["path"])))
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -164,7 +165,7 @@ class SelectionScreen(Screen):
 
         right_panel = Container(classes="right-panel")
         await horizontal.mount(right_panel)
-        await right_panel.mount(Static(id="details", classes="details-panel"))
+        # await right_panel.mount(Static(id="details", classes="details-panel"))
         await right_panel.mount(Container(id="config-container"))
 
         btn_container = Container(id="select-button-container")
@@ -211,12 +212,12 @@ class SelectionScreen(Screen):
             return
         if event.node.data is not None:
             data = event.node.data
-            self._update_details(data)
+            await self._update_details(data)
             self._selected_obj = data
             self._selected_line = event.node.line
         else:
-            details = self.query_one("#details", Static)
-            details.update("")
+            # details = self.query_one("#details", Static)
+            # details.update("")
             self._selected_obj = None
             if not event.node.is_root:
                 self._selected_line = event.node.line
@@ -226,7 +227,7 @@ class SelectionScreen(Screen):
             return
         if event.node.data is not None:
             data = event.node.data
-            self._update_details(data)
+            await self._update_details(data)
             self._selected_obj = data
             self._selected_line = event.node.line
 
@@ -239,4 +240,3 @@ class SelectionScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":
             self.action_run_selected()
-

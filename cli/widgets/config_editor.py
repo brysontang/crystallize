@@ -102,7 +102,9 @@ class AddItemScreen(ModalScreen[Dict[str, str] | None]):
 class AddNode(TreeNode):
     """Tree node representing an 'add item' action."""
 
-    def __init__(self, tree: Tree, parent: TreeNode | None, label: str, add_type: str) -> None:
+    def __init__(
+        self, tree: Tree, parent: TreeNode | None, label: str, add_type: str
+    ) -> None:
         super().__init__(
             tree,
             parent,
@@ -118,11 +120,7 @@ class AddNode(TreeNode):
 class ConfigTree(Tree):
     """Tree widget for displaying and editing YAML data."""
 
-    BINDINGS = [b for b in Tree.BINDINGS if getattr(b, "key", "") != "enter"] + [
-        Binding("e", "edit", "Edit"),
-        Binding("k", "move_up", "Move Up"),
-        Binding("j", "move_down", "Move Down"),
-    ]
+    BINDINGS = [b for b in Tree.BINDINGS if getattr(b, "key", "") != "enter"]
 
     VALID_KEYS = {"steps", "datasource", "hypotheses", "outputs", "treatments"}
 
@@ -190,9 +188,9 @@ class ConfigEditorWidget(Container):
     """Widget for editing a config YAML file."""
 
     BINDINGS = [
-        Binding("ctrl+c", "close", "Close", show=False),
-        Binding("q", "close", "Close", show=False),
-        Binding("escape", "close", "Close"),
+        Binding("e", "edit", "Edit"),
+        Binding("k", "move_up", "Move Up"),
+        Binding("j", "move_down", "Move Down"),
     ]
 
     def __init__(self, path: Path) -> None:
@@ -202,12 +200,15 @@ class ConfigEditorWidget(Container):
             self._data = yaml.safe_load(f) or {}
 
     def compose(self) -> ComposeResult:
-        yield Static("Edit Config", id="modal-title")
+        yield Static("Experiment Configuration", id="modal-title")
         self.cfg_tree = ConfigTree(self._data)
         yield self.cfg_tree
-        with Horizontal(classes="button-row"):
-            yield Button("Close", id="close")
-        yield Footer()
+
+    async def on_mount(self) -> None:
+        """Open all first level nodes when mounted."""
+        for node in self.cfg_tree.root.children:
+            if node.label.plain != "cli":
+                node.expand()
 
     async def action_close(self) -> None:
         self.remove()
@@ -266,11 +267,7 @@ class ConfigEditorWidget(Container):
 
     def _move_selected(self, delta: int) -> None:
         node = self.cfg_tree.cursor_node
-        if (
-            node is None
-            or node.parent is None
-            or node.parent.is_root
-        ):
+        if node is None or node.parent is None or node.parent.is_root:
             return
 
         parent_node = node.parent

@@ -206,11 +206,11 @@ class ConfigEditorWidget(Container):
         self.cfg_tree = ConfigTree(self._data)
         yield self.cfg_tree
 
-    async def on_mount(self) -> None:
-        """Open all first level nodes when mounted."""
-        for node in self.cfg_tree.root.children:
-            if node.label.plain != "cli":
-                node.expand()
+    # async def on_mount(self) -> None:
+    #     """Open all first level nodes when mounted."""
+    #     for node in self.cfg_tree.root.children:
+    #         if node.label.plain != "cli":
+    #             node.expand()
 
     async def action_close(self) -> None:
         self.remove()
@@ -307,6 +307,8 @@ class ConfigEditorWidget(Container):
         node = event.node
         if isinstance(node, AddNode):
             await self._open_add_screen(node)
+        elif not node.allow_expand:
+            await self.run_action("edit")
 
     async def _open_add_screen(self, node: AddNode) -> None:
         add_type = node.add_type

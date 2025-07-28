@@ -265,7 +265,7 @@ def add_placeholder(base: Path, kind: str, name: str) -> None:
         "verifier": (
             base / "verifiers.py",
             ["from crystallize import verifier"],
-            "@verifier\ndef {name}(baseline, treatment):\n    return {{'p_value': 0.01, 'significant': True}}\n",
+            "@verifier\ndef {name}(baseline, treatment):\n    return {{'p_value': 0.5, 'significant': False}}\n",
         ),
     }
 

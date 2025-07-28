@@ -73,10 +73,10 @@ def _write_experiment_summary(log: RichLog, result: Any) -> None:
         log.write(hyp_table)
         log.write("\n")
     if result.errors:
-        log.write("[bold red]Errors occurred[/]")
+        log.write(Text("Errors occurred", style="bold red"))
         for cond, err in result.errors.items():
             traceback_str = getattr(err, "traceback_str", str(err))
-            log.write(f"[bold yellow]{cond}:[/]\n{traceback_str}")
+            log.write(Text(f"{cond}:\n{traceback_str}", style="bold yellow"))
 
 
 def _write_summary(log: RichLog, result: Any) -> None:

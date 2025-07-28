@@ -63,6 +63,11 @@ class Pipeline:
             step_iter = tqdm(step_iter, total=len(self.steps), desc="Steps")
 
         for i, step in step_iter:
+            try:
+                del target_ctx._data["step_name"]
+            except KeyError:
+                pass
+            target_ctx.add("step_name", step.__class__.__name__)
             if verbose and isinstance(target_ctx, LoggingContext):
                 target_ctx.reads.clear()
 

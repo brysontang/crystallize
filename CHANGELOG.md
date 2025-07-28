@@ -5,6 +5,17 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.5](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.4...crystallize-ml@v0.24.5) (2025-07-28)
+
+
+### Bug Fixes
+
+* Before_step to plugins ([350211e](https://github.com/brysontang/crystallize/commit/350211eb4bc47987162557d535bb6053b271015f))
+* Progress from steps updates ([24b6555](https://github.com/brysontang/crystallize/commit/24b655578d9c9a816a498ca2351d5c6bbec3d2f0))
+* Progress from steps updates ([350211e](https://github.com/brysontang/crystallize/commit/350211eb4bc47987162557d535bb6053b271015f))
+* Treatment state better displayed ([350211e](https://github.com/brysontang/crystallize/commit/350211eb4bc47987162557d535bb6053b271015f))
+* Update CLI status plugin test ([491d6d4](https://github.com/brysontang/crystallize/commit/491d6d46628b0354a8b0b2708f9828da9c0dbd8c))
+
 ## [0.24.4](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.3...crystallize-ml@v0.24.4) (2025-07-28)
 
 

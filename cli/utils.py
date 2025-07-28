@@ -130,7 +130,25 @@ def create_experiment_scaffolding(
         raise FileExistsError(exp_dir)
     exp_dir.mkdir()
 
-    config: dict[str, Any] = {"name": name, "datasource": {}, "steps": []}
+    experiment_class = "Experiment"
+    if artifact_inputs:
+        experiment_class = "ExperimentGraph"
+
+    default_cli_config = {
+        "priority": 999,
+        "group": "Graphs" if artifact_inputs else "Experiments",
+        "icon": "\U0001f4ca",
+        "color": None,
+        "hidden": False,
+    }
+
+    config: dict[str, Any] = {
+        "name": name,
+        "replicates": 1,
+        "cli": default_cli_config,
+        "datasource": {},
+        "steps": [],
+    }
     if artifact_inputs:
         config["datasource"].update(artifact_inputs)
     if outputs:
@@ -182,16 +200,12 @@ def create_experiment_scaffolding(
         (exp_dir / "outputs.py").write_text(out_code)
 
     if hypotheses:
-        hyp_code = "from crystallize import verifier\n"
+        ver_code = "from crystallize import verifier\n"
         if examples:
-            hyp_code += "\n@verifier\ndef always_sig(baseline, treatment):\n    return {'p_value': 0.01, 'significant': True}\n"
-        (exp_dir / "hypotheses.py").write_text(hyp_code)
+            ver_code += "\n@verifier\ndef always_sig(baseline, treatment):\n    return {'p_value': 0.01, 'significant': True}\n"
+        (exp_dir / "verifiers.py").write_text(ver_code)
 
     main_code = ""
-
-    experiment_class = "Experiment"
-    if artifact_inputs:
-        experiment_class = "ExperimentGraph"
 
     main_code += "from pathlib import Path\n"
     main_code += f"from crystallize import {experiment_class}\n"

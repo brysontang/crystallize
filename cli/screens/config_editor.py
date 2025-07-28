@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import yaml
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Dict
 
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal
 from textual.screen import ModalScreen
 from textual.widgets import Button, Footer, Input, Static, Tree
+from textual.widgets._tree import TreeNode
 from textual.binding import Binding
 from textual import work
 
@@ -57,15 +58,64 @@ class ValueEditScreen(ModalScreen[str | None]):
             self.action_cancel()
 
 
+class AddItemScreen(ModalScreen[Dict[str, str] | None]):
+    """Popup to collect fields for a new config item."""
+
+    BINDINGS = [
+        Binding("ctrl+c", "cancel", "Cancel", show=False),
+        Binding("q", "cancel", "Close", show=False),
+        Binding("ctrl+s", "save", "Save"),
+        Binding("escape", "cancel", "Cancel"),
+    ]
+
+    def __init__(self, title: str, fields: List[str]) -> None:
+        super().__init__()
+        self._title = title
+        self._fields = fields
+        self.inputs: Dict[str, Input] = {}
+
+    def compose(self) -> ComposeResult:
+        with Container(id="edit-container"):
+            yield Static(self._title, id="modal-title")
+            for field in self._fields:
+                inp = Input(placeholder=field, id=f"add-{field}")
+                self.inputs[field] = inp
+                yield inp
+            with Horizontal(classes="button-row"):
+                yield Button("Save", id="save")
+                yield Button("Cancel", id="cancel")
+        yield Footer()
+
+    def action_save(self) -> None:
+        values = {name: inp.value for name, inp in self.inputs.items()}
+        self.dismiss(values)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "save":
+            self.action_save()
+        else:
+            self.action_cancel()
+
+
+class AddNode(TreeNode):
+    """Tree node representing an 'add item' action."""
+
+    def __init__(self, tree: Tree, parent: TreeNode | None, label: str, add_type: str) -> None:
+        super().__init__(tree, parent, tree._new_id(), tree.process_label(label), None, expanded=False, allow_expand=False)
+        self.add_type = add_type
+
+
 class ConfigTree(Tree):
     """Tree widget for displaying and editing YAML data."""
 
-    BINDINGS = [
+    BINDINGS = [b for b in Tree.BINDINGS if getattr(b, "key", "") != "enter"] + [
+        Binding("enter", "select_cursor", "Select", show=False),
         Binding("e", "edit", "Edit"),
         Binding("k", "move_up", "Move Up"),
         Binding("j", "move_down", "Move Down"),
-        # Binding("o", "expand_all", "Expand All"),
-        # Binding("c", "collapse_all", "Collapse All"),
     ]
 
     def __init__(self, data: Any) -> None:
@@ -73,6 +123,13 @@ class ConfigTree(Tree):
         self.data = data
         self.show_root = False
         self._build_tree(self.root, data, [])
+
+    def _add_add_node(self, parent: TreeNode, add_type: str) -> None:
+        label = f"+ add {add_type[:-1] if add_type.endswith('s') else add_type}"
+        node = AddNode(self, parent, label, add_type)
+        parent._children.append(node)
+        self._tree_nodes[node.id] = node
+        self._invalidate()
 
     async def action_edit(self) -> None:  # pragma: no cover - delegates
         screen = self.screen
@@ -101,6 +158,8 @@ class ConfigTree(Tree):
                 child = node.add(str(key))
                 child.data = path + [key]
                 self._build_tree(child, val, path + [key])
+                if not path and key not in {"name", "cli", "replicates"}:
+                    self._add_add_node(child, key)
         elif isinstance(value, list):
             for idx, item in enumerate(value):
                 if isinstance(item, (dict, list)):
@@ -111,6 +170,10 @@ class ConfigTree(Tree):
                 else:
                     label = str(item)
                     node.add_leaf(str(label), data=path + [idx])
+            if not path:
+                root_key = node.label.plain
+                if root_key not in {"name", "cli", "replicates"}:
+                    self._add_add_node(node, root_key)
         else:
             node.add_leaf(str(value), data=path)
 
@@ -245,3 +308,42 @@ class ConfigEditorScreen(ModalScreen[None]):
 
         # -------- 3. persist -------------------------------------------------
         self._save()
+
+    async def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
+        node = event.node
+        if isinstance(node, AddNode):
+            await self._open_add_screen(node)
+
+    async def _open_add_screen(self, node: AddNode) -> None:
+        add_type = node.add_type
+        if add_type == "steps":
+            screen = AddItemScreen("Add Step", ["name"])
+        elif add_type == "datasource":
+            screen = AddItemScreen("Add Datasource", ["alias", "source"])
+        elif add_type == "hypotheses":
+            screen = AddItemScreen("Add Hypothesis", ["name", "verifier", "metrics"])
+        else:
+            return
+
+        def _add_sync(result: Dict[str, str] | None) -> None:
+            if result is None:
+                return
+            if add_type == "steps":
+                self._data.setdefault("steps", []).append(result["name"])
+            elif add_type == "datasource":
+                ds = self._data.setdefault("datasource", {})
+                ds[result["alias"]] = result["source"]
+            elif add_type == "hypotheses":
+                self._data.setdefault("hypotheses", []).append(
+                    {
+                        "name": result["name"],
+                        "verifier": result["verifier"],
+                        "metrics": result["metrics"],
+                    }
+                )
+            self.cfg_tree.root.remove_children()
+            self.cfg_tree._build_tree(self.cfg_tree.root, self._data, [])
+            self.cfg_tree.focus()
+            self._save()
+
+        await self.app.push_screen(screen, _add_sync)

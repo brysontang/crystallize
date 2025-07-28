@@ -148,6 +148,7 @@ class RunScreen(Screen):
         try:
             log_widget = self.query_one("#live_log", RichLog)
             text_widget = self.query_one("#plain_log", TextArea)
+            toggle_btn = self.query_one("#toggle_text", Button)
         except NoMatches:
             return
 
@@ -160,11 +161,13 @@ class RunScreen(Screen):
             # Hide the RichLog and show the TextArea
             log_widget.display = False
             text_widget.display = True
+            toggle_btn.label = "Rich Text"
             text_widget.focus()  # Focus the TextArea so it can be scrolled/selected
         else:
             # Switched BACK to rich text mode
             log_widget.display = True
             text_widget.display = False
+            toggle_btn.label = "Plain Text"
 
     def _handle_status_event(self, event: str, info: dict[str, Any]) -> None:
         if event == "start":
@@ -201,6 +204,7 @@ class RunScreen(Screen):
                     id="plain_log",
                     classes="hidden",
                 )
+            yield Button("Plain Text", id="toggle_text")
             yield Footer()
 
     def open_summary_screen(self, result: Any) -> None:

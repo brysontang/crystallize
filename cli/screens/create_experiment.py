@@ -114,8 +114,8 @@ class CreateExperimentScreen(ModalScreen[None]):
                 self.file_list.add_option(
                     Selection(
                         "verifiers.py",
-                        "verifiers",
-                        id="verifiers",
+                        "hypotheses",
+                        id="hypotheses",
                     )
                 )
                 yield self.file_list

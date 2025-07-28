@@ -5,6 +5,23 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.0...crystallize-ml@v0.24.1) (2025-07-28)
+
+
+### Bug Fixes
+
+* Clarification on running without cli ([94e18c4](https://github.com/brysontang/crystallize/commit/94e18c4b8939bcab57dc8c4ada2cbcad13b87a3a))
+
+
+### Documentation
+
+* Add CLI tutorial and sidebar ([e05063e](https://github.com/brysontang/crystallize/commit/e05063e450d788261938ea34ac3b400aefd6a8ff))
+* **crystallize-ml:** Update getting started section ([cd8eb4d](https://github.com/brysontang/crystallize/commit/cd8eb4d21afd3cb3e386e4f28bbda1101a44b452))
+* Expand CLI documentation ([8e3b0af](https://github.com/brysontang/crystallize/commit/8e3b0afb80d72c5d109172c275d6158d86099656))
+* Expand cli tutorial and add graph example ([404a300](https://github.com/brysontang/crystallize/commit/404a300e235aebdd579e23b64667256812f21196))
+* Minor tweaks to code ([7707042](https://github.com/brysontang/crystallize/commit/7707042f0f32ed11637e9c72d6c2cddc71a99b9f))
+* Refine first CLI tutorial ([0fc3072](https://github.com/brysontang/crystallize/commit/0fc3072b7d23eedd5e0ef5d89f19f325641ab113))
+
 ## [0.24.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.23.0...crystallize-ml@v0.24.0) (2025-07-28)
 
 

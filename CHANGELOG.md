@@ -5,6 +5,47 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.23.0...crystallize-ml@v0.24.0) (2025-07-28)
+
+
+### Features
+
+* Added footer to run screens ([1d84026](https://github.com/brysontang/crystallize/commit/1d84026f662be76485b930d8b42d685fca351917))
+* **cli:** Embed config editor in details panel ([b59e2e5](https://github.com/brysontang/crystallize/commit/b59e2e59bcafeb4c715e2844256797f2e9071973))
+* **crystallize-ml:** Add code skeletons when editing config ([8856ef6](https://github.com/brysontang/crystallize/commit/8856ef61564f4e466aae7068e5b645caa9985659))
+* **crystallize-ml:** Add interactive add nodes to config editor ([33f8e6a](https://github.com/brysontang/crystallize/commit/33f8e6a95006409e18b473277bdeb16e65196c56))
+* **crystallize-ml:** Add YAML config editor ([ab89586](https://github.com/brysontang/crystallize/commit/ab895869455714b592c2a995f9db35b8d9ebc9e8))
+* **crystallize-ml:** Refine modal styles ([db82b34](https://github.com/brysontang/crystallize/commit/db82b3429297b2bdd5223afe74c643d75bbc1d2b))
+
+
+### Bug Fixes
+
+* A and c for close and open all ([1d84026](https://github.com/brysontang/crystallize/commit/1d84026f662be76485b930d8b42d685fca351917))
+* **cli:** Postpone annotations in config widget ([327c673](https://github.com/brysontang/crystallize/commit/327c673be15721d2f2adab152be8d56530ef7576))
+* Command palette shows again ([9133cb4](https://github.com/brysontang/crystallize/commit/9133cb4d51114799940705f05ce0c89440399dee))
+* Edit config no longer has border ([e177a69](https://github.com/brysontang/crystallize/commit/e177a6912c33d8b126826cdd90c165fc4f9ff19a))
+* Enter on leaf node edits it ([62ff82c](https://github.com/brysontang/crystallize/commit/62ff82ce52ba24dd67f62c3b49598aae5f32c370))
+* ExperimentInput now takes in a datasource instead of an artifact ([e177a69](https://github.com/brysontang/crystallize/commit/e177a6912c33d8b126826cdd90c165fc4f9ff19a))
+* Flat lists now don't have children ([d41069c](https://github.com/brysontang/crystallize/commit/d41069cd37f880b63716376dc849db6f0db8da94))
+* Footer commands now consistent for runner flow ([844be98](https://github.com/brysontang/crystallize/commit/844be98e08d548aa7785b5f230e3c276a8db4458))
+* Footer order ([1d84026](https://github.com/brysontang/crystallize/commit/1d84026f662be76485b930d8b42d685fca351917))
+* Hypotheses.py -&gt; verifiers.py ([ea86db8](https://github.com/brysontang/crystallize/commit/ea86db8f3d0ccad28e405f203bcc43b9521cefc6))
+* Hypotheses.py -&gt; verifiers.py ([7a9e508](https://github.com/brysontang/crystallize/commit/7a9e508425582ac58a5c4d90dabd85a0950d1e82))
+* Issue if opening crystallize with no experiments ([6cc2cc2](https://github.com/brysontang/crystallize/commit/6cc2cc205dc650af22704e363a9ec7d0a5b83c8a))
+* Issue where certain adds didn't work/exist ([0d09c65](https://github.com/brysontang/crystallize/commit/0d09c6589bc54cf08bd3b0a86a284eb3b50b7bb9))
+* Minor style changes ([1e66b9a](https://github.com/brysontang/crystallize/commit/1e66b9a09a203b73e167e6516df05674d8f63edd))
+* N is now new experiment ([1d84026](https://github.com/brysontang/crystallize/commit/1d84026f662be76485b930d8b42d685fca351917))
+* New exp bug ([b3f78f0](https://github.com/brysontang/crystallize/commit/b3f78f058bb83eab535df1639b43703ce36a542d))
+* Ordering values works now ([50ae448](https://github.com/brysontang/crystallize/commit/50ae44865563d4958f78589ac8f54258b5bfed67))
+* Removed plain text toggle from run ([62ff82c](https://github.com/brysontang/crystallize/commit/62ff82ce52ba24dd67f62c3b49598aae5f32c370))
+* Rendering issue ([38e02ad](https://github.com/brysontang/crystallize/commit/38e02ad208c88b80e7f9dbe78d910122f8d5fd42))
+* Setting value in config ([1d84026](https://github.com/brysontang/crystallize/commit/1d84026f662be76485b930d8b42d685fca351917))
+* Treatment format ([24c0f85](https://github.com/brysontang/crystallize/commit/24c0f85ef86add79230bf7873a98a84685f06877))
+* Treatment format ([ea86db8](https://github.com/brysontang/crystallize/commit/ea86db8f3d0ccad28e405f203bcc43b9521cefc6))
+* Treatment format ([7a9e508](https://github.com/brysontang/crystallize/commit/7a9e508425582ac58a5c4d90dabd85a0950d1e82))
+* Unused test file ([d50ef60](https://github.com/brysontang/crystallize/commit/d50ef60f5f07c35e5ce9ba51cf0e1aa96476f181))
+* Verifier ([62ff82c](https://github.com/brysontang/crystallize/commit/62ff82ce52ba24dd67f62c3b49598aae5f32c370))
+
 ## [0.23.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.22.0...crystallize-ml@v0.23.0) (2025-07-27)
 
 

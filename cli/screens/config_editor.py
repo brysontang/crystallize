@@ -104,7 +104,7 @@ class ConfigTree(Tree):
         elif isinstance(value, list):
             for idx, item in enumerate(value):
                 if isinstance(item, (dict, list)):
-                    label = f"{idx}"
+                    label = item.get("name", f"{idx}")
                     child = node.add(label)
                     child.data = path + [idx]
                     self._build_tree(child, item, path + [idx])
@@ -195,22 +195,53 @@ class ConfigEditorScreen(ModalScreen[None]):
         obj[path[-1]] = value
 
     def _move_selected(self, delta: int) -> None:
+        """Move the highlighted row up (‑1) or down (+1).
+
+        * Works for both lists and ordered dicts.
+        * Ignores moves that would leave the collection bounds.
+        * Saves the file after every successful move.
+        """
         node = self.cfg_tree.cursor_node
-        if node is None or node.data is None or not node.data:
+        if (
+            node is None  # nothing selected
+            or node.parent is None  # should not happen
+            or node.parent.is_root  # don’t reorder the YAML root
+        ):
             return
-        path = node.data
-        parent = self._data
-        for p in path[:-1]:
-            parent = parent[p]
-        idx = path[-1]
-        if not isinstance(parent, list):
-            return
+
+        parent_node = node.parent
+        current_line = node.line
+        siblings = list(parent_node.children)
+        idx = siblings.index(node)
         new_idx = idx + delta
-        if new_idx < 0 or new_idx >= len(parent):
+
+        if not 0 <= new_idx < len(siblings):  # would fall off the list
             return
-        parent[idx], parent[new_idx] = parent[new_idx], parent[idx]
-        node.parent.children.insert(new_idx, node.parent.children.pop(idx))
-        node.data[-1] = new_idx
-        for i, child in enumerate(node.parent.children):
-            if child.data:
-                child.data[-1] = i
+
+        # -------- 1. mutate the underlying YAML data -------------------------
+        path = node.data  # e.g. ['steps', 3]
+        parent_path = path[:-1]
+        parent_obj = self._get_value(parent_path) if parent_path else self._data
+
+        if isinstance(parent_obj, list):
+            parent_obj[idx], parent_obj[new_idx] = parent_obj[new_idx], parent_obj[idx]
+
+        elif isinstance(parent_obj, dict):
+            # preserve mapping identity but change insertion order
+            keys = list(parent_obj.keys())
+            keys[idx], keys[new_idx] = keys[new_idx], keys[idx]
+            reordered = {k: parent_obj[k] for k in keys}
+            parent_obj.clear()
+            parent_obj.update(reordered)
+        else:
+            return  # neither list nor dict → nothing to swap
+
+        # -------- 2. refresh that part of the tree ---------------------------
+        parent_node.remove_children()
+        self.cfg_tree._build_tree(parent_node, parent_obj, parent_path)
+        if self.cfg_tree.validate_cursor_line(current_line + delta):
+            self.cfg_tree.move_cursor_to_line(current_line + delta)
+        self.cfg_tree.focus()
+
+        # -------- 3. persist -------------------------------------------------
+        self._save()

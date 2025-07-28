@@ -20,6 +20,14 @@ export default defineConfig({
       ],
       sidebar: [
         {
+          label: 'The Crystallize CLI',
+          items: [
+            { label: 'Tutorial: Your First CLI Experiment', slug: 'cli/tutorial-cli-workflow' },
+            { label: 'How-To: Configure Experiments (config.yaml)', slug: 'cli/how-to-configure' },
+            { label: 'How-To: Interactive Management', slug: 'cli/how-to-interactive' },
+          ],
+        },
+        {
           label: 'How-to Guides',
           items: [
             {

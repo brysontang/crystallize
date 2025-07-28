@@ -13,6 +13,8 @@ from textual.containers import Container, Horizontal
 from textual.widgets import Button, Footer, Input, Static, Tree
 from textual.widgets._tree import TreeNode
 
+from .style.config_editor import CSS
+
 
 class IndentDumper(yaml.SafeDumper):
     def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:
@@ -22,7 +24,7 @@ class IndentDumper(yaml.SafeDumper):
 class ValueEditScreen(ModalScreen[str | None]):
     """Popup to edit a single value."""
 
-    CSS_PATH = "style/config_editor.tcss"
+    CSS = CSS
 
     BINDINGS = [
         Binding("ctrl+c", "cancel", "Cancel", show=False),

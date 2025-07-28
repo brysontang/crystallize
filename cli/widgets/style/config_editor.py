@@ -1,3 +1,4 @@
+CSS = """
 #config-container {
     layout: vertical;
     width: 80%;
@@ -50,3 +51,4 @@ Button {
 Button:hover {
     background: $accent;
 }
+"""

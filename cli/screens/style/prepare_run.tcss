@@ -20,9 +20,18 @@ SelectionList {
     width: 100%;
 }
 
+#run-method {
+    height: auto;
+}
+
+#delete-info {
+    height: auto;
+}
+
 .button-row {
     align-horizontal: center;
     margin-top: 2;
+    height: auto;
 }
 
 Button {

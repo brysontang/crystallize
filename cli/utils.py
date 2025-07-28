@@ -231,3 +231,64 @@ def update_replicates(config_path: Path, replicates: int) -> None:
 
     with config_path.open("w") as f:
         yaml.dump(data, f, Dumper=IndentDumper, sort_keys=False)
+
+
+def add_placeholder(base: Path, kind: str, name: str) -> None:
+    """Ensure a skeleton function ``name`` exists for ``kind``.
+
+    Parameters
+    ----------
+    base:
+        Directory containing ``steps.py`` and friends.
+    kind:
+        One of ``"steps"``, ``"datasource"``, ``"outputs"``, ``"verifier"``.
+    name:
+        Name of the function to create.
+    """
+
+    mapping = {
+        "steps": (
+            base / "steps.py",
+            ["from crystallize import pipeline_step"],
+            "@pipeline_step()\ndef {name}(data):\n    return data\n",
+        ),
+        "datasource": (
+            base / "datasources.py",
+            ["from crystallize import data_source"],
+            "@data_source\ndef {name}(ctx):\n    return 1\n",
+        ),
+        "outputs": (
+            base / "outputs.py",
+            ["from pathlib import Path", "from typing import Any"],
+            "def {name}(p: Path) -> Any:\n    return p.read_bytes()\n",
+        ),
+        "verifier": (
+            base / "verifiers.py",
+            ["from crystallize import verifier"],
+            "@verifier\ndef {name}(baseline, treatment):\n    return {{'p_value': 0.5, 'significant': False}}\n",
+        ),
+    }
+
+    file_path, imports, template = mapping[kind]
+
+    if file_path.exists():
+        text = file_path.read_text()
+    else:
+        text = ""
+
+    if f"def {name}(" in text:
+        return
+
+    lines = text.splitlines()
+
+    for imp in imports:
+        if imp not in text:
+            lines.insert(0, imp)
+            text = "\n".join(lines)
+
+    if lines and lines[-1].strip():
+        lines.append("")
+
+    lines.append(template.format(name=name).rstrip())
+
+    file_path.write_text("\n".join(lines) + "\n")

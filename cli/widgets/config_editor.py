@@ -4,6 +4,8 @@ import yaml
 from pathlib import Path
 from typing import Any, Dict, List
 
+from ..utils import add_placeholder
+
 from textual.app import ComposeResult
 from textual.screen import ModalScreen
 from textual.binding import Binding
@@ -204,11 +206,11 @@ class ConfigEditorWidget(Container):
         self.cfg_tree = ConfigTree(self._data)
         yield self.cfg_tree
 
-    async def on_mount(self) -> None:
-        """Open all first level nodes when mounted."""
-        for node in self.cfg_tree.root.children:
-            if node.label.plain != "cli":
-                node.expand()
+    # async def on_mount(self) -> None:
+    #     """Open all first level nodes when mounted."""
+    #     for node in self.cfg_tree.root.children:
+    #         if node.label.plain != "cli":
+    #             node.expand()
 
     async def action_close(self) -> None:
         self.remove()
@@ -305,6 +307,8 @@ class ConfigEditorWidget(Container):
         node = event.node
         if isinstance(node, AddNode):
             await self._open_add_screen(node)
+        elif not node.allow_expand:
+            await self.run_action("edit")
 
     async def _open_add_screen(self, node: AddNode) -> None:
         add_type = node.add_type
@@ -315,7 +319,7 @@ class ConfigEditorWidget(Container):
         elif add_type == "hypotheses":
             screen = AddItemScreen("Add Hypothesis", ["name", "verifier", "metrics"])
         elif add_type == "outputs":
-            screen = AddItemScreen("Add Output", ["alias", "file_name"])
+            screen = AddItemScreen("Add Output", ["alias", "file_name", "loader"])
         elif add_type == "treatments":
             screen = AddItemScreen("Add Treatment", ["name", "context_field", "value"])
         else:
@@ -324,11 +328,14 @@ class ConfigEditorWidget(Container):
         def _add_sync(result: Dict[str, str] | None) -> None:
             if result is None:
                 return
+            base = self._path.parent
             if add_type == "steps":
                 self._data.setdefault("steps", []).append(result["name"])
+                add_placeholder(base, "steps", result["name"])
             elif add_type == "datasource":
                 ds = self._data.setdefault("datasource", {})
                 ds[result["data_key"]] = result["method"]
+                add_placeholder(base, "datasource", result["method"])
             elif add_type == "hypotheses":
                 self._data.setdefault("hypotheses", []).append(
                     {
@@ -337,9 +344,14 @@ class ConfigEditorWidget(Container):
                         "metrics": result["metrics"],
                     }
                 )
+                add_placeholder(base, "verifier", result["verifier"])
             elif add_type == "outputs":
                 op = self._data.setdefault("outputs", {})
-                op[result["alias"]] = {"file_name": result["file_name"]}
+                entry = {"file_name": result["file_name"]}
+                if result.get("loader"):
+                    entry["loader"] = result["loader"]
+                    add_placeholder(base, "outputs", result["loader"])
+                op[result["alias"]] = entry
             elif add_type == "treatments":
                 tr = self._data.setdefault("treatments", {})
                 try:

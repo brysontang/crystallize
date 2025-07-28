@@ -21,7 +21,7 @@ dependencies = [
     "tqdm",
     "rich >=13.8.1,<14",
     "dill >=0.3.7,<0.4",
-    "textual >=4.0.0,<5",
+    "textual >=5.0.1,<6",
     "textual-serve >=1.1.2,<2",
 ]
 

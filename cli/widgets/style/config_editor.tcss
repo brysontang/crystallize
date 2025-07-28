@@ -13,7 +13,6 @@
     layout: vertical;
     width: 60%;
     height: auto;
-    border: round $primary-darken-1;
     background: $panel-darken-1;
     padding: 2;
     align: center middle;

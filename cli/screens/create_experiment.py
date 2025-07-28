@@ -82,7 +82,7 @@ class CreateExperimentScreen(ModalScreen[None]):
                 yield Checkbox(
                     "Add example code",
                     id="examples",
-                    tooltip="Includes starter code in selected files (steps.py, hypotheses.py, etc.)",
+                    tooltip="Includes starter code in selected files (steps.py, verifiers.py, etc.)",
                 )
 
             with Collapsible(title="Files to include", collapsed=False):
@@ -113,9 +113,9 @@ class CreateExperimentScreen(ModalScreen[None]):
                 )
                 self.file_list.add_option(
                     Selection(
-                        "hypotheses.py",
-                        "hypotheses",
-                        id="hypotheses",
+                        "verifiers.py",
+                        "verifiers",
+                        id="verifiers",
                     )
                 )
                 yield self.file_list

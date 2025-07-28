@@ -31,7 +31,7 @@ Crystallize revolves around several key abstractions:
 
 - **DataSource**: Flexible data fetching and generation.
 - **Pipeline & PipelineSteps**: Deterministic data transformations. Steps may be
-  synchronous or ``async`` functions and are awaited automatically.
+  synchronous or `async` functions and are awaited automatically.
 - **Hypothesis & Treatments**: Quantifiable assertions and experimental variations.
 - **Statistical Tests**: Built-in support for rigorous validation of experiment results.
 - **Optimizer**: Iterative search over treatments using an ask/tell loop.
@@ -110,19 +110,17 @@ Experiments can define a `cli` section in `config.yaml` to control grouping and 
 
 ```yaml
 cli:
-  group: "Data Preprocessing"
+  group: 'Data Preprocessing'
   priority: 1
-  icon: "📊"
-  color: "#85C1E9"
+  icon: '📊'
+  color: '#85C1E9'
   hidden: false
 ```
 
 You can also run experiments without the UI:
 
 ```bash
-crystallize run experiment  # run a single experiment
-crystallize run graph --path ./my_project/experiments  # run an experiment graph
-crystallize run graph --dry-run  # preview actions without executing
+python -m experiments.<experiment_name>.main
 ```
 
 ### Project Structure

@@ -19,7 +19,7 @@ from .style.prepare_run import CSS
 class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     """Collect execution strategy and deletable artifacts."""
 
-    CSS_PATH = CSS
+    CSS = CSS
 
     BINDINGS = [
         Binding("r", "run", "Run"),

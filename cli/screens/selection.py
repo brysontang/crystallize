@@ -204,7 +204,10 @@ class SelectionScreen(Screen):
         if self._selected_line is not None:
             tree.move_cursor_to_line(self._selected_line)
         else:
-            tree.move_cursor_to_line(0)  # pragma: no cover
+            try:
+                tree.move_cursor_to_line(0)  # pragma: no cover
+            except IndexError:
+                pass
 
         tree.focus()
 

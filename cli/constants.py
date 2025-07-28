@@ -254,11 +254,6 @@ Input {
     width: 100%;
 }
 
-#config-btn {
-    margin-right: 1;
-    margin-top: 0;
-    align-vertical: middle;
-}
 
 Input:focus {
     border: tall $accent;

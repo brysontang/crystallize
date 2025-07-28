@@ -78,7 +78,7 @@ class AddItemScreen(ModalScreen[Dict[str, str] | None]):
         with Container(id="edit-container"):
             yield Static(self._title, id="modal-title")
             for field in self._fields:
-                inp = Input(placeholder=field, id=f"add-{field}")
+                inp = Input(placeholder=field, id=f"add-{field.replace(' ', '-')}")
                 self.inputs[field] = inp
                 yield inp
             with Horizontal(classes="button-row"):
@@ -103,8 +103,18 @@ class AddItemScreen(ModalScreen[Dict[str, str] | None]):
 class AddNode(TreeNode):
     """Tree node representing an 'add item' action."""
 
-    def __init__(self, tree: Tree, parent: TreeNode | None, label: str, add_type: str) -> None:
-        super().__init__(tree, parent, tree._new_id(), tree.process_label(label), None, expanded=False, allow_expand=False)
+    def __init__(
+        self, tree: Tree, parent: TreeNode | None, label: str, add_type: str
+    ) -> None:
+        super().__init__(
+            tree,
+            parent,
+            tree._new_id(),
+            tree.process_label(label),
+            None,
+            expanded=False,
+            allow_expand=False,
+        )
         self.add_type = add_type
 
 
@@ -112,11 +122,12 @@ class ConfigTree(Tree):
     """Tree widget for displaying and editing YAML data."""
 
     BINDINGS = [b for b in Tree.BINDINGS if getattr(b, "key", "") != "enter"] + [
-        Binding("enter", "select_cursor", "Select", show=False),
         Binding("e", "edit", "Edit"),
         Binding("k", "move_up", "Move Up"),
         Binding("j", "move_down", "Move Down"),
     ]
+
+    VALID_KEYS = {"steps", "datasource", "hypotheses", "outputs", "treatments"}
 
     def __init__(self, data: Any) -> None:
         super().__init__("root")
@@ -158,7 +169,7 @@ class ConfigTree(Tree):
                 child = node.add(str(key))
                 child.data = path + [key]
                 self._build_tree(child, val, path + [key])
-                if not path and key not in {"name", "cli", "replicates"}:
+                if not path and key in self.VALID_KEYS:
                     self._add_add_node(child, key)
         elif isinstance(value, list):
             for idx, item in enumerate(value):
@@ -172,7 +183,7 @@ class ConfigTree(Tree):
                     node.add_leaf(str(label), data=path + [idx])
             if not path:
                 root_key = node.label.plain
-                if root_key not in {"name", "cli", "replicates"}:
+                if root_key in self.VALID_KEYS:
                     self._add_add_node(node, root_key)
         else:
             node.add_leaf(str(value), data=path)
@@ -319,9 +330,13 @@ class ConfigEditorScreen(ModalScreen[None]):
         if add_type == "steps":
             screen = AddItemScreen("Add Step", ["name"])
         elif add_type == "datasource":
-            screen = AddItemScreen("Add Datasource", ["alias", "source"])
+            screen = AddItemScreen("Add Datasource", ["data_key", "method"])
         elif add_type == "hypotheses":
             screen = AddItemScreen("Add Hypothesis", ["name", "verifier", "metrics"])
+        elif add_type == "outputs":
+            screen = AddItemScreen("Add Output", ["alias", "file_name"])
+        elif add_type == "treatments":
+            screen = AddItemScreen("Add Treatment", ["name", "context_field", "value"])
         else:
             return
 
@@ -332,7 +347,7 @@ class ConfigEditorScreen(ModalScreen[None]):
                 self._data.setdefault("steps", []).append(result["name"])
             elif add_type == "datasource":
                 ds = self._data.setdefault("datasource", {})
-                ds[result["alias"]] = result["source"]
+                ds[result["data_key"]] = result["method"]
             elif add_type == "hypotheses":
                 self._data.setdefault("hypotheses", []).append(
                     {
@@ -341,6 +356,20 @@ class ConfigEditorScreen(ModalScreen[None]):
                         "metrics": result["metrics"],
                     }
                 )
+            elif add_type == "outputs":
+                op = self._data.setdefault("outputs", {})
+                op[result["alias"]] = {"file_name": result["file_name"]}
+            elif add_type == "treatments":
+                tr = self._data.setdefault("treatments", {})
+                # Convert value to number if it represents a valid number
+                try:
+                    value = float(result["value"])
+                    # Convert to int if it's a whole number
+                    if value.is_integer():
+                        value = int(value)
+                except ValueError:
+                    value = result["value"]
+                tr[result["name"]] = {result["context_field"]: value}
             self.cfg_tree.root.remove_children()
             self.cfg_tree._build_tree(self.cfg_tree.root, self._data, [])
             self.cfg_tree.focus()

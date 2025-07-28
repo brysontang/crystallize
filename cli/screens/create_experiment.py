@@ -49,6 +49,7 @@ class OutputTree(Tree):
 class CreateExperimentScreen(ModalScreen[None]):
     """Interactive screen for creating a new experiment folder."""
 
+    # Add CSS
     CSS = CSS
 
     BINDINGS = [

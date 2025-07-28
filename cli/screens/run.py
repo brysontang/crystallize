@@ -72,6 +72,7 @@ class RunScreen(Screen):
     replicate_info: str = reactive("")
     progress_percent: float = reactive(0.0)
     step_states: dict[str, str] = reactive({})
+    treatment_states: dict[str, str] = reactive({})
     plain_text: bool = reactive(False)
 
     def __init__(self, obj: Any, strategy: str, replicates: int | None) -> None:
@@ -90,6 +91,7 @@ class RunScreen(Screen):
             dag_widget = self.query_one("#dag-display", Static)
         except NoMatches:
             return
+
         text = Text(justify="center")
         order = list(nx.topological_sort(self._obj._graph))
         for i, node in enumerate(order):
@@ -107,6 +109,25 @@ class RunScreen(Screen):
     def on_node_status_changed(self, message: NodeStatusChanged) -> None:
         self.node_states = {**self.node_states, message.node_name: message.status}
 
+    def watch_treatment_states(self) -> None:
+        if not self.treatment_states:
+            return
+        try:
+            treatment_widget = self.query_one("#treatment-display", Static)
+        except NoMatches:
+            return
+        text = Text("Treatments: ", justify="center")
+        total_treatments = len(self.treatment_states)
+        for i, (name, status) in enumerate(self.treatment_states.items()):
+            style = {
+                "running": "bold blue",
+                "pending": "bold white",
+            }.get(status, "bold white")
+            text.append(f"{name}", style=style).append(
+                f"{' | ' if i < total_treatments - 1 else ''}"
+            )
+        treatment_widget.update(text)
+
     def watch_step_states(self) -> None:
         if not self.step_states:
             return
@@ -114,12 +135,15 @@ class RunScreen(Screen):
             step_widget = self.query_one("#step-display", Static)
         except NoMatches:
             return
+
         text = Text(justify="center")
         steps = list(self.step_states.keys())
+
         for i, step in enumerate(steps):
             status = self.step_states[step]
             style = {
                 "completed": "bold green",
+                "running": "bold blue",
                 "pending": "bold white",
             }.get(status, "bold white")
             text.append(f"[ {step} ]", style=style)
@@ -169,25 +193,41 @@ class RunScreen(Screen):
     def _handle_status_event(self, event: str, info: dict[str, Any]) -> None:
         if event == "start":
             self.step_states = {name: "pending" for name in info.get("steps", [])}
+            self.treatment_states = {
+                name: "pending" for name in info.get("treatments", [])
+            }
             self.progress_percent = 0.0
             self.replicate_info = "Run started"
         elif event == "replicate":
             rep = info.get("replicate", 0)
             total = info.get("total", 0)
             cond = info.get("condition", "")
-            self.replicate_info = f"Replicate {rep}/{total} ({cond})"
+            # Update treatment states for this replicate
+            self.treatment_states = {
+                name: "running" if name == cond else "pending"
+                for name in self.treatment_states
+            }
+
+            self.replicate_info = f"Replicate {rep}/{total}"
             self.step_states = {name: "pending" for name in self.step_states}
         elif event == "step":
             step = info.get("step")
-            if step and step in self.step_states:
-                self.step_states[step] = "completed"
             self.progress_percent = info.get("percent", 0.0)
+            if step and step in self.step_states:
+                self.step_states = {**self.step_states, step: "running"}
+        elif event == "step_finished":
+            step = info.get("step")
+            if step and step in self.step_states:
+                self.step_states = {**self.step_states, step: "completed"}
+        elif event == "reset_progress":
+            self.progress_percent = 0.0
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="run-container"):
             yield Header(show_clock=True)
             yield Static(f"⚡ Running: {self._obj.name}", id="modal-title")
             yield Static("Run started", id="replicate-display")
+            yield Static(id="treatment-display")
             yield Static(id="step-display")
             yield Static(id="progress-display")
             yield Static(id="dag-display", classes="invisible")
@@ -201,6 +241,7 @@ class RunScreen(Screen):
                     id="plain_log",
                     classes="hidden",
                 )
+
             yield Footer()
 
     def open_summary_screen(self, result: Any) -> None:
@@ -220,7 +261,6 @@ class RunScreen(Screen):
             self.node_states = {node: "pending" for node in self._obj._graph.nodes}
             self.query_one("#dag-display").remove_class("invisible")
         log = self.query_one("#live_log", RichLog)
-        print("self.app._disable_tooltips", self.app._disable_tooltips)
 
         def queue_callback(event: str, info: dict[str, Any]) -> None:
             """A simple, thread-safe callback that puts events onto a queue."""

@@ -9,6 +9,20 @@ from crystallize.utils.context import FrozenContext
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.experiments.experiment import Experiment
 
+import inspect
+
+STEP_KEY = "step_name"
+
+
+def emit_step_status(ctx: FrozenContext, percent: float) -> None:
+    cb = ctx.get("textual__status_callback")
+    if cb:
+        # infer the calling function name (usually the step function)
+        frame = inspect.currentframe()
+        outer = frame.f_back if frame else None
+        step_name = ctx.get(STEP_KEY, "<unknown>")
+        cb("step", {"step": step_name, "percent": percent})
+
 
 @dataclass
 class CLIStatusPlugin(BasePlugin):
@@ -36,10 +50,16 @@ class CLIStatusPlugin(BasePlugin):
             self.total_steps = len(self.steps)
             self.total_replicates = experiment.replicates
             self.total_conditions = len(experiment.treatments) + 1
+            self.treatment_names = [
+                treatment.name for treatment in experiment.treatments
+            ]
+            if BASELINE_CONDITION not in self.treatment_names:
+                self.treatment_names.insert(0, BASELINE_CONDITION)
             self.callback(
                 "start",
                 {
                     "steps": self.steps,
+                    "treatments": self.treatment_names,
                     "replicates": self.total_replicates,
                     "total": self.total_steps
                     * self.total_replicates
@@ -63,6 +83,9 @@ class CLIStatusPlugin(BasePlugin):
             },
         )
 
+        ctx.add("textual__status_callback", self.callback)
+        ctx.add("textual__emit", emit_step_status)
+
     def after_step(
         self,
         experiment: Experiment,
@@ -76,9 +99,8 @@ class CLIStatusPlugin(BasePlugin):
         if total:
             percent = self.completed / total
         self.callback(
-            "step",
+            "step_finished",
             {
                 "step": step.__class__.__name__,
-                "percent": percent,
             },
         )

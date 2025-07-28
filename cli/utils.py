@@ -168,6 +168,7 @@ def create_experiment_scaffolding(
                 {"name": "h", "verifier": "always_sig", "metrics": "val"}
             ]
             config["treatments"] = {
+                "baseline": {"delta": 0},
                 "add_one": {"delta": 1},
                 "add_two": {"delta": 2},
             }

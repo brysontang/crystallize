@@ -66,6 +66,10 @@ def default_loader(p: Path) -> Any:
     return p.read_bytes()
 
 
+def default_writer(p: Path, data: bytes) -> None:
+    p.write_bytes(data)
+
+
 class _PickleableLoader:
     """Wrapper enabling pickling of arbitrary loader callables."""
 
@@ -93,9 +97,15 @@ def _ensure_pickleable(fn: Callable[[Path], Any]) -> Callable[[Path], Any]:
 class Artifact(DataSource):
     """Declarative handle for reading and writing artifacts."""
 
-    def __init__(self, name: str, loader: Callable[[Path], Any] | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        loader: Callable[[Path], Any] | None = None,
+        writer: Callable[[Path, bytes], Any] | None = None,
+    ) -> None:
         self.name = name
         self.loader = _ensure_pickleable(loader or default_loader)
+        self.writer = _ensure_pickleable(writer or default_writer)
         self._ctx: Optional["FrozenContext"] = None
         self._producer: Optional["Experiment"] = None
         self._manifest: Optional[dict[str, str]] = None
@@ -116,16 +126,19 @@ class Artifact(DataSource):
         return state
 
     def _clone_with_context(self, ctx: "FrozenContext") -> "Artifact":
-        clone = Artifact(self.name, loader=self.loader)
+        clone = Artifact(self.name, loader=self.loader, writer=self.writer)
         clone._ctx = ctx
         clone._producer = self._producer
         clone._manifest = self._manifest
         clone.replicates = self.replicates
         return clone
 
-    def write(self, data: bytes) -> None:
+    def write(self, data: Any) -> None:
         if self._ctx is None:
             raise RuntimeError("Artifact not bound to context")
+        if self.writer is None:
+            raise RuntimeError("Artifact not bound to a writer")
+        data = self.writer(data)
         self._ctx.artifacts.add(self.name, data)
 
     def _base_dir(self) -> Path:

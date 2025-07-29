@@ -5,6 +5,15 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.8](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.7...crystallize-ml@v0.24.8) (2025-07-29)
+
+
+### Bug Fixes
+
+* Crash on error ([64330bc](https://github.com/brysontang/crystallize/commit/64330bc108c572901aac24554e901f0a5ee5fe93))
+* **crystallize-ml:** Correct artifact writer logic ([8bddb10](https://github.com/brysontang/crystallize/commit/8bddb105761983d1ef70522bb7c6656eb390c092))
+* Implemented writer function for artifacts ([b14257e](https://github.com/brysontang/crystallize/commit/b14257ec0515187a17d8ce7382f6cc6303a4fdb9))
+
 ## [0.24.7](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.6...crystallize-ml@v0.24.7) (2025-07-29)
 
 

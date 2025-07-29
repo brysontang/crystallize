@@ -13,7 +13,11 @@ async def test_update_details_mounts_widget(tmp_path: Path) -> None:
     exp_dir = tmp_path / "exp"
     exp_dir.mkdir()
     cfg = exp_dir / "config.yaml"
-    cfg.write_text(yaml.safe_dump({"name": "e"}))
+    cfg.write_text(
+        yaml.safe_dump(
+            {"name": "e", "cli": {"icon": "🔬", "group": "test", "priority": 1}}
+        )
+    )
 
     cwd = os.getcwd()
     os.chdir(tmp_path)
@@ -23,9 +27,13 @@ async def test_update_details_mounts_widget(tmp_path: Path) -> None:
             await pilot.app.push_screen(screen)
             await pilot.pause(1)
 
-            tree = screen.query_one("#object-tree")
-            node = tree.root.children[0].children[0]
-            await screen._update_details(node.data)
+            data = {
+                "path": str(cfg),
+                "label": "test",
+                "type": "Experiment",
+                "doc": "test doc",
+            }
+            await screen._update_details(data)
 
             container = screen.query_one("#config-container")
             assert any(

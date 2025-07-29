@@ -203,8 +203,8 @@ class SelectionScreen(Screen):
             self._load_errors[str(cfg)] = exc
             from ..screens.load_errors import LoadErrorsScreen
 
-            self.app.push_screen(LoadErrorsScreen({str(cfg): exc}))
             self.app.pop_screen()
+            self.app.push_screen(LoadErrorsScreen({str(cfg): exc}))
             return
 
         self.app.pop_screen()

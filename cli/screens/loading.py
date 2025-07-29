@@ -20,6 +20,3 @@ class LoadingScreen(ModalScreen):
     def compose(self) -> ComposeResult:
         with Container(id="loading-container"):
             yield Static("Loading...")
-
-    def on_mount(self) -> None:
-        self.set_timer(1, self.dismiss)

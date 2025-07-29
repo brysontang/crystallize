@@ -5,6 +5,14 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.6](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.5...crystallize-ml@v0.24.6) (2025-07-29)
+
+
+### Bug Fixes
+
+* Set default theme to nord ([93dd327](https://github.com/brysontang/crystallize/commit/93dd32793ac243375dc93fec472d838da7e119d0))
+* Show details again ([93dd327](https://github.com/brysontang/crystallize/commit/93dd32793ac243375dc93fec472d838da7e119d0))
+
 ## [0.24.5](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.4...crystallize-ml@v0.24.5) (2025-07-28)
 
 

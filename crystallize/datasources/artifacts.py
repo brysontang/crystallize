@@ -66,18 +66,22 @@ def default_loader(p: Path) -> Any:
     return p.read_bytes()
 
 
-def default_writer(p: Path, data: bytes) -> None:
-    p.write_bytes(data)
+def default_writer(data: Any) -> bytes:
+    if isinstance(data, bytes):
+        return data
+    if isinstance(data, str):
+        return data.encode()
+    raise TypeError("default_writer expects bytes or str")
 
 
-class _PickleableLoader:
-    """Wrapper enabling pickling of arbitrary loader callables."""
+class _PickleableCallable:
+    """Wrapper enabling pickling of arbitrary callables."""
 
-    def __init__(self, fn: Callable[[Path], Any]) -> None:
+    def __init__(self, fn: Callable[..., Any]) -> None:
         self.fn = fn
 
-    def __call__(self, path: Path) -> Any:
-        return self.fn(path)
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.fn(*args, **kwargs)
 
     def __getstate__(self) -> bytes:
         return dill.dumps(self.fn)
@@ -86,11 +90,11 @@ class _PickleableLoader:
         self.fn = dill.loads(state)
 
 
-def _ensure_pickleable(fn: Callable[[Path], Any]) -> Callable[[Path], Any]:
+def _ensure_pickleable(fn: Callable[..., Any]) -> Callable[..., Any]:
     try:
         pickle.dumps(fn)
     except Exception:
-        fn = _PickleableLoader(fn)
+        fn = _PickleableCallable(fn)
     return fn
 
 
@@ -101,7 +105,7 @@ class Artifact(DataSource):
         self,
         name: str,
         loader: Callable[[Path], Any] | None = None,
-        writer: Callable[[Path, bytes], Any] | None = None,
+        writer: Callable[[Any], bytes] | None = None,
     ) -> None:
         self.name = name
         self.loader = _ensure_pickleable(loader or default_loader)

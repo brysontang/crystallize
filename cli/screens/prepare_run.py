@@ -70,7 +70,10 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
     def on_selection_list_selected_changed(
         self, message: SelectionList.SelectedChanged
     ) -> None:
-        if message.selection_list.selected:
+        if (
+            message.selection_list.selected
+            and message.selection_list.id == "run-method"
+        ):
             self._strategy = str(message.selection_list.selected[0])
             if self._strategy == "resume" and self._deletable:
                 self.list.remove_class("invisible")
@@ -91,7 +94,7 @@ class PrepareRunScreen(ModalScreen[tuple[str, tuple[int, ...]] | None]):
         self, message: ActionableSelectionList.Submitted
     ) -> None:
         if self._strategy is not None:
-            self.dismiss((self._strategy, message.selected))
+            self.dismiss((self._strategy, tuple(message.selected)))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run":

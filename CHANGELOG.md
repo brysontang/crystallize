@@ -5,6 +5,14 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.7](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.6...crystallize-ml@v0.24.7) (2025-07-29)
+
+
+### Bug Fixes
+
+* Added loading screen for loading experiments ([d371877](https://github.com/brysontang/crystallize/commit/d3718775d0f3a9dc59d7992ded5a4eccb289c7d1))
+* Resume not being registered ([56d6a40](https://github.com/brysontang/crystallize/commit/56d6a4082366c720299a56df3b068cdc5384e29e))
+
 ## [0.24.6](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.5...crystallize-ml@v0.24.6) (2025-07-29)
 
 

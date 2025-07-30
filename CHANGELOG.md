@@ -5,6 +5,18 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.9](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.8...crystallize-ml@v0.24.9) (2025-07-30)
+
+
+### Bug Fixes
+
+* Artifact loader and writer use dill by default ([7c89642](https://github.com/brysontang/crystallize/commit/7c89642ed62a4c3b1fe51ce011f6a0f7577e2f80))
+
+
+### Documentation
+
+* **crystallize-ml:** Note treatment inheritance ([bf89dc1](https://github.com/brysontang/crystallize/commit/bf89dc1cd9ed703792bd7303322a62bbe1354379))
+
 ## [0.24.8](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.7...crystallize-ml@v0.24.8) (2025-07-29)
 
 

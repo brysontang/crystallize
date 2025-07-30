@@ -23,9 +23,19 @@ def _build_experiment_table(result: Any) -> Optional[Table]:
     for t in treatments:
         metric_names.update(metrics.treatments[t].metrics)
     for name in sorted(metric_names):
-        row = [name, str(metrics.baseline.metrics.get(name))]
+        row = [name]
+        # Truncate baseline value if too long
+        baseline_val = str(metrics.baseline.metrics.get(name))
+        if len(baseline_val) > 50:
+            baseline_val = baseline_val[:47] + "..."
+        row.append(baseline_val)
+
+        # Truncate treatment values if too long
         for t in treatments:
-            row.append(str(metrics.treatments[t].metrics.get(name)))
+            val = str(metrics.treatments[t].metrics.get(name))
+            if len(val) > 50:
+                val = val[:47] + "..."
+            row.append(val)
         table.add_row(*row)
     return table
 

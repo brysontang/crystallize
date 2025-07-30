@@ -90,14 +90,6 @@ class _PickleableCallable:
         self.fn = dill.loads(state)
 
 
-def _ensure_pickleable(fn: Callable[..., Any]) -> Callable[..., Any]:
-    try:
-        pickle.dumps(fn)
-    except Exception:
-        fn = _PickleableCallable(fn)
-    return fn
-
-
 class Artifact(DataSource):
     """Declarative handle for reading and writing artifacts."""
 
@@ -108,8 +100,8 @@ class Artifact(DataSource):
         writer: Callable[[Any], bytes] | None = None,
     ) -> None:
         self.name = name
-        self.loader = _ensure_pickleable(loader or default_loader)
-        self.writer = _ensure_pickleable(writer or default_writer)
+        self.loader = _PickleableCallable(loader or default_loader)
+        self.writer = _PickleableCallable(writer or default_writer)
         self._ctx: Optional["FrozenContext"] = None
         self._producer: Optional["Experiment"] = None
         self._manifest: Optional[dict[str, str]] = None

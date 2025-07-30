@@ -50,8 +50,10 @@ class WidgetWriter:
             self.history.append(message)
 
         if message:
-            self.app.call_from_thread(self.widget.write, message)
-            self.app.call_from_thread(self.widget.refresh)
+            # self.app.call_from_thread(self.widget.write, message)
+            # self.app.call_from_thread(self.widget.refresh)
+            self.widget.write(message)
+            self.widget.refresh()
 
     def flush(self) -> None:
         pass

@@ -271,9 +271,10 @@ class RunScreen(Screen):
         self.queue_timer = self.set_interval(1 / 15, self.process_queue)
 
         async def progress_callback(status: str, name: str) -> None:
-            self.app.call_from_thread(
-                self.on_node_status_changed, self.NodeStatusChanged(name, status)
-            )
+            # self.app.call_from_thread(
+            self.on_node_status_changed(self.NodeStatusChanged(name, status))
+
+        # )
 
         async def run_experiment_async() -> None:
             """Run the experiment asynchronously within Textual's event loop."""

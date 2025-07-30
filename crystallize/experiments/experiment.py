@@ -755,6 +755,7 @@ class Experiment:
             try:
                 self.validate()
             except Exception as exc:
+                print(f"Experiment validation failed: {exc}")
                 raise
 
         from crystallize.utils.cache import compute_hash

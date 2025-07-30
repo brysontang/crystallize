@@ -5,6 +5,14 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.10](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.9...crystallize-ml@v0.24.10) (2025-07-30)
+
+
+### Bug Fixes
+
+* Added back hash error ([1a4a1ab](https://github.com/brysontang/crystallize/commit/1a4a1ab31c57a3a5788024dfa068a20c8a0d78d8))
+* Limit size of metric table ([2187785](https://github.com/brysontang/crystallize/commit/218778594d903cda17051f3692a381b4b8e4e24e))
+
 ## [0.24.9](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.8...crystallize-ml@v0.24.9) (2025-07-30)
 
 

@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 import asyncio
+import queue  # Import queue
 import shutil
 import sys
 import traceback
 from pathlib import Path
 from typing import Any, Callable, List, Tuple
-import queue  # Import queue
 
 import networkx as nx
 from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.containers import VerticalScroll, Container
-from textual.css.query import NoMatches
 from textual.binding import Binding
+from textual.containers import Container, VerticalScroll
+from textual.css.query import NoMatches
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
@@ -24,8 +24,9 @@ from textual.widgets import Button, Footer, Header, RichLog, Static, TextArea
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.plugins.plugins import ArtifactPlugin
-from ..status_plugin import CLIStatusPlugin
+
 from ..discovery import _run_object
+from ..status_plugin import CLIStatusPlugin
 from ..widgets.writer import WidgetWriter
 from .delete_data import ConfirmScreen
 from .prepare_run import PrepareRunScreen
@@ -274,26 +275,22 @@ class RunScreen(Screen):
                 self.on_node_status_changed, self.NodeStatusChanged(name, status)
             )
 
-        def run_experiment_sync() -> None:
+        async def run_experiment_async() -> None:
+            """Run the experiment asynchronously within Textual's event loop."""
             original_stdout = sys.stdout
             sys.stdout = WidgetWriter(log, self.app, self.log_history)
             result = None
             try:
-
-                async def run_with_callback():
-                    if isinstance(self._obj, ExperimentGraph):
-                        return await self._obj.arun(
-                            strategy=self._strategy,
-                            replicates=self._replicates,
-                            progress_callback=progress_callback,
-                        )
-                    else:
-                        return await _run_object(
-                            self._obj, self._strategy, self._replicates
-                        )
-
-                result = asyncio.run(run_with_callback())
-
+                if isinstance(self._obj, ExperimentGraph):
+                    result = await self._obj.arun(
+                        strategy=self._strategy,
+                        replicates=self._replicates,
+                        progress_callback=progress_callback,
+                    )
+                else:
+                    result = await _run_object(
+                        self._obj, self._strategy, self._replicates
+                    )
             except Exception:
                 tb_str = traceback.format_exc()
                 print(
@@ -301,11 +298,9 @@ class RunScreen(Screen):
                 )
             finally:
                 sys.stdout = original_stdout
-                self.app.call_from_thread(
-                    self.on_experiment_complete, self.ExperimentComplete(result)
-                )
+                self.on_experiment_complete(self.ExperimentComplete(result))
 
-        self.worker = self.run_worker(run_experiment_sync, thread=True)
+        self.worker = self.run_worker(run_experiment_async)
 
     def on_experiment_complete(self, message: ExperimentComplete) -> None:
         self.process_queue()  # Process any final messages
@@ -316,12 +311,16 @@ class RunScreen(Screen):
         except NoMatches:
             pass
 
-    def on_unmount(self) -> None:
+    async def on_unmount(self) -> None:
         """Clean up resources when the screen is removed."""
         if hasattr(self, "queue_timer"):
             self.queue_timer.stop()
         if hasattr(self, "worker") and not self.worker.is_finished:
             self.worker.cancel()
+            try:
+                await self.worker.wait()
+            except Exception:
+                pass
 
     def action_cancel_and_exit(self) -> None:
         self.app.pop_screen()

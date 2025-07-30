@@ -76,6 +76,7 @@ class Pipeline:
             try:
                 step_hash = step.step_hash
             except Exception as exc:
+                print(f"Error in step {step.__class__.__name__}: {exc}")
                 raise exc
 
             input_hash = compute_hash(data)

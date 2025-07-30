@@ -28,6 +28,7 @@ from ..screens.create_experiment import CreateExperimentScreen
 from ..screens.run import _launch_run
 
 from ..widgets import ConfigEditorWidget
+from .loading import LoadingScreen
 
 
 class ExperimentTree(Tree):
@@ -193,6 +194,7 @@ class SelectionScreen(Screen):
         cfg = info["path"]
         obj_type = info["type"]
         try:
+            await self.app.push_screen(LoadingScreen())
             if obj_type == "Graph":
                 obj = ExperimentGraph.from_yaml(cfg)
             else:
@@ -201,9 +203,11 @@ class SelectionScreen(Screen):
             self._load_errors[str(cfg)] = exc
             from ..screens.load_errors import LoadErrorsScreen
 
+            self.app.pop_screen()
             self.app.push_screen(LoadErrorsScreen({str(cfg): exc}))
             return
 
+        self.app.pop_screen()
         await _launch_run(self.app, obj)
 
     def action_run_selected(self) -> None:

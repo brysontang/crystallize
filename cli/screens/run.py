@@ -336,6 +336,7 @@ class RunScreen(Screen):
 async def _launch_run(app: App, obj: Any) -> None:
     selected = obj
     deletable: List[Tuple[str, Path]] = []
+
     if isinstance(selected, ExperimentGraph):
         for node in selected._graph.nodes:
             exp: Experiment = selected._graph.nodes[node]["experiment"]

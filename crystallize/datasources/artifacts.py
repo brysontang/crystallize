@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 from typing import Any, Callable, List, Optional, TYPE_CHECKING
-import pickle
 import dill
 
 from crystallize.utils.exceptions import ContextMutationError

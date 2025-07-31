@@ -1,0 +1,132 @@
+import asyncio
+from types import ModuleType
+from pathlib import Path
+from typing import Any
+
+from crystallize import (
+    data_source,
+    pipeline_step,
+    Experiment,
+    Pipeline,
+    Artifact,
+    ExperimentGraph,
+)
+from crystallize.plugins.plugins import ArtifactPlugin
+from crystallize.loops.experiment_loop import (
+    ExperimentLoop,
+    ConvergenceCondition,
+    MutationSpec,
+)
+from crystallize.utils.constants import BASELINE_CONDITION
+from crystallize.utils.context import FrozenContext
+from crystallize.datasources.datasource import DataSource
+
+
+@data_source
+def num_source(ctx):
+    return ctx.get("val", 0)
+
+
+@pipeline_step()
+def write_out(data, ctx, out: Artifact):
+    out.write(str(data).encode())
+    return data
+
+
+class ArtifactReader(DataSource):
+    def __init__(
+        self, plugin: ArtifactPlugin, exp: Experiment, artifact: Artifact, step: str
+    ) -> None:
+        self.plugin = plugin
+        self.exp = exp
+        self.artifact = artifact
+        self.step = step
+        self.required_outputs = [artifact]
+        self.replicates = 1
+
+    def fetch(self, ctx: FrozenContext) -> Any:
+        ver = self.plugin.version
+        base = Path(self.plugin.root_dir) / (self.exp.name or self.exp.id) / f"v{ver}"
+        path = (
+            base / "replicate_0" / BASELINE_CONDITION / self.step / self.artifact.name
+        )
+        return path
+
+
+@pipeline_step()
+def eval_step(data: Path, ctx):
+    val = int(Path(data).read_text())
+    score = val / 10
+    ctx.metrics.add("score", score)
+    return score
+
+
+def make_loop(tmp_path: Path, max_iters: int, threshold: float, patience: int = 1):
+    art_plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    out_art = Artifact("out.txt")
+    gen = Experiment(
+        datasource=num_source(),
+        pipeline=Pipeline([write_out(out=out_art)]),
+        plugins=[art_plugin],
+        name="gen",
+        initial_ctx={"val": 0},
+        outputs=[out_art],
+    )
+    gen.validate()
+
+    reader_ds = ArtifactReader(art_plugin, gen, out_art, "write_out")
+    eval_exp = Experiment(
+        datasource=reader_ds,
+        pipeline=Pipeline([eval_step()]),
+        plugins=[ArtifactPlugin(root_dir=str(tmp_path / "arts"))],
+        name="eval",
+    )
+    eval_exp.validate()
+
+    graph = ExperimentGraph(name="loop")
+    graph.add_experiment(gen)
+    graph.add_experiment(eval_exp)
+    graph.add_dependency(eval_exp, gen)
+
+    cond = ConvergenceCondition(
+        experiment="eval",
+        metric="score",
+        condition=BASELINE_CONDITION,
+        operator=">",
+        threshold=threshold,
+        patience=patience,
+    )
+
+    module = ModuleType("loader")
+
+    def incr(path: Path) -> int:
+        return int(path.read_text()) + 1
+
+    module.increment = incr
+
+    mut = MutationSpec(
+        experiment="gen",
+        treatment=BASELINE_CONDITION,
+        replace_context_key="val",
+        from_artifact="gen#out.txt",
+        loader="increment",
+    )
+
+    loop = ExperimentLoop(
+        graph,
+        "eval",
+        max_iters,
+        [cond],
+        [mut],
+        module,
+    )
+    return loop, art_plugin
+
+
+def test_loop_runs_max_iters(tmp_path: Path) -> None:
+    loop, plugin = make_loop(tmp_path, 3, threshold=100)
+    asyncio.run(loop.arun())
+    base = Path(plugin.root_dir) / "gen"
+    assert (base / "v0").exists()
+    assert (base / "v1").exists()
+    assert (base / "v2").exists()

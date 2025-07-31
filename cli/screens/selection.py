@@ -21,6 +21,7 @@ from textual.binding import Binding
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
+from crystallize.loops.experiment_loop import ExperimentLoop
 
 from ..constants import ASCII_ART_ARRAY
 from ..discovery import discover_configs
@@ -66,6 +67,7 @@ class SelectionScreen(Screen):
         self._load_errors: Dict[str, BaseException] = {}
         self._experiments: Dict[str, Dict[str, Any]] = {}
         self._graphs: Dict[str, Dict[str, Any]] = {}
+        self._loops: Dict[str, Dict[str, Any]] = {}
         self._selected_obj: Dict[str, Any] | None = None
         self._selected_line: int | None = None
 
@@ -110,6 +112,7 @@ class SelectionScreen(Screen):
     ) -> Tuple[
         Dict[str, Dict[str, Any]],
         Dict[str, Dict[str, Any]],
+        Dict[str, Dict[str, Any]],
         Dict[str, BaseException],
     ]:
         """Locate ``config.yaml`` files and classify them."""
@@ -118,10 +121,11 @@ class SelectionScreen(Screen):
 
     async def _discover(self) -> None:
         worker = self.run_worker(self._discover_sync, thread=True)
-        graphs, experiments, errors = await worker.wait()
+        loops, graphs, experiments, errors = await worker.wait()
         self._load_errors = errors
         self._experiments = experiments
         self._graphs = graphs
+        self._loops = loops
 
         main_container = self.query_one("#main-container")
         await main_container.remove_children()
@@ -139,6 +143,8 @@ class SelectionScreen(Screen):
         await left_panel.mount(tree)
 
         groups: dict[str, list[tuple[str, Dict[str, Any]]]] = {}
+        for label, info in loops.items():
+            groups.setdefault(info["cli"]["group"], []).append(("Loop", info))
         for label, info in graphs.items():
             groups.setdefault(info["cli"]["group"], []).append(("Graph", info))
         for label, info in experiments.items():
@@ -197,6 +203,8 @@ class SelectionScreen(Screen):
             await self.app.push_screen(LoadingScreen())
             if obj_type == "Graph":
                 obj = ExperimentGraph.from_yaml(cfg)
+            elif obj_type == "Loop":
+                obj = ExperimentLoop.from_yaml(cfg)
             else:
                 obj = Experiment.from_yaml(cfg)
         except BaseException as exc:  # noqa: BLE001

@@ -23,6 +23,7 @@ from textual.widgets import Button, Footer, Header, RichLog, Static, TextArea
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
+from crystallize.loops.experiment_loop import ExperimentLoop
 from crystallize.plugins.plugins import ArtifactPlugin
 from ..status_plugin import CLIStatusPlugin
 from ..discovery import _run_object
@@ -338,9 +339,14 @@ async def _launch_run(app: App, obj: Any) -> None:
     selected = obj
     deletable: List[Tuple[str, Path]] = []
 
-    if isinstance(selected, ExperimentGraph):
-        for node in selected._graph.nodes:
-            exp: Experiment = selected._graph.nodes[node]["experiment"]
+    if isinstance(selected, ExperimentLoop):
+        graph = selected.graph
+    else:
+        graph = selected if isinstance(selected, ExperimentGraph) else None
+
+    if graph is not None:
+        for node in graph._graph.nodes:
+            exp: Experiment = graph._graph.nodes[node]["experiment"]
             plugin = exp.get_plugin(ArtifactPlugin)
             if not plugin or not exp.name:
                 continue

@@ -986,7 +986,13 @@ class Experiment:
             step_factory = _load("steps", step_name)
             import inspect
 
-            if callable(step_factory):
+            if isinstance(step_factory, PipelineStep):
+                if kwargs:
+                    raise ValueError(
+                        f"Step '{step_name}' is a PipelineStep instance and does not accept arguments"
+                    )
+                step = step_factory
+            elif callable(step_factory):
                 sig = inspect.signature(step_factory)
                 for param_name, param in sig.parameters.items():
                     if param.annotation == Artifact:
@@ -1004,15 +1010,9 @@ class Experiment:
                             used_outputs.add(param_name)
                 step = step_factory(**kwargs)
             else:
-                if kwargs:
-                    raise ValueError(
-                        f"Step '{step_name}' is not callable but kwargs were provided"
-                    )
-                if not isinstance(step_factory, PipelineStep):
-                    raise TypeError(
-                        f"Step '{step_name}' must be a callable or PipelineStep instance"
-                    )
-                step = step_factory
+                raise TypeError(
+                    f"Step '{step_name}' must be a callable or PipelineStep instance"
+                )
             steps.append(step)
         pipeline = Pipeline(steps)
 

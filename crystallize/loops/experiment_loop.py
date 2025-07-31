@@ -5,7 +5,7 @@ import operator
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Callable, Awaitable
 
 import yaml
 
@@ -178,12 +178,22 @@ class ExperimentLoop:
                 all_met = False
         return all_met
 
-    async def arun(self) -> Dict[str, Any]:
+    async def arun(
+        self,
+        *,
+        strategy: str = "rerun",
+        replicates: int | None = None,
+        progress_callback: Callable[[str, str], Awaitable[None]] | None = None,
+    ) -> Dict[str, Any]:
         iteration = 0
         results: Dict[str, Any] = {}
         while iteration < self.max_iters:
             self._set_versions(iteration)
-            results = await self.graph.arun(strategy="rerun")
+            results = await self.graph.arun(
+                strategy="rerun",
+                replicates=replicates,
+                progress_callback=progress_callback,
+            )
             if self._check_convergence(results):
                 break
             if iteration + 1 >= self.max_iters:

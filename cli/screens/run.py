@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import shutil
 import sys
 import traceback
@@ -26,7 +27,6 @@ from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.loops.experiment_loop import ExperimentLoop
 from crystallize.plugins.plugins import ArtifactPlugin
 from ..status_plugin import CLIStatusPlugin
-from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
 from .delete_data import ConfirmScreen
 from .prepare_run import PrepareRunScreen
@@ -37,9 +37,15 @@ def _inject_status_plugin(
     obj: Any, callback: Callable[[str, dict[str, Any]], None]
 ) -> None:
     """Inject CLIStatusPlugin into experiments if not already present."""
-    if isinstance(obj, ExperimentGraph):
-        for node in obj._graph.nodes:
-            exp: Experiment = obj._graph.nodes[node]["experiment"]
+    graph: ExperimentGraph | None = None
+    if isinstance(obj, ExperimentLoop):
+        graph = obj.graph
+    elif isinstance(obj, ExperimentGraph):
+        graph = obj
+
+    if graph is not None:
+        for node in graph._graph.nodes:
+            exp: Experiment = graph._graph.nodes[node]["experiment"]
             if exp.get_plugin(CLIStatusPlugin) is None:
                 exp.plugins.append(CLIStatusPlugin(callback))
     else:
@@ -86,7 +92,12 @@ class RunScreen(Screen):
         self.log_history: list[str] = []
 
     def watch_node_states(self) -> None:
-        if not isinstance(self._obj, ExperimentGraph):
+        graph: ExperimentGraph | None = None
+        if isinstance(self._obj, ExperimentLoop):
+            graph = self._obj.graph
+        elif isinstance(self._obj, ExperimentGraph):
+            graph = self._obj
+        if graph is None:
             return
         try:
             dag_widget = self.query_one("#dag-display", Static)
@@ -94,7 +105,7 @@ class RunScreen(Screen):
             return
 
         text = Text(justify="center")
-        order = list(nx.topological_sort(self._obj._graph))
+        order = list(nx.topological_sort(graph._graph))
         for i, node in enumerate(order):
             status = self.node_states.get(node, "pending")
             style = {
@@ -258,8 +269,13 @@ class RunScreen(Screen):
             pass
 
     def on_mount(self) -> None:
-        if isinstance(self._obj, ExperimentGraph):
-            self.node_states = {node: "pending" for node in self._obj._graph.nodes}
+        graph: ExperimentGraph | None = None
+        if isinstance(self._obj, ExperimentLoop):
+            graph = self._obj.graph
+        elif isinstance(self._obj, ExperimentGraph):
+            graph = self._obj
+        if graph is not None:
+            self.node_states = {node: "pending" for node in graph._graph.nodes}
             self.query_one("#dag-display").remove_class("invisible")
         log = self.query_one("#live_log", RichLog)
 
@@ -282,16 +298,15 @@ class RunScreen(Screen):
             try:
 
                 async def run_with_callback():
-                    if isinstance(self._obj, ExperimentGraph):
-                        return await self._obj.arun(
-                            strategy=self._strategy,
-                            replicates=self._replicates,
-                            progress_callback=progress_callback,
-                        )
-                    else:
-                        return await _run_object(
-                            self._obj, self._strategy, self._replicates
-                        )
+                    kwargs: dict[str, Any] = {}
+                    sig = inspect.signature(self._obj.arun)
+                    if "strategy" in sig.parameters:
+                        kwargs["strategy"] = self._strategy
+                    if "replicates" in sig.parameters:
+                        kwargs["replicates"] = self._replicates
+                    if "progress_callback" in sig.parameters:
+                        kwargs["progress_callback"] = progress_callback
+                    return await self._obj.arun(**kwargs)
 
                 result = asyncio.run(run_with_callback())
 

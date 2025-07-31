@@ -55,6 +55,9 @@ class ExperimentLoop:
         converge_when: List[ConvergenceCondition],
         mutate: List[MutationSpec],
         loader_module: ModuleType,
+        *,
+        name: str | None = None,
+        description: str = "",
     ) -> None:
         self.graph = graph
         self.eval_experiment = eval_experiment
@@ -62,6 +65,8 @@ class ExperimentLoop:
         self.converge_when = converge_when
         self.mutate = mutate
         self.loader_module = loader_module
+        self.name = name or getattr(graph, "name", None) or "ExperimentLoop"
+        self.description = description
         self._patience: Dict[int, int] = {id(c): 0 for c in converge_when}
 
     @classmethod
@@ -72,6 +77,8 @@ class ExperimentLoop:
         with open(path) as f:
             cfg = yaml.safe_load(f) or {}
         base = path.parent
+        name = cfg.get("name", base.name)
+        desc = cfg.get("description", "")
         eval_exp = cfg["eval_experiment"]
         graph = ExperimentGraph.from_yaml(base / eval_exp / "config.yaml")
         conditions = [
@@ -97,7 +104,16 @@ class ExperimentLoop:
         ]
         loader_mod = cls._load_loader_module(base)
         max_iters = int(cfg.get("max_iters", 1))
-        return cls(graph, eval_exp, max_iters, conditions, mutations, loader_mod)
+        return cls(
+            graph,
+            eval_exp,
+            max_iters,
+            conditions,
+            mutations,
+            loader_mod,
+            name=name,
+            description=desc,
+        )
 
     @staticmethod
     def _load_loader_module(

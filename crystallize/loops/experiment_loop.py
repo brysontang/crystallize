@@ -244,9 +244,12 @@ class ExperimentLoop:
                 progress_callback=progress_callback,
             )
             if self._check_convergence(results):
+                iteration += 1
                 break
             if iteration + 1 >= self.max_iters:
+                iteration += 1
                 break
+            self._reset_contexts()
             self._apply_mutations(iteration)
             iteration += 1
-        return LoopResult(iteration + 1, results)
+        return LoopResult(iteration, results)

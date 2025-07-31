@@ -40,6 +40,7 @@ from crystallize.plugins.plugins import (
     SeedPlugin,
     default_seed_function,
 )
+from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.experiments.result import Result
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
@@ -985,23 +986,34 @@ class Experiment:
             step_factory = _load("steps", step_name)
             import inspect
 
-            # Inspect the step factory's signature and map any Artifact parameters
-            sig = inspect.signature(step_factory)
-            for param_name, param in sig.parameters.items():
-                if param.annotation == Artifact:
-                    if param_name in kwargs and isinstance(kwargs[param_name], str):
-                        alias = kwargs[param_name]
-                        if alias in outputs_map:
-                            kwargs[param_name] = outputs_map[alias]
-                            used_outputs.add(alias)
-                        else:
-                            raise ValueError(
-                                f"Output '{alias}' requested by step '{step_name}' is not in experiment outputs"
-                            )
-                    elif param_name in outputs_map and param_name not in kwargs:
-                        kwargs[param_name] = outputs_map[param_name]
-                        used_outputs.add(param_name)
-            steps.append(step_factory(**kwargs))
+            if callable(step_factory):
+                sig = inspect.signature(step_factory)
+                for param_name, param in sig.parameters.items():
+                    if param.annotation == Artifact:
+                        if param_name in kwargs and isinstance(kwargs[param_name], str):
+                            alias = kwargs[param_name]
+                            if alias in outputs_map:
+                                kwargs[param_name] = outputs_map[alias]
+                                used_outputs.add(alias)
+                            else:
+                                raise ValueError(
+                                    f"Output '{alias}' requested by step '{step_name}' is not in experiment outputs"
+                                )
+                        elif param_name in outputs_map and param_name not in kwargs:
+                            kwargs[param_name] = outputs_map[param_name]
+                            used_outputs.add(param_name)
+                step = step_factory(**kwargs)
+            else:
+                if kwargs:
+                    raise ValueError(
+                        f"Step '{step_name}' is not callable but kwargs were provided"
+                    )
+                if not isinstance(step_factory, PipelineStep):
+                    raise TypeError(
+                        f"Step '{step_name}' must be a callable or PipelineStep instance"
+                    )
+                step = step_factory
+            steps.append(step)
         pipeline = Pipeline(steps)
 
         unused = set(outputs_map) - used_outputs

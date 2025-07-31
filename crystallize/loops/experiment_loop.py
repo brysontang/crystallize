@@ -76,7 +76,7 @@ class ExperimentLoop:
         path = Path(config_path)
         with open(path) as f:
             cfg = yaml.safe_load(f) or {}
-        base = path.parent
+        base = path.parent.parent
         name = cfg.get("name", base.name)
         desc = cfg.get("description", "")
         eval_exp = cfg["eval_experiment"]

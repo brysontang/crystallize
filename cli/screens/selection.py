@@ -78,7 +78,9 @@ class SelectionScreen(Screen):
         info = yaml.safe_load(Path(data["path"]).read_text()) or {}
 
         desc = info.get("description", data.get("doc", ""))
-        details.update(str(info["cli"]["icon"]) + " " + data["label"])
+        cli_cfg = info.get("cli") or data.get("cli", {}) or {}
+        icon = cli_cfg.get("icon", "")
+        details.update(f"{icon} {data['label']}")
 
         container = self.query_one("#config-container")
         await container.remove_children()

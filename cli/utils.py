@@ -6,6 +6,8 @@ from typing import Any, Dict, Optional
 
 from rich.table import Table
 from rich.text import Text
+
+from crystallize.loops import LoopResult
 from textual.widgets import RichLog
 
 
@@ -90,6 +92,10 @@ def _write_experiment_summary(log: RichLog, result: Any) -> None:
 
 
 def _write_summary(log: RichLog, result: Any) -> None:
+    if isinstance(result, LoopResult):
+        log.write(Text(f"Iterations run: {result.iterations}", style="bold cyan"))
+        result = result.results
+
     if isinstance(result, dict):
         for name, res in result.items():
             has_table = _build_experiment_table(res) is not None or bool(

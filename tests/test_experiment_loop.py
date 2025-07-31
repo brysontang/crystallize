@@ -32,6 +32,8 @@ def write_out(data, ctx, out: Artifact):
     out.write(str(data).encode())
     return data
 
+STEP_DIR = "Write_OutStep"
+
 
 class ArtifactReader(DataSource):
     def __init__(
@@ -48,7 +50,11 @@ class ArtifactReader(DataSource):
         ver = self.plugin.version
         base = Path(self.plugin.root_dir) / (self.exp.name or self.exp.id) / f"v{ver}"
         path = (
-            base / "replicate_0" / BASELINE_CONDITION / self.step / self.artifact.name
+            base
+            / "replicate_0"
+            / BASELINE_CONDITION
+            / self.step
+            / self.artifact.name
         )
         return path
 
@@ -74,7 +80,7 @@ def make_loop(tmp_path: Path, max_iters: int, threshold: float, patience: int = 
     )
     gen.validate()
 
-    reader_ds = ArtifactReader(art_plugin, gen, out_art, "write_out")
+    reader_ds = ArtifactReader(art_plugin, gen, out_art, STEP_DIR)
     eval_exp = Experiment(
         datasource=reader_ds,
         pipeline=Pipeline([eval_step()]),
@@ -130,3 +136,38 @@ def test_loop_runs_max_iters(tmp_path: Path) -> None:
     assert (base / "v0").exists()
     assert (base / "v1").exists()
     assert (base / "v2").exists()
+
+
+def test_loop_mutates_context(tmp_path: Path) -> None:
+    loop, plugin = make_loop(tmp_path, 2, threshold=100)
+    asyncio.run(loop.arun())
+    base = Path(plugin.root_dir) / "gen"
+    final = base / "v1" / "replicate_0" / BASELINE_CONDITION / STEP_DIR / "out.txt"
+    assert final.read_text() == "1"
+
+
+def test_loop_resets_between_runs(tmp_path: Path) -> None:
+    loop, plugin = make_loop(tmp_path, 2, threshold=100)
+    asyncio.run(loop.arun())
+    first_v0 = (
+        Path(plugin.root_dir)
+        / "gen"
+        / "v0"
+        / "replicate_0"
+        / BASELINE_CONDITION
+        / STEP_DIR
+        / "out.txt"
+    )
+    assert first_v0.read_text() == "0"
+
+    asyncio.run(loop.arun())
+    second_v0 = (
+        Path(plugin.root_dir)
+        / "gen"
+        / "v0"
+        / "replicate_0"
+        / BASELINE_CONDITION
+        / STEP_DIR
+        / "out.txt"
+    )
+    assert second_v0.read_text() == "0"

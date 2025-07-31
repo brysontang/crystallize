@@ -44,6 +44,14 @@ class MutationSpec:
     loader: str
 
 
+@dataclass
+class LoopResult:
+    """Result of a completed experiment loop."""
+
+    iterations: int
+    results: Dict[str, Any]
+
+
 class ExperimentLoop:
     """Run a DAG of experiments iteratively with mutation between runs."""
 
@@ -68,6 +76,27 @@ class ExperimentLoop:
         self.name = name or getattr(graph, "name", None) or "ExperimentLoop"
         self.description = description
         self._patience: Dict[int, int] = {id(c): 0 for c in converge_when}
+
+        self._base_setup: Dict[str, FrozenContext] = {}
+        self._base_treatments: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        for node in self.graph._graph.nodes:
+            exp = self.graph._graph.nodes[node]["experiment"]
+            self._base_setup[node] = exp._setup_ctx
+            treatments: Dict[str, Dict[str, Any]] = {}
+            for t in exp.treatments:
+                if hasattr(t._apply_fn, "items"):
+                    treatments[t.name] = dict(t._apply_fn.items)
+            self._base_treatments[node] = treatments
+
+    def _reset_contexts(self) -> None:
+        for node in self.graph._graph.nodes:
+            exp = self.graph._graph.nodes[node]["experiment"]
+            exp._setup_ctx = self._base_setup[node]
+            for t in exp.treatments:
+                if hasattr(t._apply_fn, "items"):
+                    items = self._base_treatments.get(node, {}).get(t.name)
+                    if items is not None:
+                        t._apply_fn.items = dict(items)
 
     @classmethod
     def from_yaml(
@@ -200,7 +229,9 @@ class ExperimentLoop:
         strategy: str = "rerun",
         replicates: int | None = None,
         progress_callback: Callable[[str, str], Awaitable[None]] | None = None,
-    ) -> Dict[str, Any]:
+    ) -> LoopResult:
+        self._reset_contexts()
+        self._patience = {id(c): 0 for c in self.converge_when}
         iteration = 0
         results: Dict[str, Any] = {}
         while iteration < self.max_iters:
@@ -216,4 +247,4 @@ class ExperimentLoop:
                 break
             self._apply_mutations(iteration)
             iteration += 1
-        return results
+        return LoopResult(iteration + 1, results)

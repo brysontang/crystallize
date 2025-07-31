@@ -5,6 +5,8 @@ from typing import Any
 import pytest
 
 from cli.discovery import _import_module, _run_object, discover_objects
+from crystallize.loops import LoopResult
+from rich.text import Text
 from cli.utils import (
     _build_experiment_table,
     _build_hypothesis_tables,
@@ -256,6 +258,15 @@ def test_write_summary_dict():
     _write_summary(log, {"exp": res})
     assert any(str(m) == "exp" for m in log.written if not hasattr(m, "columns"))
     assert any(hasattr(m, "columns") for m in log.written)
+
+
+def test_write_summary_loop_result():
+    res = make_result()
+    loop_res = LoopResult(iterations=2, results={"exp": res})
+    log = FakeLog()
+    _write_summary(log, loop_res)
+    assert any("Iterations run" in str(m) for m in log.written if isinstance(m, Text))
+    assert any(str(m) == "exp" for m in log.written if not hasattr(m, "columns"))
 
 
 def test_filter_mapping():

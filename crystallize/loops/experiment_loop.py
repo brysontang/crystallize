@@ -81,7 +81,7 @@ class ExperimentLoop:
         self._base_treatments: Dict[str, Dict[str, Dict[str, Any]]] = {}
         for node in self.graph._graph.nodes:
             exp = self.graph._graph.nodes[node]["experiment"]
-            self._base_setup[node] = exp._setup_ctx
+            self._base_setup[node] = FrozenContext(dict(exp._setup_ctx.as_dict()))
             treatments: Dict[str, Dict[str, Any]] = {}
             for t in exp.treatments:
                 if hasattr(t._apply_fn, "items"):
@@ -91,7 +91,9 @@ class ExperimentLoop:
     def _reset_contexts(self) -> None:
         for node in self.graph._graph.nodes:
             exp = self.graph._graph.nodes[node]["experiment"]
-            exp._setup_ctx = self._base_setup[node]
+            exp._setup_ctx = FrozenContext(
+                dict(self._base_setup[node].as_dict()), exp._setup_ctx.logger
+            )
             for t in exp.treatments:
                 if hasattr(t._apply_fn, "items"):
                     items = self._base_treatments.get(node, {}).get(t.name)

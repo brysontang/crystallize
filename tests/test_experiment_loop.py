@@ -35,6 +35,12 @@ def write_out(data, ctx, out: Artifact):
 STEP_DIR = "Write_OutStep"
 
 
+@pipeline_step()
+def add_key_step(data, ctx, key: str) -> Any:
+    ctx.add(key, 1)
+    return data
+
+
 class ArtifactReader(DataSource):
     def __init__(
         self, plugin: ArtifactPlugin, exp: Experiment, artifact: Artifact, step: str
@@ -67,12 +73,23 @@ def eval_step(data: Path, ctx):
     return score
 
 
-def make_loop(tmp_path: Path, max_iters: int, threshold: float, patience: int = 1):
+def make_loop(
+    tmp_path: Path,
+    max_iters: int,
+    threshold: float,
+    patience: int = 1,
+    *,
+    mutate_context: bool = False,
+) -> tuple[ExperimentLoop, ArtifactPlugin]:
     art_plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
     out_art = Artifact("out.txt")
+    steps = []
+    if mutate_context:
+        steps.append(add_key_step(key="extra"))
+    steps.append(write_out(out=out_art))
     gen = Experiment(
         datasource=num_source(),
-        pipeline=Pipeline([write_out(out=out_art)]),
+        pipeline=Pipeline(steps),
         plugins=[art_plugin],
         name="gen",
         initial_ctx={"val": 0},
@@ -171,3 +188,10 @@ def test_loop_resets_between_runs(tmp_path: Path) -> None:
         / "out.txt"
     )
     assert second_v0.read_text() == "0"
+
+
+def test_loop_clears_mutated_keys(tmp_path: Path) -> None:
+    loop, _ = make_loop(tmp_path, 1, threshold=100, mutate_context=True)
+    asyncio.run(loop.arun())
+    # run again; should not raise due to existing key
+    asyncio.run(loop.arun())

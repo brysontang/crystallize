@@ -32,9 +32,8 @@ def find_experiments_root(start: Path) -> Path:
             return ancestor
         if (ancestor / "experiments").is_dir():
             return ancestor / "experiments"
-    raise FileNotFoundError(
-        f"No 'experiments' folder found when walking up from {start}"
-    )
+
+    return start.parent.parent
 
 
 class ExperimentGraph:

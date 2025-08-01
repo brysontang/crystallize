@@ -3,6 +3,8 @@ import os
 import pickle
 from pathlib import Path
 from typing import Any
+import textwrap
+import inspect
 
 try:
     import fcntl
@@ -10,6 +12,14 @@ except Exception:  # pragma: no cover - non-posix fallback
     fcntl = None
 
 CACHE_DIR = Path(os.getenv("CRYSTALLIZE_CACHE_DIR", ".cache"))
+
+
+def _code_fingerprint(fn):
+    try:
+        src = textwrap.dedent(inspect.getsource(fn))
+    except OSError:  # e.g. <stdin>
+        src = fn.__code__.co_code  # fallback
+    return hashlib.sha256(src.encode() if isinstance(src, str) else src).hexdigest()
 
 
 def compute_hash(obj: Any) -> str:

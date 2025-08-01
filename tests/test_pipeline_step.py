@@ -21,7 +21,13 @@ def test_concrete_step_basic():
     step = AddStep(2)
     ctx = FrozenContext({})
     assert step(3, ctx) == 5
-    expected_hash = compute_hash({"class": "AddStep", "params": {"value": 2}})
+    expected_hash = compute_hash(
+        {
+            "class": "AddStep",
+            "params": {"value": 2},
+            "fingerprint": step.fingerprint,
+        }
+    )
     assert step.step_hash == expected_hash
 
 

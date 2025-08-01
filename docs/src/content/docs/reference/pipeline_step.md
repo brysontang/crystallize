@@ -28,13 +28,19 @@ Parameters of this step for hashing and caching.
 
 **Returns:**
  
- - <b>`dict`</b>:  Parameters dictionary. 
+ - <b>`dict`</b>:  Parameters dictionary.
+
+---
+
+#### <kbd>property</kbd> PipelineStep.fingerprint
+
+Hash of the step's implementation used to invalidate caches when the code changes.
 
 ---
 
 #### <kbd>property</kbd> PipelineStep.step_hash
 
-Unique hash identifying this step based on its parameters. 
+Unique hash identifying this step based on its parameters and fingerprint.
 
 
 

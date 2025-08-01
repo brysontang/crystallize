@@ -766,13 +766,14 @@ class RandomStep(PipelineStep):
         return {}
 
 
+def numpy_seed_fn(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed % (2**32 - 1))
+
+
 def test_auto_seed_reproducible_serial_vs_parallel():
     pipeline = Pipeline([RandomStep()])
     ds = RandomDataSource()
-
-    def numpy_seed_fn(seed: int) -> None:
-        random.seed(seed)
-        np.random.seed(seed % (2**32 - 1))
 
     serial = Experiment(
         datasource=ds,
@@ -787,7 +788,7 @@ def test_auto_seed_reproducible_serial_vs_parallel():
         pipeline=pipeline,
         plugins=[
             SeedPlugin(seed=123, auto_seed=True, seed_fn=numpy_seed_fn),
-            ParallelExecution(),
+            ParallelExecution(executor_type="process"),
         ],
     )
     parallel.validate()

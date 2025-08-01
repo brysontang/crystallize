@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import inspect
 from typing import Any
 
 from crystallize.utils.cache import compute_hash
@@ -43,8 +44,22 @@ class PipelineStep(ABC):
 
     # ------------------------------------------------------------------ #
     @property
-    def step_hash(self) -> str:
-        """Unique hash identifying this step based on its parameters."""
+    def fingerprint(self) -> str:
+        """Hash representing the implementation of this step."""
 
-        payload = {"class": self.__class__.__name__, "params": self.params}
+        try:
+            source = inspect.getsource(self.__class__)
+        except OSError:  # pragma: no cover - source not available
+            source = self.__class__.__name__
+        return compute_hash(source)
+
+    @property
+    def step_hash(self) -> str:
+        """Unique hash identifying this step based on params and code."""
+
+        payload = {
+            "class": self.__class__.__name__,
+            "params": self.params,
+            "fingerprint": self.fingerprint,
+        }
         return compute_hash(payload)

@@ -4,7 +4,8 @@ import importlib
 import json
 import os
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from threading import Lock
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Mapping
 
@@ -86,6 +87,7 @@ class SeedPlugin(BasePlugin):
     seed: Optional[int] = None
     auto_seed: bool = True
     seed_fn: Optional[Callable[[int], None]] = None
+    _lock: Lock = field(default_factory=Lock, init=False, repr=False)
 
     def init_hook(self, experiment: Experiment) -> None:  # pragma: no cover - simple
         pass
@@ -93,10 +95,20 @@ class SeedPlugin(BasePlugin):
     def before_replicate(self, experiment: Experiment, ctx: FrozenContext) -> None:
         if not self.auto_seed:
             return
-        local_seed = hash((self.seed or 0) + ctx.get("replicate", 0))
-        seed_fn = self.seed_fn or default_seed_function
-        seed_fn(local_seed)
-        ctx.add("seed_used", local_seed)
+        with self._lock:
+            local_seed = hash((self.seed or 0) + ctx.get("replicate", 0))
+            seed_fn = self.seed_fn or default_seed_function
+            seed_fn(local_seed)
+            ctx.add("seed_used", local_seed)
+
+    def __getstate__(self) -> dict:
+        state = self.__dict__.copy()
+        state.pop("_lock", None)
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        self.__dict__.update(state)
+        self._lock = Lock()
 
 
 @dataclass

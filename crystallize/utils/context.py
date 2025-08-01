@@ -2,7 +2,7 @@ import copy
 import logging
 from collections import defaultdict
 from types import MappingProxyType
-from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Tuple
+from typing import Any, DefaultDict, List, Mapping, Optional, Tuple
 
 from crystallize.datasources.artifacts import ArtifactLog
 from crystallize.utils.exceptions import ContextMutationError

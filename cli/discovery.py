@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional, Tuple, Type
 import yaml
 
 from crystallize.experiments.experiment_graph import ExperimentGraph
+from crystallize.loops.experiment_loop import ExperimentLoop
 
 
 def _import_module(
@@ -95,6 +96,7 @@ def discover_configs(
             return any(_has_ref(v) for v in val)
         return False
 
+    loops: Dict[str, Dict[str, Any]] = {}
     graphs: Dict[str, Dict[str, Any]] = {}
     experiments: Dict[str, Dict[str, Any]] = {}
     errors: Dict[str, BaseException] = {}
@@ -146,13 +148,45 @@ def discover_configs(
         except BaseException as exc:  # noqa: BLE001
             errors[str(cfg)] = exc
 
-    return graphs, experiments, errors
+    for loop_cfg in abs_directory.rglob("loop_config.yaml"):
+        try:
+            with loop_cfg.open() as f:
+                data = yaml.safe_load(f) or {}
+            name = data.get("name", loop_cfg.parent.name)
+            desc = data.get("description", "")
+            cli_cfg = data.get("cli", {}) or {}
+            try:
+                rel = loop_cfg.parent.relative_to(cwd)
+            except ValueError:
+                rel = loop_cfg.parent
+            label = f"{rel} - {name}"
+            cli_defaults = {
+                "group": "Loops",
+                "priority": 999,
+                "icon": "\U0001f300",  # 🌀
+                "color": None,
+                "hidden": False,
+            }
+            cli_info = {**cli_defaults, **cli_cfg}
+            info = {
+                "path": loop_cfg,
+                "description": desc,
+                "label": label,
+                "cli": cli_info,
+            }
+            loops[label] = info
+        except BaseException as exc:  # noqa: BLE001
+            errors[str(loop_cfg)] = exc
+
+    return loops, graphs, experiments, errors
 
 
 async def _run_object(obj: Any, strategy: str, replicates: Optional[int]) -> Any:
     """Run an ``Experiment`` or ``ExperimentGraph`` asynchronously."""
     if isinstance(obj, ExperimentGraph):
         return await obj.arun(strategy=strategy, replicates=replicates)
+    if isinstance(obj, ExperimentLoop):
+        return await obj.arun()
     return await obj.arun(
         strategy=strategy,
         replicates=None,

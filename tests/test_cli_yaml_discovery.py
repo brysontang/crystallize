@@ -31,7 +31,7 @@ def test_yaml_discovery(tmp_path: Path) -> None:
     cfg3 = {"name": "other", "datasource": {"n": "numbers"}}
     (other / "config.yaml").write_text(yaml.safe_dump(cfg3))
 
-    graphs, experiments, errors = discover_configs(tmp_path)
+    loops, graphs, experiments, errors = discover_configs(tmp_path)
 
     graph_paths = {info["path"] for info in graphs.values()}
     exp_paths = {info["path"] for info in experiments.values()}

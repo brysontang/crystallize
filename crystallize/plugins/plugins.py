@@ -191,12 +191,15 @@ class ArtifactPlugin(BasePlugin):
         base = Path(self.root_dir) / self.experiment_id
         base.mkdir(parents=True, exist_ok=True)
         if self.versioned:
-            versions = [
-                int(p.name[1:])
-                for p in base.glob("v*")
-                if p.name.startswith("v") and p.name[1:].isdigit()
-            ]
-            self.version = max(versions, default=-1) + 1
+            if hasattr(self, "version_override"):
+                self.version = self.version_override
+            else:
+                versions = [
+                    int(p.name[1:])
+                    for p in base.glob("v*")
+                    if p.name.startswith("v") and p.name[1:].isdigit()
+                ]
+                self.version = max(versions, default=-1) + 1
         else:
             self.version = 0
         self._manifest.clear()
@@ -243,6 +246,7 @@ class ArtifactPlugin(BasePlugin):
         def dump_condition(name: str, metrics: Mapping[str, Any]) -> None:
             dest = base / name
             os.makedirs(dest, exist_ok=True)
+
             def _default(o: Any) -> Any:
                 try:
                     import numpy as np
@@ -268,3 +272,5 @@ class ArtifactPlugin(BasePlugin):
         with open(base / "_manifest.json", "w") as f:
             json.dump(self._manifest, f)
         self._manifest.clear()
+        if hasattr(self, "version_override"):
+            delattr(self, "version_override")

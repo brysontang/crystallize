@@ -19,6 +19,24 @@ from .result_structs import ExperimentMetrics, TreatmentMetrics
 from .treatment import Treatment
 
 
+def find_experiments_root(start: Path) -> Path:
+    """
+    Walk up from *start* until we find a directory that either **is**
+    called 'experiments' or **contains** a sub-directory called 'experiments'.
+
+    Raises FileNotFoundError if we reach the filesystem root without success.
+    """
+    start = start.resolve()
+    for ancestor in (start,) + tuple(start.parents):
+        if ancestor.name == "experiments":
+            return ancestor
+        if (ancestor / "experiments").is_dir():
+            return ancestor / "experiments"
+    raise FileNotFoundError(
+        f"No 'experiments' folder found when walking up from {start}"
+    )
+
+
 class ExperimentGraph:
     """Manage and run a directed acyclic graph of experiments."""
 
@@ -120,7 +138,7 @@ class ExperimentGraph:
         if path.is_dir():
             return cls._from_directory(path)
 
-        root = path.parent.parent
+        root = find_experiments_root(path)
         loaded: dict[str, Experiment] = {}
 
         def _load(cfg: Path) -> None:
@@ -245,7 +263,9 @@ class ExperimentGraph:
         if hasattr(self._graph, "predecessors"):
             return list(self._graph.predecessors(name))
         # pragma: no cover - fallback for minimal networkx stub
-        return [n for n, succ in getattr(self._graph, "_succ", {}).items() if name in succ]
+        return [
+            n for n, succ in getattr(self._graph, "_succ", {}).items() if name in succ
+        ]
 
     def _get_treatments_for_experiment(
         self, name: str, global_treatments: list[Treatment] | None

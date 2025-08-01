@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import argparse
+import os
+import resource
+import yaml
+
 from textual.app import App
 
 from .constants import CSS
 from .discovery import _import_module, _run_object, discover_objects
 from .utils import _build_experiment_table, _write_experiment_summary, _write_summary
 from .screens.selection import SelectionScreen
-
 
 themes = [
     "nord",
@@ -48,11 +52,42 @@ class CrystallizeApp(App):
         # ("]", "toggle_theme_next", "Next Theme"),
     ]
 
-    i = 0
+    def __init__(self, flags: dict = None, **kwargs):
+        super().__init__(**kwargs)
+        self.flags = flags or {}
+        self.i = 0
+        self.theme = "nord"
 
     def on_mount(self) -> None:
+        self._apply_overrides(self.flags)
         self.push_screen(SelectionScreen())
-        self.theme = "nord"
+
+    def _apply_overrides(self, flags: dict):
+        if not flags.get("no_override_file_limit", False):
+            self.increase_open_file_limit()
+
+        if not flags.get("no_override_mat", False):
+            import matplotlib
+
+            matplotlib.use("Agg")
+            self.log.info("Matplotlib backend set to 'Agg'.")
+
+    def increase_open_file_limit(self, desired_soft=10240):
+        """Raise soft open file limit programmatically."""
+        try:
+            soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+            new_soft = min(desired_soft, hard)
+            if new_soft > soft:
+                resource.setrlimit(resource.RLIMIT_NOFILE, (new_soft, hard))
+                self.log.info(
+                    f"Raised open file limit: {soft} -> {new_soft} (hard: {hard})"
+                )
+        except ValueError as e:
+            self.log.warning(
+                f"Could not raise limit (hard too low?): {e}. Using {soft}."
+            )
+        except Exception as e:
+            self.log.error(f"Error setting limit: {e}")
 
     # def action_toggle_theme_next(self) -> None:
     #     self.i += 1
@@ -66,14 +101,39 @@ class CrystallizeApp(App):
 
 
 def run() -> None:
+    parser = argparse.ArgumentParser(description="Crystallize Framework CLI")
+    parser.add_argument(
+        "--no-override-mat",
+        action="store_true",
+        help="Disable forcing Matplotlib 'Agg' backend.",
+    )
+    parser.add_argument(
+        "--no-override-file-limit",
+        action="store_true",
+        help="Disable auto-raising open file limit.",
+    )
+
+    args = parser.parse_args()
+    flags = vars(args)
+
+    # Load optional config.yaml (overrides defaults, but CLI flags win)
+    config_path = "config.yaml"  # Or ~/.crystallize/config.yaml for global
+    if os.path.exists(config_path):
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f) or {}
+        # Merge: Config sets if not in flags
+        for key in ["no_override_mat", "no_override_file_limit"]:
+            if key not in flags and key in config:
+                flags[key] = config[key]
+
     import sys
 
     if "--serve" in sys.argv:
         from textual_serve.server import Server
 
         server = Server("crystallize")
-
         server.serve()
         return
 
-    CrystallizeApp().run()
+    app = CrystallizeApp(flags=flags)
+    app.run()

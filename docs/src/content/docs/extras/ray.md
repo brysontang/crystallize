@@ -8,7 +8,7 @@ The `RayExecution` plugin allows Crystallize experiments to distribute replicate
 ## Installation
 
 ```bash
-pip install crystallize-extras[ray]
+pip install --upgrade --pre crystallize-extras[ray]
 ```
 
 ## Usage
@@ -25,4 +25,3 @@ experiment = Experiment(datasource, pipeline, plugins=[plugin])
 ```
 
 `address` specifies the Ray cluster address, while `num_cpus` and `num_gpus` control the resources allocated to each replicate.
-

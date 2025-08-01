@@ -8,7 +8,7 @@ The `initialize_ollama_client` step creates an `ollama.Client` instance and stor
 ## Installation
 
 ```bash
-pip install crystallize-extras[ollama]
+pip install --upgrade --pre crystallize-extras[ollama]
 ```
 
 ## Usage

@@ -8,7 +8,7 @@ The `initialize_llm_engine` step creates a `vllm.LLM` instance and stores it in 
 ## Installation
 
 ```bash
-pip install crystallize-extras[vllm]
+pip install --upgrade --pre crystallize-extras[vllm]
 ```
 
 ## Usage
@@ -25,4 +25,3 @@ pipeline = Pipeline([step, ...])
 ```
 
 The engine is stored under the key `llm_engine` by default, but you can customize this with the `context_key` parameter.
-

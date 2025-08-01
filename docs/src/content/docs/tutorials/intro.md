@@ -20,8 +20,8 @@ By the end, you'll have a runnable experiment that demonstrates key concepts lik
 Crystallize is installable via `pip`. If building from source, clone the repository and install dependencies.
 
 ```bash
-# Install from PyPI (once published)
-pip install crystallize-ml
+# Install from PyPI
+pip install --upgrade --pre crystallize-ml
 
 # Or from source (for development)
 git clone https://github.com/your-repo/crystallize.git

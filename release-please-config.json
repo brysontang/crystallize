@@ -4,12 +4,20 @@
     ".": {
       "release-type": "python",
       "component": "crystallize-ml",
-      "changelog-path": "CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md",
+      "bump-minor-pre-major": false,
+      "bump-patch-for-minor-pre-major": false,
+      "prerelease": true,
+      "prerelease-type": "alpha"
     },
     "extras/crystallize-extras": {
       "release-type": "python",
       "component": "crystallize-extras",
-      "changelog-path": "CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md",
+      "bump-minor-pre-major": false,
+      "bump-patch-for-minor-pre-major": false,
+      "prerelease": true,
+      "prerelease-type": "alpha"
     }
   },
   "plugins": [

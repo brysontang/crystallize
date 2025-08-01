@@ -15,7 +15,7 @@ def _create_openai_client(client_options: Dict[str, Any]) -> OpenAI:
     """Top-level factory function for pickling."""
     if OpenAI is None:
         raise ImportError(
-            "The 'openai' package is required. Please install with: pip install crystallize-extras[openai]"
+            "The 'openai' package is required. Please install with: pip install --upgrade --pre crystallize-extras[openai]"
         )
     return OpenAI(**client_options)
 

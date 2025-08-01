@@ -8,7 +8,7 @@ The `initialize_openai_client` step creates an `openai.OpenAI` instance and stor
 ## Installation
 
 ```bash
-pip install crystallize-extras[openai]
+pip install --upgrade --pre crystallize-extras[openai]
 ```
 
 ## Usage

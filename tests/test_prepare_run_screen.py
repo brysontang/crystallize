@@ -7,6 +7,7 @@ from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.plugins.plugins import ArtifactPlugin
+from crystallize.utils.constants import METADATA_FILENAME
 
 
 @data_source
@@ -43,8 +44,10 @@ def test_launch_run_deletes(tmp_path: Path):
     exp.validate()
     graph = ExperimentGraph.from_experiments([exp])
 
-    path = Path(plugin.root_dir) / "e"
-    path.mkdir()
+    base = Path(plugin.root_dir) / "e"
+    metadata_dir = base / "v0"
+    metadata_dir.mkdir(parents=True)
+    (metadata_dir / METADATA_FILENAME).write_text("{}")
 
     app = FakeApp(
         {
@@ -56,7 +59,30 @@ def test_launch_run_deletes(tmp_path: Path):
     asyncio.run(_launch_run(app, graph))
 
     assert "RunScreen" in app.screens
-    assert not path.exists()
+    assert not base.exists()
+
+
+def test_launch_run_missing_metadata(tmp_path: Path):
+    plugin = ArtifactPlugin(root_dir=str(tmp_path))
+    exp = Experiment(
+        datasource=dummy_source(),
+        pipeline=Pipeline([add_one()]),
+        name="e",
+        plugins=[plugin],
+    )
+    exp.validate()
+    graph = ExperimentGraph.from_experiments([exp])
+
+    base = Path(plugin.root_dir) / "e"
+    base.mkdir()
+
+    app = FakeApp({"PrepareRunScreen": ("rerun", ())})
+
+    asyncio.run(_launch_run(app, graph))
+
+    assert "RunScreen" in app.screens
+    assert "ConfirmScreen" not in app.screens
+    assert base.exists()
 
 
 def test_launch_run_cancel(tmp_path: Path):

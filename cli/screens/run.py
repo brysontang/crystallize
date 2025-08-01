@@ -24,6 +24,7 @@ from textual.widgets import Button, Footer, Header, RichLog, Static, TextArea
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.plugins.plugins import ArtifactPlugin
+from crystallize.utils.constants import METADATA_FILENAME
 from ..status_plugin import CLIStatusPlugin
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
@@ -345,7 +346,13 @@ async def _launch_run(app: App, obj: Any) -> None:
                 continue
             base = Path(plugin.root_dir) / exp.name
             if base.exists():
-                deletable.append((node, base))
+                has_metadata = any(
+                    (base / d / METADATA_FILENAME).exists()
+                    for d in base.iterdir()
+                    if d.is_dir() and d.name.startswith("v")
+                )
+                if has_metadata:
+                    deletable.append((node, base))
 
     result = await app.push_screen_wait(PrepareRunScreen(deletable))
     if result is None:

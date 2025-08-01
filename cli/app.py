@@ -59,6 +59,7 @@ class CrystallizeApp(App):
         self.theme = "nord"
 
     def on_mount(self) -> None:
+
         self._apply_overrides(self.flags)
         self.push_screen(SelectionScreen())
 
@@ -70,7 +71,7 @@ class CrystallizeApp(App):
             import matplotlib
 
             matplotlib.use("Agg")
-            self.log.info("Matplotlib backend set to 'Agg'.")
+            print("Matplotlib backend set to 'Agg'.")
 
     def increase_open_file_limit(self, desired_soft=10240):
         """Raise soft open file limit programmatically."""
@@ -79,15 +80,11 @@ class CrystallizeApp(App):
             new_soft = min(desired_soft, hard)
             if new_soft > soft:
                 resource.setrlimit(resource.RLIMIT_NOFILE, (new_soft, hard))
-                self.log.info(
-                    f"Raised open file limit: {soft} -> {new_soft} (hard: {hard})"
-                )
+                print(f"Raised open file limit: {soft} -> {new_soft} (hard: {hard})")
         except ValueError as e:
-            self.log.warning(
-                f"Could not raise limit (hard too low?): {e}. Using {soft}."
-            )
+            print(f"Could not raise limit (hard too low?): {e}. Using {soft}.")
         except Exception as e:
-            self.log.error(f"Error setting limit: {e}")
+            print(f"Error setting limit: {e}")
 
     # def action_toggle_theme_next(self) -> None:
     #     self.i += 1

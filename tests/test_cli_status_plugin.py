@@ -1,3 +1,4 @@
+import logging
 from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -31,7 +32,7 @@ def step_b(data, ctx):
 
 def test_cli_status_plugin_progress():
     events.clear()
-    plugin = CLIStatusPlugin(record)
+    plugin = CLIStatusPlugin(record, log=logging.getLogger("test"))
     treatment = Treatment("t", {})
     exp = Experiment(
         datasource=ds(),
@@ -46,28 +47,31 @@ def test_cli_status_plugin_progress():
     assert events[0][0] == "start"
     assert any(evt == "replicate" for evt, _ in events)
     step_events = [info for evt, info in events if evt == "step_finished"]
-    assert len(step_events) == len(exp.pipeline.steps) * (len(exp.treatments) + 1) * exp.replicates
+    assert (
+        len(step_events)
+        == len(exp.pipeline.steps) * (len(exp.treatments) + 1) * exp.replicates
+    )
     rep_events = [info for evt, info in events if evt == "replicate"]
     assert len(rep_events) == 4
 
 
 def test_inject_status_plugin_deduplicates_experiment():
-    plugin = CLIStatusPlugin(lambda e, i: None)
+    plugin = CLIStatusPlugin(lambda e, i: None, log=logging.getLogger("test"))
     exp = Experiment(datasource=ds(), pipeline=Pipeline([step_a()]), plugins=[plugin])
     exp.validate()
-    _inject_status_plugin(exp, lambda e, i: None)
+    _inject_status_plugin(exp, lambda e, i: None, log=logging.getLogger("test"))
     count = sum(isinstance(p, CLIStatusPlugin) for p in exp.plugins)
     assert count == 1
 
 
 def test_inject_status_plugin_deduplicates_graph():
-    plugin = CLIStatusPlugin(lambda e, i: None)
+    plugin = CLIStatusPlugin(lambda e, i: None, log=logging.getLogger("test"))
     exp = Experiment(
         datasource=ds(), pipeline=Pipeline([step_a()]), plugins=[plugin], name="e"
     )
     exp.validate()
     graph = ExperimentGraph.from_experiments([exp])
-    _inject_status_plugin(graph, lambda e, i: None)
+    _inject_status_plugin(graph, lambda e, i: None, log=logging.getLogger("test"))
     exp2 = graph._graph.nodes["e"]["experiment"]
     count = sum(isinstance(p, CLIStatusPlugin) for p in exp2.plugins)
     assert count == 1

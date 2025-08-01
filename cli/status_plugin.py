@@ -108,4 +108,5 @@ class CLIStatusPlugin(BasePlugin):
             },
         )
 
-class TextualLoggerPlugin(LoggingPlugin):
+
+# class TextualLoggerPlugin(LoggingPlugin):

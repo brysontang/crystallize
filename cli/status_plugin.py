@@ -8,6 +8,7 @@ from crystallize.utils.constants import BASELINE_CONDITION, CONDITION_KEY, REPLI
 from crystallize.utils.context import FrozenContext
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.experiments.experiment import Experiment
+from .widgets.writer import WidgetWriter
 
 import inspect
 
@@ -29,6 +30,7 @@ class CLIStatusPlugin(BasePlugin):
     """Track progress of an experiment for the CLI."""
 
     callback: Callable[[str, dict[str, Any]], None]
+    log: WidgetWriter
     total_steps: int = field(init=False, default=0)
     total_replicates: int = field(init=False, default=0)
     total_conditions: int = field(init=False, default=0)
@@ -85,6 +87,7 @@ class CLIStatusPlugin(BasePlugin):
 
         ctx.add("textual__status_callback", self.callback)
         ctx.add("textual__emit", emit_step_status)
+        ctx.add("textual__log", self.log)
 
     def after_step(
         self,
@@ -104,3 +107,6 @@ class CLIStatusPlugin(BasePlugin):
                 "step": step.__class__.__name__,
             },
         )
+
+
+# class TextualLoggerPlugin(LoggingPlugin):

@@ -9,6 +9,7 @@ import traceback
 from pathlib import Path
 from typing import Any, Callable, List, Tuple
 import queue  # Import queue
+import contextlib
 
 import networkx as nx
 from rich.text import Text
@@ -33,17 +34,31 @@ from .summary import SummaryScreen
 
 
 def _inject_status_plugin(
-    obj: Any, callback: Callable[[str, dict[str, Any]], None]
+    obj: Any, callback: Callable[[str, dict[str, Any]], None], log: WidgetWriter
 ) -> None:
     """Inject CLIStatusPlugin into experiments if not already present."""
     if isinstance(obj, ExperimentGraph):
         for node in obj._graph.nodes:
             exp: Experiment = obj._graph.nodes[node]["experiment"]
             if exp.get_plugin(CLIStatusPlugin) is None:
-                exp.plugins.append(CLIStatusPlugin(callback))
+                exp.plugins.append(CLIStatusPlugin(callback, log))
     else:
         if obj.get_plugin(CLIStatusPlugin) is None:
-            obj.plugins.append(CLIStatusPlugin(callback))
+            obj.plugins.append(CLIStatusPlugin(callback, log))
+
+
+@contextlib.contextmanager
+def pristine_stdio():
+    """
+    Temporarily restore the real stdout / stderr so fork‑/spawn‑based
+    child processes don’t inherit custom writers that break fileno().
+    """
+    saved_out, saved_err = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = sys.__stdout__, sys.__stderr__
+    try:
+        yield
+    finally:
+        sys.stdout, sys.stderr = saved_out, saved_err
 
 
 class RunScreen(Screen):
@@ -266,7 +281,11 @@ class RunScreen(Screen):
             """A simple, thread-safe callback that puts events onto a queue."""
             self.event_queue.put((event, info))
 
-        _inject_status_plugin(self._obj, queue_callback)
+        def log_callback(message: str) -> None:
+            self.log_history.append(message)
+            log.write(message)
+
+        _inject_status_plugin(self._obj, queue_callback, log_callback)
         self.queue_timer = self.set_interval(1 / 15, self.process_queue)
 
         async def progress_callback(status: str, name: str) -> None:
@@ -275,22 +294,21 @@ class RunScreen(Screen):
             )
 
         def run_experiment_sync() -> None:
-            original_stdout = sys.stdout
-            sys.stdout = WidgetWriter(log, self.app, self.log_history)
             result = None
             try:
 
                 async def run_with_callback():
-                    if isinstance(self._obj, ExperimentGraph):
-                        return await self._obj.arun(
-                            strategy=self._strategy,
-                            replicates=self._replicates,
-                            progress_callback=progress_callback,
-                        )
-                    else:
-                        return await _run_object(
-                            self._obj, self._strategy, self._replicates
-                        )
+                    with pristine_stdio():
+                        if isinstance(self._obj, ExperimentGraph):
+                            return await self._obj.arun(
+                                strategy=self._strategy,
+                                replicates=self._replicates,
+                                progress_callback=progress_callback,
+                            )
+                        else:
+                            return await _run_object(
+                                self._obj, self._strategy, self._replicates
+                            )
 
                 result = asyncio.run(run_with_callback())
 
@@ -300,7 +318,6 @@ class RunScreen(Screen):
                     f"[bold red]An error occurred in the worker:\n{tb_str}[/bold red]"
                 )
             finally:
-                sys.stdout = original_stdout
                 self.app.call_from_thread(
                     self.on_experiment_complete, self.ExperimentComplete(result)
                 )

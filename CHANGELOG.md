@@ -5,6 +5,21 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.11](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.10...crystallize-ml@v0.24.11) (2025-08-01)
+
+
+### Bug Fixes
+
+* Auto add matplotlib.use("Agg") for cli ([31ee0a0](https://github.com/brysontang/crystallize/commit/31ee0a0287ff7ef1b3be6fa987ed8cf3269e2076))
+* Backwards compatibility for experiments root ([986de32](https://github.com/brysontang/crystallize/commit/986de320d621e153b475e3a124ef5516f450caf3))
+* Increase_open_file_limit for umap errors ([31ee0a0](https://github.com/brysontang/crystallize/commit/31ee0a0287ff7ef1b3be6fa987ed8cf3269e2076))
+* Pristine_stdio by default for textual ([b4152af](https://github.com/brysontang/crystallize/commit/b4152afae7d4a32349682d4cb98adfcb00df988a))
+* Step has now includes code in hash ([986de32](https://github.com/brysontang/crystallize/commit/986de320d621e153b475e3a124ef5516f450caf3))
+* Sub folder experiment data sources properly load ([7cf068e](https://github.com/brysontang/crystallize/commit/7cf068ee21a98e594bcc0424d6697a20951a19b1))
+* Temp set xfail on seed tests ([5a9951f](https://github.com/brysontang/crystallize/commit/5a9951fedaf7e67ba4d5d2feea7e2e7563cd2a52))
+* Tests ([cc14ead](https://github.com/brysontang/crystallize/commit/cc14ead6aa2375fd671be443b79b053788e35dbc))
+* Textual__log added to context to log ([b4152af](https://github.com/brysontang/crystallize/commit/b4152afae7d4a32349682d4cb98adfcb00df988a))
+
 ## [0.24.10](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.9...crystallize-ml@v0.24.10) (2025-07-30)
 
 

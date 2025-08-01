@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from crystallize.utils.cache import compute_hash
+from crystallize.utils.cache import compute_hash, _code_fingerprint
 from crystallize.utils.context import FrozenContext
 
 
@@ -44,7 +44,11 @@ class PipelineStep(ABC):
     # ------------------------------------------------------------------ #
     @property
     def step_hash(self) -> str:
-        """Unique hash identifying this step based on its parameters."""
+        """Unique hash identifying this step based on its parameters and code."""
 
-        payload = {"class": self.__class__.__name__, "params": self.params}
+        payload = {
+            "class": self.__class__.__name__,
+            "params": self.params,
+            "code": _code_fingerprint(self.__call__),
+        }
         return compute_hash(payload)

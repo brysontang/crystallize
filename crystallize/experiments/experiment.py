@@ -797,6 +797,8 @@ class Experiment:
                     data = self.datasource.fetch(ctx)
 
                 for step in self.pipeline.steps:
+                    for plugin in self.plugins:
+                        plugin.before_step(self, step)
                     data = step(data, ctx)
                     for plugin in self.plugins:
                         plugin.after_step(self, step, data, ctx)
@@ -954,14 +956,19 @@ class Experiment:
         outputs_map: Dict[str, Artifact] = {}
         for alias, spec in outputs_spec.items():
             loader_fn = None
+            writer_fn = None
             file_name = alias  # Default file name to alias
             if isinstance(spec, dict):
                 if spec.get("loader") and outs_mod:
                     loader_fn = _load("outputs", spec["loader"])
+                if spec.get("writer") and outs_mod:
+                    writer_fn = _load("outputs", spec["writer"])
                 if spec.get("file_name"):
                     file_name = spec["file_name"]
 
-            outputs_map[alias] = Artifact(name=file_name, loader=loader_fn)
+            outputs_map[alias] = Artifact(
+                name=file_name, loader=loader_fn, writer=writer_fn
+            )
         outputs = list(outputs_map.values())
         used_outputs: set[str] = set()
 
@@ -977,7 +984,6 @@ class Experiment:
             else:
                 step_name = s_spec
                 kwargs = {}
-
             step_factory = _load("steps", step_name)
             import inspect
 

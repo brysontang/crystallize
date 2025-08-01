@@ -3,13 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, List
 
-from crystallize.plugins.plugins import BasePlugin
+from crystallize.plugins.plugins import BasePlugin, LoggingPlugin
 from crystallize.utils.constants import BASELINE_CONDITION, CONDITION_KEY, REPLICATE_KEY
 from crystallize.utils.context import FrozenContext
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.experiments.experiment import Experiment
+from .widgets.writer import WidgetWriter
 
 import inspect
+import logging
+import contextvars
 
 STEP_KEY = "step_name"
 
@@ -22,6 +25,21 @@ def emit_step_status(ctx: FrozenContext, percent: float) -> None:
         outer = frame.f_back if frame else None
         step_name = ctx.get(STEP_KEY, "<unknown>")
         cb("step", {"step": step_name, "percent": percent})
+
+
+class RichFormatter(logging.Formatter):
+    LEVEL_COLORS = {
+        "INFO": "[white]",
+        "DEBUG": "[dim]",
+        "WARNING": "[yellow]",
+        "ERROR": "[bold red]",
+        "CRITICAL": "[bold white on red]",
+    }
+
+    def format(self, record):
+        base = super().format(record)
+        color = self.LEVEL_COLORS.get(record.levelname, "[white]")
+        return f"{color}{base}[/]"
 
 
 @dataclass
@@ -104,3 +122,67 @@ class CLIStatusPlugin(BasePlugin):
                 "step": step.__class__.__name__,
             },
         )
+
+
+exp_var = contextvars.ContextVar("exp_name", default="-")
+step_var = contextvars.ContextVar("step_name", default="-")
+
+
+class ContextFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.exp = exp_var.get()
+        record.step = step_var.get()
+        return True
+
+
+class WidgetLogHandler(logging.Handler):
+    """Logging.Handler that forwards records to a WidgetWriter."""
+
+    def __init__(self, writer: WidgetWriter, level=logging.NOTSET):
+        super().__init__(level)
+        self.writer = writer
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            # non-blocking: Textual must update from the UI thread
+            self.writer.write(msg + "\n")
+        except Exception:  # pragma: no cover
+            self.handleError(record)
+
+
+@dataclass
+class TextualLoggingPlugin(LoggingPlugin):
+    writer: WidgetWriter | None = None
+    handler_cls: type[logging.Handler] = WidgetLogHandler
+
+    def before_run(self, experiment):
+        super().before_run(experiment)
+
+        logger = logging.getLogger("crystallize")
+        if not any(isinstance(h, ContextFilter) for h in logger.filters):
+            logger.addFilter(ContextFilter())
+
+        # ① DROP any previously-installed StreamHandlers
+        logger.handlers = [
+            h
+            for h in logger.handlers
+            if isinstance(h, self.handler_cls)  # keep existing Widget handler
+        ]
+
+        # ② Add / re-add Widget handler if missing
+        if self.writer and not any(
+            isinstance(h, self.handler_cls) for h in logger.handlers
+        ):
+            handler = self.handler_cls(self.writer)
+            fmt = "%(asctime)s  %(levelname).1s  %(exp)-10s  %(step)-18s | %(message)s"
+            datefmt = "%H:%M:%S"  # short, no date
+            handler.setFormatter(RichFormatter(fmt, datefmt=datefmt))
+            logger.addHandler(handler)
+
+        # ③ Make sure nothing bubbles up to the root logger
+        logger.propagate = False
+
+    def before_step(self, experiment: Experiment, step: PipelineStep) -> None:
+        exp_var.set(experiment.name)
+        step_var.set(step.__class__.__name__)

@@ -76,11 +76,15 @@ class Pipeline:
             try:
                 step_hash = step.step_hash
             except Exception as exc:
-                print(f"Error in step {step.__class__.__name__}")
-                print(f"Error: {exc}")
+                print(f"Error in step {step.__class__.__name__}: {exc}")
                 raise exc
 
             input_hash = compute_hash(data)
+
+            if experiment is not None:
+                for plugin in experiment.plugins:
+                    plugin.before_step(experiment, step)
+
             if step.cacheable:
                 try:
                     result = load_cache(step_hash, input_hash)
@@ -134,18 +138,21 @@ class Pipeline:
                 if verbose and isinstance(target_ctx, LoggingContext)
                 else {}
             )
-            self._record_provenance(
-                provenance,
-                step,
-                data,
-                ctx,
-                pre_ctx,
-                pre_metrics,
-                cache_hit,
-                step_hash,
-                input_hash,
-                reads,
-            )
+            try:
+                self._record_provenance(
+                    provenance,
+                    step,
+                    data,
+                    ctx,
+                    pre_ctx,
+                    pre_metrics,
+                    cache_hit,
+                    step_hash,
+                    input_hash,
+                    reads,
+                )
+            except Exception as exc:
+                raise exc
 
         final_provenance = tuple(provenance)
         self._provenance = final_provenance

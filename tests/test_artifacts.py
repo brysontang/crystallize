@@ -374,3 +374,12 @@ def test_lambda_loader_pickleable(tmp_path):
     dumped = pickle.dumps(loader_art)
     clone = pickle.loads(dumped)
     assert clone.loader(path) == "hello"
+
+
+def test_default_writer(tmp_path):
+    from crystallize.datasources.artifacts import default_writer
+
+    assert default_writer(b"x") == b"x"
+    assert default_writer("x") == b"x"
+    with pytest.raises(TypeError):
+        default_writer(1)  # type: ignore[arg-type]

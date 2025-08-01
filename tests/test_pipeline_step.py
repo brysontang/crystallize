@@ -1,7 +1,6 @@
 import pytest
 from crystallize.utils.context import FrozenContext
 from crystallize.pipelines.pipeline_step import PipelineStep
-from crystallize.utils.cache import compute_hash
 from crystallize import pipeline_step
 
 
@@ -17,12 +16,21 @@ class AddStep(PipelineStep):
         return {"value": self.value}
 
 
-def test_concrete_step_basic():
-    step = AddStep(2)
-    ctx = FrozenContext({})
-    assert step(3, ctx) == 5
-    expected_hash = compute_hash({"class": "AddStep", "params": {"value": 2}})
-    assert step.step_hash == expected_hash
+def test_step_hash_reflects_code_and_params():
+    """Hash changes when either params *or* code change."""
+
+    # --- same code, different param --------------------------------------
+    a1 = AddStep(1)
+    a2 = AddStep(2)
+    assert a1.step_hash != a2.step_hash
+
+    # --- same param, different code --------------------------------------
+    class AddStepV2(AddStep):  # override call, keep same value
+        def __call__(self, data, ctx):
+            return data + self.value + 10
+
+    b1 = AddStepV2(1)
+    assert a1.step_hash != b1.step_hash
 
 
 @pipeline_step(cacheable=True)

@@ -70,6 +70,10 @@ run(
 ) → Dict[str, Result]
 ```
 
-Execute all experiments respecting dependency order. 
+Execute all experiments respecting dependency order.
+
+Treatments declared on an experiment are inherited by all downstream
+experiments. The ``treatments`` argument overrides this automatic
+propagation with a custom list for the entire graph.
 
 

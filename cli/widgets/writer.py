@@ -47,7 +47,7 @@ class WidgetWriter:
     def write(self, message: str) -> None:
         if self.history is not None:
             # Store the raw message in our history list
-            self.history.append(message)
+            self.history.append(message + "\n \n")
 
         if message:
             self.app.call_from_thread(self.widget.write, message)

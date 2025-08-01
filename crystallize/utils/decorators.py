@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import inspect
+import types
+import hashlib
 import threading
+import textwrap
 from functools import update_wrapper
 from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
@@ -33,6 +36,7 @@ from crystallize.plugins.plugins import (
 from crystallize.experiments.result import Result
 from crystallize.experiments.run_results import ReplicateResult
 from crystallize.experiments.treatment import Treatment
+from crystallize.utils.cache import compute_hash
 
 _resource_cache = threading.local()
 
@@ -73,10 +77,21 @@ def resource_factory(
     return ResourceFactoryWrapper(fn, key)
 
 
+def _code_digest(obj: types.FunctionType) -> str:
+    # Robust: fall back if source missing (e.g., in REPL)
+    try:
+        src = textwrap.dedent(inspect.getsource(obj))
+    except (OSError, TypeError):
+        src = obj.__code__.co_code  # bytes as fallback
+    return hashlib.sha256(src.encode() if isinstance(src, str) else src).hexdigest()
+
+
 def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:
     """Decorate a function and convert it into a :class:`PipelineStep` factory."""
 
     def decorator(fn: Callable[..., Any]) -> Callable[..., PipelineStep]:
+        code_digest = _code_digest(fn)
+
         sig = inspect.signature(fn)
         param_names = [
             p.name for p in sig.parameters.values() if p.name not in {"data", "ctx"}
@@ -119,6 +134,15 @@ def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:
 
                 def __reduce__(self):
                     return _reconstruct_from_factory, (factory, params)
+
+                @property
+                def step_hash(self) -> str:
+                    payload = {
+                        "class": self.__class__.__name__,
+                        "params": self.params,
+                        "code": code_digest,
+                    }
+                    return compute_hash(payload)
 
             FunctionStep.__name__ = f"{fn.__name__.title()}Step"
             return FunctionStep()

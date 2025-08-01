@@ -46,7 +46,10 @@ def test_cli_status_plugin_progress():
     assert events[0][0] == "start"
     assert any(evt == "replicate" for evt, _ in events)
     step_events = [info for evt, info in events if evt == "step_finished"]
-    assert len(step_events) == len(exp.pipeline.steps) * (len(exp.treatments) + 1) * exp.replicates
+    assert (
+        len(step_events)
+        == len(exp.pipeline.steps) * (len(exp.treatments) + 1) * exp.replicates
+    )
     rep_events = [info for evt, info in events if evt == "replicate"]
     assert len(rep_events) == 4
 
@@ -55,7 +58,7 @@ def test_inject_status_plugin_deduplicates_experiment():
     plugin = CLIStatusPlugin(lambda e, i: None)
     exp = Experiment(datasource=ds(), pipeline=Pipeline([step_a()]), plugins=[plugin])
     exp.validate()
-    _inject_status_plugin(exp, lambda e, i: None)
+    _inject_status_plugin(exp, lambda e, i: None, writer=None)
     count = sum(isinstance(p, CLIStatusPlugin) for p in exp.plugins)
     assert count == 1
 
@@ -67,7 +70,7 @@ def test_inject_status_plugin_deduplicates_graph():
     )
     exp.validate()
     graph = ExperimentGraph.from_experiments([exp])
-    _inject_status_plugin(graph, lambda e, i: None)
+    _inject_status_plugin(graph, lambda e, i: None, writer=None)
     exp2 = graph._graph.nodes["e"]["experiment"]
     count = sum(isinstance(p, CLIStatusPlugin) for p in exp2.plugins)
     assert count == 1

@@ -21,7 +21,7 @@ Applies to the entire repo unless overridden by a nested AGENTS.md. Docs and tes
 
 ## 🚦 Coding Conventions
 
-- **Formatting**: PEP 8 via `black` and `isort`.
+- **Formatting**: PEP 8 via `ruff`.
 - **Type Hints**: Always use explicit hints; check with `mypy`.
 - **Imports**: Explicit only; no wildcards.
 - **Naming**: Classes `PascalCase`; functions/vars `snake_case`; constants `UPPER_CASE`.
@@ -34,6 +34,7 @@ Applies to the entire repo unless overridden by a nested AGENTS.md. Docs and tes
 Keep it simple:
 
 - `crystallize/`: Core code (abstractions in `core/`, steps in `steps/`).
+- `cli/`: CLI code (abstractions in `core/`, steps in `steps/`).
 - `tests/`: Unit tests (separate core vs. extras).
 - `examples/`: Illustrative examples (update with changes).
 - `extras/crystallize-extras/`: Optional plugins (separate tests/docs).
@@ -68,17 +69,21 @@ Use Conventional Commits for semantic versioning (pre-alpha: avoid major bumps).
 Structure as:
 
 ```
-### Summary
-[Motivation and objectives.]
+## 📖 Summary of Documentation Changes
 
-### Changes
-- [Key changes.]
+<!-- Briefly describe the updates and improvements you've made to the documentation -->
 
-### Testing & Verification
-[How tested; verification steps.]
+## ✏️ Changes
 
-### Notes
-[Additional context.]
+- Updated documentation for [module/component/...]
+- Clarified usage examples
+- Fixed typos, grammar, or formatting errors
+
+## ✅ Testing & Verification
+
+- [x] Reviewed changes locally
+- [x] Verified links and references
+- [ ] Requested review from relevant stakeholders (optional)
 ```
 
 ---

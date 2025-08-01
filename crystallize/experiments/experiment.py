@@ -797,6 +797,8 @@ class Experiment:
                     data = self.datasource.fetch(ctx)
 
                 for step in self.pipeline.steps:
+                    for plugin in self.plugins:
+                        plugin.before_step(self, step)
                     data = step(data, ctx)
                     for plugin in self.plugins:
                         plugin.after_step(self, step, data, ctx)

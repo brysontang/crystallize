@@ -69,38 +69,62 @@ class FrozenContext:
         return MappingProxyType(copy.deepcopy(self._data))
 
 
-class LoggingContext:
-    """Proxy around :class:`FrozenContext` that records all key accesses."""
+class LoggingContext(FrozenContext):
+    """
+    A FrozenContext proxy that records every key read and emits DEBUG lines.
 
-    def __init__(self, ctx: FrozenContext, logger: logging.Logger) -> None:
-        self._ctx = ctx
-        self._logger = logger
-        self.reads: Dict[str, Any] = {}
-        self.metrics = ctx.metrics
+    Parameters
+    ----------
+    ctx:
+        The original, immutable context created by the Experiment runner.
+    logger:
+        The logger to use for DEBUG instrumentation.
+    """
 
-    # -------------------------------------------------------------- #
-    def __getattr__(self, name: str) -> Any:  # pragma: no cover - passthrough
-        return getattr(self._ctx, name)
+    # We purposely do **not** call super().__init__ so we avoid copying data.
+    def __init__(self, ctx: FrozenContext, logger: Optional[logging.Logger] = None):
+        # Store a reference to the wrapped context
+        object.__setattr__(self, "_inner", ctx)
 
-    def __getitem__(self, key: str) -> Any:
-        value = self._ctx[key]
+        # Expose the same public attributes the pipeline expects
+        object.__setattr__(self, "metrics", ctx.metrics)
+        object.__setattr__(self, "artifacts", ctx.artifacts)
+        object.__setattr__(self, "logger", logger or ctx.logger)
+
+        # Read log
+        object.__setattr__(self, "reads", {})  # type: Dict[str, Any]
+
+    # --------------- proxy helpers --------------- #
+    def _log_read(self, key: str, value: Any) -> None:  # noqa: D401
         self.reads[key] = value
-        self._logger.debug("Read %s -> %s", key, value)
+        self.logger.debug("Read %s -> %s", key, value)
+
+    # --------------- Mapping interface --------------- #
+    def __getitem__(self, key: str) -> Any:
+        value = self._inner[key]
+        self._log_read(key, value)
         return value
 
     def __setitem__(self, key: str, value: Any) -> None:
-        self._ctx[key] = value
-
-    def add(self, key: str, value: Any) -> None:
-        self._ctx.add(key, value)
+        # Delegate mutation protection to the real context
+        self._inner[key] = value
 
     def get(self, key: str, default: Optional[Any] = None) -> Any:
-        if key in self._ctx.as_dict():
-            value = self._ctx.get(key)
-            self.reads[key] = value
-            self._logger.debug("Read %s -> %s", key, value)
+        if key in self._inner.as_dict():
+            value = self._inner.get(key)
+            self._log_read(key, value)
             return value
         return default
 
+    def add(self, key: str, value: Any) -> None:
+        self._inner.add(key, value)
+
+    # --------------- inspection helpers --------------- #
     def as_dict(self) -> Mapping[str, Any]:
-        return self._ctx.as_dict()
+        # Return a *read-only* view of current data, exactly like FrozenContext
+        return self._inner.as_dict()
+
+    # --------------- fallback for anything else --------------- #
+    def __getattr__(self, name: str):
+        # forward unknown attributes to the wrapped context
+        return getattr(self._inner, name)

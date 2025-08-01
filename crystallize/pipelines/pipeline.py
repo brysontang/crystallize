@@ -81,6 +81,10 @@ class Pipeline:
 
             input_hash = compute_hash(data)
 
+            if experiment is not None:
+                for plugin in experiment.plugins:
+                    plugin.before_step(experiment, step)
+
             if step.cacheable:
                 try:
                     result = load_cache(step_hash, input_hash)

@@ -28,6 +28,7 @@ from ..screens.create_experiment import CreateExperimentScreen
 from ..screens.run import _launch_run
 
 from ..widgets import ConfigEditorWidget
+from .loading import LoadingScreen
 
 
 class ExperimentTree(Tree):
@@ -71,11 +72,11 @@ class SelectionScreen(Screen):
     async def _update_details(self, data: Dict[str, Any]) -> None:
         """Populate the details panel with information from ``data``."""
 
-        # details = self.query_one("#details", Static)
+        details = self.query_one("#details", Static)
         info = yaml.safe_load(Path(data["path"]).read_text()) or {}
 
         desc = info.get("description", data.get("doc", ""))
-        # details.update(desc)
+        details.update(str(info["cli"]["icon"]) + " " + data["label"])
 
         container = self.query_one("#config-container")
         await container.remove_children()
@@ -165,7 +166,7 @@ class SelectionScreen(Screen):
 
         right_panel = Container(classes="right-panel")
         await horizontal.mount(right_panel)
-        # await right_panel.mount(Static(id="details", classes="details-panel"))
+        await right_panel.mount(Static(id="details", classes="details-panel"))
         await right_panel.mount(Container(id="config-container"))
 
         btn_container = Container(id="select-button-container")
@@ -193,6 +194,7 @@ class SelectionScreen(Screen):
         cfg = info["path"]
         obj_type = info["type"]
         try:
+            await self.app.push_screen(LoadingScreen())
             if obj_type == "Graph":
                 obj = ExperimentGraph.from_yaml(cfg)
             else:
@@ -201,9 +203,11 @@ class SelectionScreen(Screen):
             self._load_errors[str(cfg)] = exc
             from ..screens.load_errors import LoadErrorsScreen
 
+            self.app.pop_screen()
             self.app.push_screen(LoadErrorsScreen({str(cfg): exc}))
             return
 
+        self.app.pop_screen()
         await _launch_run(self.app, obj)
 
     def action_run_selected(self) -> None:

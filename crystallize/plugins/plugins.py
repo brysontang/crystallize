@@ -62,6 +62,9 @@ class BasePlugin(ABC):
         """Observe results after every :class:`PipelineStep` execution."""
         pass
 
+    def before_step(self, experiment: Experiment, step: PipelineStep) -> None:
+        pass
+
     def after_run(self, experiment: Experiment, result: Result) -> None:
         """Execute cleanup or reporting after :meth:`Experiment.run` completes."""
         pass
@@ -243,6 +246,7 @@ class ArtifactPlugin(BasePlugin):
         def dump_condition(name: str, metrics: Mapping[str, Any]) -> None:
             dest = base / name
             os.makedirs(dest, exist_ok=True)
+
             def _default(o: Any) -> Any:
                 try:
                     import numpy as np

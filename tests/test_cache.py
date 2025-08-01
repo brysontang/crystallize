@@ -189,3 +189,73 @@ def test_concurrent_cache_writes(tmp_path, monkeypatch):
     ctx = FrozenContext({})
     pipeline.run(0, ctx)
     assert step.calls == 0
+
+
+def test_cache_step_hash_changes_on_code_change():
+    """The hash must incorporate the function body, not just the params."""
+
+    # --- original implementation -------------------------------------------
+    class Adder(PipelineStep):
+        cacheable = True
+
+        def __call__(self, data, ctx):
+            return data + 1
+
+        @property
+        def params(self):
+            return {}
+
+    step_a = Adder()
+    hash_a = step_a.step_hash
+
+    # --- modified implementation -------------------------------------------
+    class Adder(PipelineStep):
+        cacheable = True
+
+        def __call__(self, data, ctx):
+            return data + 2
+
+        @property
+        def params(self):
+            return {}
+
+    step_b = Adder()
+    hash_b = step_b.step_hash
+
+    # -----------------------------------------------------------------------
+    assert hash_a != hash_b, "Changing __call__ should invalidate the cache"
+
+
+def test_cache_step_hash_same_with_no_code_change():
+    """The hash must incorporate the function body, not just the params."""
+
+    # --- original implementation -------------------------------------------
+    class Adder(PipelineStep):
+        cacheable = True
+
+        def __call__(self, data, ctx):
+            return data + 1
+
+        @property
+        def params(self):
+            return {}
+
+    step_a = Adder()
+    hash_a = step_a.step_hash
+
+    # --- modified implementation -------------------------------------------
+    class Adder(PipelineStep):
+        cacheable = True
+
+        def __call__(self, data, ctx):
+            return data + 1
+
+        @property
+        def params(self):
+            return {}
+
+    step_b = Adder()
+    hash_b = step_b.step_hash
+
+    # -----------------------------------------------------------------------
+    assert hash_a == hash_b, "Changing __call__ should invalidate the cache"

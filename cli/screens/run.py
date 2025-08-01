@@ -9,6 +9,7 @@ import traceback
 from pathlib import Path
 from typing import Any, Callable, List, Tuple
 import queue  # Import queue
+import contextlib
 
 import networkx as nx
 from rich.text import Text
@@ -23,9 +24,9 @@ from textual.widgets import Button, Footer, Header, RichLog, Static, TextArea
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
-from crystallize.plugins.plugins import ArtifactPlugin
+from crystallize.plugins.plugins import ArtifactPlugin, LoggingPlugin
+from ..status_plugin import CLIStatusPlugin, TextualLoggingPlugin
 from crystallize.utils.constants import METADATA_FILENAME
-from ..status_plugin import CLIStatusPlugin
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
 from .delete_data import ConfirmScreen
@@ -34,17 +35,38 @@ from .summary import SummaryScreen
 
 
 def _inject_status_plugin(
-    obj: Any, callback: Callable[[str, dict[str, Any]], None]
+    obj: Any, callback: Callable[[str, dict[str, Any]], None], writer: WidgetWriter
 ) -> None:
     """Inject CLIStatusPlugin into experiments if not already present."""
+
+    def ensure(exp: Experiment) -> None:
+        # --- status plugin ---
+        if exp.get_plugin(CLIStatusPlugin) is None:
+            exp.plugins.append(CLIStatusPlugin(callback))
+
+        # --- logging plugin ---
+        exp.plugins = [p for p in exp.plugins if not isinstance(p, LoggingPlugin)]
+        exp.plugins.append(TextualLoggingPlugin(writer=writer, verbose=True))
+
     if isinstance(obj, ExperimentGraph):
         for node in obj._graph.nodes:
-            exp: Experiment = obj._graph.nodes[node]["experiment"]
-            if exp.get_plugin(CLIStatusPlugin) is None:
-                exp.plugins.append(CLIStatusPlugin(callback))
+            ensure(obj._graph.nodes[node]["experiment"])
     else:
-        if obj.get_plugin(CLIStatusPlugin) is None:
-            obj.plugins.append(CLIStatusPlugin(callback))
+        ensure(obj)
+
+
+@contextlib.contextmanager
+def pristine_stdio():
+    """
+    Temporarily restore the real stdout / stderr so fork‑/spawn‑based
+    child processes don’t inherit custom writers that break fileno().
+    """
+    saved_out, saved_err = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = sys.__stdout__, sys.__stderr__
+    try:
+        yield
+    finally:
+        sys.stdout, sys.stderr = saved_out, saved_err
 
 
 class RunScreen(Screen):
@@ -261,13 +283,21 @@ class RunScreen(Screen):
         if isinstance(self._obj, ExperimentGraph):
             self.node_states = {node: "pending" for node in self._obj._graph.nodes}
             self.query_one("#dag-display").remove_class("invisible")
-        log = self.query_one("#live_log", RichLog)
+        log_widget = self.query_one("#live_log", RichLog)
+
+        writer = WidgetWriter(log_widget, self.app, self.log_history)
 
         def queue_callback(event: str, info: dict[str, Any]) -> None:
             """A simple, thread-safe callback that puts events onto a queue."""
             self.event_queue.put((event, info))
 
-        _inject_status_plugin(self._obj, queue_callback)
+        # 4️⃣ — Swap in the TextualLoggingPlugin on each experiment
+        # for exp in experiments_we_are_running:
+        #     # Remove any plain LoggingPlugin to avoid duplicate console output
+        #     exp.plugins = [p for p in exp.plugins if not isinstance(p, LoggingPlugin)]
+        #     exp.plugins.append(TextualLoggingPlugin(writer=writer, verbose=True))
+
+        _inject_status_plugin(self._obj, queue_callback, writer=writer)
         self.queue_timer = self.set_interval(1 / 15, self.process_queue)
 
         async def progress_callback(status: str, name: str) -> None:
@@ -276,22 +306,21 @@ class RunScreen(Screen):
             )
 
         def run_experiment_sync() -> None:
-            original_stdout = sys.stdout
-            sys.stdout = WidgetWriter(log, self.app, self.log_history)
             result = None
             try:
 
                 async def run_with_callback():
-                    if isinstance(self._obj, ExperimentGraph):
-                        return await self._obj.arun(
-                            strategy=self._strategy,
-                            replicates=self._replicates,
-                            progress_callback=progress_callback,
-                        )
-                    else:
-                        return await _run_object(
-                            self._obj, self._strategy, self._replicates
-                        )
+                    with pristine_stdio():
+                        if isinstance(self._obj, ExperimentGraph):
+                            return await self._obj.arun(
+                                strategy=self._strategy,
+                                replicates=self._replicates,
+                                progress_callback=progress_callback,
+                            )
+                        else:
+                            return await _run_object(
+                                self._obj, self._strategy, self._replicates
+                            )
 
                 result = asyncio.run(run_with_callback())
 
@@ -301,7 +330,6 @@ class RunScreen(Screen):
                     f"[bold red]An error occurred in the worker:\n{tb_str}[/bold red]"
                 )
             finally:
-                sys.stdout = original_stdout
                 self.app.call_from_thread(
                     self.on_experiment_complete, self.ExperimentComplete(result)
                 )
@@ -338,6 +366,7 @@ class RunScreen(Screen):
 async def _launch_run(app: App, obj: Any) -> None:
     selected = obj
     deletable: List[Tuple[str, Path]] = []
+
     if isinstance(selected, ExperimentGraph):
         for node in selected._graph.nodes:
             exp: Experiment = selected._graph.nodes[node]["experiment"]

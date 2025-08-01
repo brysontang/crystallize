@@ -5,9 +5,76 @@
 - Add retrospective changelogs for main and extras packages ([ad715ae](https://github.com/brysontang/crystallize/commit/ad715ae23e0e00c17bf86f77f1ce808a855fc7e7))
 - Update reference docs and generation workflow ([10bcec4](https://github.com/brysontang/crystallize/commit/10bcec461da38eb09cd2cfbcdf0d36be1f03ad3d))
 
+## [0.24.11](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.10...crystallize-ml@v0.24.11) (2025-08-01)
+
+
 ### Bug Fixes
 
-- Hide delete option when experiment artifacts are incomplete
+* Auto add matplotlib.use("Agg") for cli ([31ee0a0](https://github.com/brysontang/crystallize/commit/31ee0a0287ff7ef1b3be6fa987ed8cf3269e2076))
+* Backwards compatibility for experiments root ([986de32](https://github.com/brysontang/crystallize/commit/986de320d621e153b475e3a124ef5516f450caf3))
+* Increase_open_file_limit for umap errors ([31ee0a0](https://github.com/brysontang/crystallize/commit/31ee0a0287ff7ef1b3be6fa987ed8cf3269e2076))
+* Pristine_stdio by default for textual ([b4152af](https://github.com/brysontang/crystallize/commit/b4152afae7d4a32349682d4cb98adfcb00df988a))
+* Step has now includes code in hash ([986de32](https://github.com/brysontang/crystallize/commit/986de320d621e153b475e3a124ef5516f450caf3))
+* Sub folder experiment data sources properly load ([7cf068e](https://github.com/brysontang/crystallize/commit/7cf068ee21a98e594bcc0424d6697a20951a19b1))
+* Temp set xfail on seed tests ([5a9951f](https://github.com/brysontang/crystallize/commit/5a9951fedaf7e67ba4d5d2feea7e2e7563cd2a52))
+* Tests ([cc14ead](https://github.com/brysontang/crystallize/commit/cc14ead6aa2375fd671be443b79b053788e35dbc))
+* Textual__log added to context to log ([b4152af](https://github.com/brysontang/crystallize/commit/b4152afae7d4a32349682d4cb98adfcb00df988a))
+
+## [0.24.10](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.9...crystallize-ml@v0.24.10) (2025-07-30)
+
+
+### Bug Fixes
+
+* Added back hash error ([1a4a1ab](https://github.com/brysontang/crystallize/commit/1a4a1ab31c57a3a5788024dfa068a20c8a0d78d8))
+* Limit size of metric table ([2187785](https://github.com/brysontang/crystallize/commit/218778594d903cda17051f3692a381b4b8e4e24e))
+
+## [0.24.9](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.8...crystallize-ml@v0.24.9) (2025-07-30)
+
+
+### Bug Fixes
+
+* Artifact loader and writer use dill by default ([7c89642](https://github.com/brysontang/crystallize/commit/7c89642ed62a4c3b1fe51ce011f6a0f7577e2f80))
+
+
+### Documentation
+
+* **crystallize-ml:** Note treatment inheritance ([bf89dc1](https://github.com/brysontang/crystallize/commit/bf89dc1cd9ed703792bd7303322a62bbe1354379))
+
+## [0.24.8](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.7...crystallize-ml@v0.24.8) (2025-07-29)
+
+
+### Bug Fixes
+
+* Crash on error ([64330bc](https://github.com/brysontang/crystallize/commit/64330bc108c572901aac24554e901f0a5ee5fe93))
+* **crystallize-ml:** Correct artifact writer logic ([8bddb10](https://github.com/brysontang/crystallize/commit/8bddb105761983d1ef70522bb7c6656eb390c092))
+* Implemented writer function for artifacts ([b14257e](https://github.com/brysontang/crystallize/commit/b14257ec0515187a17d8ce7382f6cc6303a4fdb9))
+
+## [0.24.7](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.6...crystallize-ml@v0.24.7) (2025-07-29)
+
+
+### Bug Fixes
+
+* Added loading screen for loading experiments ([d371877](https://github.com/brysontang/crystallize/commit/d3718775d0f3a9dc59d7992ded5a4eccb289c7d1))
+* Resume not being registered ([56d6a40](https://github.com/brysontang/crystallize/commit/56d6a4082366c720299a56df3b068cdc5384e29e))
+
+## [0.24.6](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.5...crystallize-ml@v0.24.6) (2025-07-29)
+
+
+### Bug Fixes
+
+* Set default theme to nord ([93dd327](https://github.com/brysontang/crystallize/commit/93dd32793ac243375dc93fec472d838da7e119d0))
+* Show details again ([93dd327](https://github.com/brysontang/crystallize/commit/93dd32793ac243375dc93fec472d838da7e119d0))
+
+## [0.24.5](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.4...crystallize-ml@v0.24.5) (2025-07-28)
+
+
+### Bug Fixes
+
+* Before_step to plugins ([350211e](https://github.com/brysontang/crystallize/commit/350211eb4bc47987162557d535bb6053b271015f))
+* Progress from steps updates ([24b6555](https://github.com/brysontang/crystallize/commit/24b655578d9c9a816a498ca2351d5c6bbec3d2f0))
+* Progress from steps updates ([350211e](https://github.com/brysontang/crystallize/commit/350211eb4bc47987162557d535bb6053b271015f))
+* Treatment state better displayed ([350211e](https://github.com/brysontang/crystallize/commit/350211eb4bc47987162557d535bb6053b271015f))
+* Update CLI status plugin test ([491d6d4](https://github.com/brysontang/crystallize/commit/491d6d46628b0354a8b0b2708f9828da9c0dbd8c))
 
 ## [0.24.4](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.3...crystallize-ml@v0.24.4) (2025-07-28)
 

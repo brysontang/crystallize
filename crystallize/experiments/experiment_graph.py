@@ -19,6 +19,23 @@ from .result_structs import ExperimentMetrics, TreatmentMetrics
 from .treatment import Treatment
 
 
+def find_experiments_root(start: Path) -> Path:
+    """
+    Walk up from *start* until we find a directory that either **is**
+    called 'experiments' or **contains** a sub-directory called 'experiments'.
+
+    Raises FileNotFoundError if we reach the filesystem root without success.
+    """
+    start = start.resolve()
+    for ancestor in (start,) + tuple(start.parents):
+        if ancestor.name == "experiments":
+            return ancestor
+        if (ancestor / "experiments").is_dir():
+            return ancestor / "experiments"
+
+    return start.parent.parent
+
+
 class ExperimentGraph:
     """Manage and run a directed acyclic graph of experiments."""
 
@@ -26,6 +43,7 @@ class ExperimentGraph:
         """Create a graph and optionally infer dependencies from experiments."""
         self._graph = nx.DiGraph()
         self._results: Dict[str, Result] = {}
+        self._treatment_cache: Dict[str, list[Treatment]] = {}
         self.name = name
 
         if experiments:
@@ -119,7 +137,7 @@ class ExperimentGraph:
         if path.is_dir():
             return cls._from_directory(path)
 
-        root = path.parent.parent
+        root = find_experiments_root(path)
         loaded: dict[str, Experiment] = {}
 
         def _load(cfg: Path) -> None:
@@ -240,6 +258,40 @@ class ExperimentGraph:
 
     # ------------------------------------------------------------------ #
 
+    def _get_parents(self, name: str) -> list[str]:
+        if hasattr(self._graph, "predecessors"):
+            return list(self._graph.predecessors(name))
+        # pragma: no cover - fallback for minimal networkx stub
+        return [
+            n for n, succ in getattr(self._graph, "_succ", {}).items() if name in succ
+        ]
+
+    def _get_treatments_for_experiment(
+        self, name: str, global_treatments: list[Treatment] | None
+    ) -> list[Treatment]:
+        """Return the treatments for ``name`` after applying inheritance."""
+
+        if global_treatments is not None:
+            return global_treatments
+
+        if name in self._treatment_cache:
+            return self._treatment_cache[name]
+
+        exp: Experiment = self._graph.nodes[name]["experiment"]
+
+        parent_treatments: dict[str, Treatment] = {}
+        for parent_name in self._get_parents(name):
+            for t in self._get_treatments_for_experiment(parent_name, None):
+                parent_treatments[t.name] = t
+
+        own_treatments: dict[str, Treatment] = {t.name: t for t in exp.treatments}
+
+        merged: dict[str, Treatment] = {**parent_treatments, **own_treatments}
+        self._treatment_cache[name] = list(merged.values())
+        return self._treatment_cache[name]
+
+    # ------------------------------------------------------------------ #
+
     def run(
         self,
         treatments: List[Treatment] | None = None,
@@ -266,27 +318,22 @@ class ExperimentGraph:
 
         order = list(nx.topological_sort(self._graph))
         self._results.clear()
+        self._treatment_cache.clear()
 
         for name in order:
             exp: Experiment = self._graph.nodes[name]["experiment"]
             run_strategy = strategy
+
+            final_treatments_for_exp = self._get_treatments_for_experiment(
+                name, treatments
+            )
 
             if strategy == "resume":
                 plugin = exp.get_plugin(ArtifactPlugin)
                 if plugin is not None:
                     base = Path(plugin.root_dir) / (exp.name or exp.id) / "v0"
 
-                    run_treatments = treatments or []
-                    exp_treatments_on_obj = getattr(exp, "treatments", [])
-                    if exp_treatments_on_obj:
-                        existing_names = {t.name for t in run_treatments}
-                        run_treatments.extend(
-                            [
-                                t
-                                for t in exp_treatments_on_obj
-                                if t.name not in existing_names
-                            ]
-                        )
+                    run_treatments = final_treatments_for_exp
 
                     conditions_to_check = [BASELINE_CONDITION] + [
                         t.name for t in run_treatments
@@ -355,10 +402,6 @@ class ExperimentGraph:
 
             if progress_callback:
                 await progress_callback("running", name)
-
-            final_treatments_for_exp = (
-                treatments if treatments is not None else getattr(exp, "treatments", [])
-            )
 
             result = await exp.arun(
                 treatments=final_treatments_for_exp,

@@ -6,8 +6,8 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/brysontang/crystallize/blob/main/LICENSE)
 [![Codecov](https://codecov.io/gh/brysontang/crystallize/branch/main/graph/badge.svg)](https://codecov.io/gh/brysontang/crystallize)
 
-⚠️ Pre-Alpha Notice  
-This project is in an early experimental phase. Breaking changes may occur at any time. Use at your own risk.
+⚠️ Alpha Notice  
+Crystallize is currently in alpha. APIs may change, and breaking updates are expected. Install using `pip install --pre crystallize-ml`.
 
 ---
 
@@ -44,11 +44,13 @@ Crystallize is a powerful framework that can be used in two primary ways: via th
 
 ### Installation
 
-Install the framework and its CLI using pixi:
+Install the framework and its CLI:
 
 ```bash
-pixi install crystallize-ml
+pip install --upgrade --pre crystallize-ml
 ```
+
+> **Note**: Alpha releases require the `--pre` flag. For stable installations, omit `--pre` to stay on the last stable version (`0.24.12`).
 
 #### Option 1: The Interactive CLI (Recommended Workflow)
 

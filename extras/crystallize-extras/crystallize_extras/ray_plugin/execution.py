@@ -21,7 +21,7 @@ class RayExecution(BasePlugin):
     def init_hook(self, experiment: Experiment) -> None:
         if ray is None:
             raise ImportError(
-                "The 'ray' package is required. Please install with: pip install crystallize-extras[ray]"
+                "The 'ray' package is required. Please install with: pip install --upgrade --pre crystallize-extras[ray]"
             )
         if not ray.is_initialized():
             ray.init(address=self.address)

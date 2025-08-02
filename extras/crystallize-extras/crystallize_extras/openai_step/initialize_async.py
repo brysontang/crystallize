@@ -14,7 +14,7 @@ def _create_async_openai_client(client_options: Dict[str, Any]) -> AsyncOpenAI:
     """Top-level factory function for pickling."""
     if AsyncOpenAI is None:
         raise ImportError(
-            "The 'openai' package is required. Please install with: pip install crystallize-extras[openai]"
+            "The 'openai' package is required. Please install with: pip install --upgrade --pre crystallize-extras[openai]"
         )
     return AsyncOpenAI(**client_options)
 

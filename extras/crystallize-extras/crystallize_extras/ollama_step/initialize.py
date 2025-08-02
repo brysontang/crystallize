@@ -17,7 +17,7 @@ def _create_ollama_client(host: str) -> Client:
     """Top-level factory function for pickling."""
     if Client is None:
         raise ImportError(
-            "The 'ollama' package is required. Please install with: pip install crystallize-extras[ollama]"
+            "The 'ollama' package is required. Please install with: pip install --upgrade --pre crystallize-extras[ollama]"
         )
     return Client(host=host)
 

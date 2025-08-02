@@ -5,7 +5,7 @@ Crystallize is a Python framework for reproducible experiments with pipelines, t
 ## Installation
 
 ```bash
-pip install crystallize-ml
+pip install --upgrade --pre crystallize-ml
 ```
 
 ## Quick Example

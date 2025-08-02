@@ -10,21 +10,10 @@ from crystallize.utils.context import FrozenContext
 from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.experiments.experiment import Experiment
 
-import inspect
 import json
 import time
 
 STEP_KEY = "step_name"
-
-
-def emit_step_status(ctx: FrozenContext, percent: float) -> None:
-    cb = ctx.get("textual__status_callback")
-    if cb:
-        # infer the calling function name (usually the step function)
-        frame = inspect.currentframe()
-        outer = frame.f_back if frame else None
-        step_name = ctx.get(STEP_KEY, "<unknown>")
-        cb("step", {"step": step_name, "percent": percent})
 
 
 @dataclass
@@ -41,6 +30,7 @@ class CLIStatusPlugin(BasePlugin):
     # Add this flag
     sent_start: bool = field(init=False, default=False)
     step_start: float | None = field(init=False, default=None)
+    _progress_events: list[tuple[float, float]] = field(init=False, default_factory=list)
 
     def before_run(self, experiment: Experiment) -> None:
         # This hook is now only for internal setup, not for callbacks.
@@ -88,12 +78,13 @@ class CLIStatusPlugin(BasePlugin):
         )
 
         ctx.add("textual__status_callback", self.callback)
-        ctx.add("textual__emit", emit_step_status)
+        ctx.add("textual__emit", self.emit_step_status)
 
     def before_step(
         self, experiment: Experiment, step: PipelineStep, ctx: FrozenContext
     ) -> None:
         self.step_start = time.perf_counter()
+        self._progress_events = [(self.step_start, 0.0)]
 
     def after_step(
         self,
@@ -106,6 +97,7 @@ class CLIStatusPlugin(BasePlugin):
             duration = time.perf_counter() - self.step_start
             self._record_duration(experiment, step.__class__.__name__, duration)
             self.step_start = None
+        self._progress_events = []
         self.completed += 1
         percent = 0.0
         total = self.total_steps * self.total_replicates * self.total_conditions
@@ -131,3 +123,24 @@ class CLIStatusPlugin(BasePlugin):
             data = {}
         data.setdefault(step_name, []).append(duration)
         path.write_text(json.dumps(data))
+
+    def emit_step_status(self, ctx: FrozenContext, percent: float) -> None:
+        cb = ctx.get("textual__status_callback")
+        if not cb:
+            return
+        step_name = ctx.get(STEP_KEY, "<unknown>")
+        eta: float | None = None
+        if self.step_start is not None:
+            now = time.perf_counter()
+            self._progress_events.append((now, percent))
+            events = self._progress_events[-5:]
+            if len(events) >= 2:
+                dt = events[-1][0] - events[0][0]
+                dp = events[-1][1] - events[0][1]
+                if dt > 0 and dp > 0:
+                    rate = dp / dt
+                    eta = (1 - percent) / rate
+        info: dict[str, Any] = {"step": step_name, "percent": percent}
+        if eta is not None:
+            info["eta"] = eta
+        cb("step", info)

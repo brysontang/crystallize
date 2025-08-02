@@ -1,13 +1,16 @@
+import json
+import math
+import types
+from pathlib import Path
+
 from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
-from crystallize.pipelines.pipeline import Pipeline
 from crystallize.experiments.treatment import Treatment
-import json
-from pathlib import Path
+from crystallize.pipelines.pipeline import Pipeline
 
-from cli.status_plugin import CLIStatusPlugin
 from cli.screens.run import _inject_status_plugin
+from cli.status_plugin import CLIStatusPlugin
 from cli.utils import estimate_experiment_time, estimate_experiment_time_from_yaml
 from crystallize.utils import cache as cache_utils
 
@@ -57,6 +60,35 @@ def test_cli_status_plugin_progress():
     )
     rep_events = [info for evt, info in events if evt == "replicate"]
     assert len(rep_events) == 4
+
+
+def test_step_progress_eta(monkeypatch):
+    events.clear()
+    plugin = CLIStatusPlugin(record)
+
+    @pipeline_step()
+    def prog_step(data, ctx):
+        emit = ctx.get("textual__emit")
+        emit(ctx, 0.25)
+        emit(ctx, 0.5)
+        emit(ctx, 0.75)
+        return data
+
+    exp = Experiment(datasource=ds(), pipeline=Pipeline([prog_step()]), plugins=[plugin])
+    exp.validate()
+
+    import cli.status_plugin as status_plugin
+
+    times = iter([0, 1, 2, 3, 4])
+    monkeypatch.setattr(
+        status_plugin, "time", types.SimpleNamespace(perf_counter=lambda: next(times))
+    )
+
+    exp.run()
+
+    step_events = [info for evt, info in events if evt == "step"]
+    assert math.isclose(step_events[1]["eta"], 2.0)
+    assert math.isclose(step_events[2]["eta"], 1.0)
 
 
 def test_inject_status_plugin_deduplicates_experiment():

@@ -30,6 +30,7 @@ from ..widgets.writer import WidgetWriter
 from .delete_data import ConfirmScreen
 from .prepare_run import PrepareRunScreen
 from .summary import SummaryScreen
+from ..utils import format_eta
 
 
 def _inject_status_plugin(
@@ -71,6 +72,7 @@ class RunScreen(Screen):
     node_states: dict[str, str] = reactive({})
     replicate_info: str = reactive("")
     progress_percent: float = reactive(0.0)
+    progress_eta: float | None = reactive(None)
     step_states: dict[str, str] = reactive({})
     treatment_states: dict[str, str] = reactive({})
     plain_text: bool = reactive(False)
@@ -165,7 +167,8 @@ class RunScreen(Screen):
             return
         filled = int(self.progress_percent * 20)
         bar = "[" + "#" * filled + "-" * (20 - filled) + "]"
-        prog_widget.update(f"{bar} {self.progress_percent*100:.0f}%")
+        eta = f" {format_eta(self.progress_eta)}" if self.progress_eta else ""
+        prog_widget.update(f"{bar} {self.progress_percent*100:.0f}%{eta}")
 
     def watch_plain_text(self) -> None:
         """Toggles visibility between the RichLog and the plain text TextArea."""
@@ -213,6 +216,7 @@ class RunScreen(Screen):
         elif event == "step":
             step = info.get("step")
             self.progress_percent = info.get("percent", 0.0)
+            self.progress_eta = info.get("eta")
             if step and step in self.step_states:
                 self.step_states = {**self.step_states, step: "running"}
         elif event == "step_finished":
@@ -221,6 +225,7 @@ class RunScreen(Screen):
                 self.step_states = {**self.step_states, step: "completed"}
         elif event == "reset_progress":
             self.progress_percent = 0.0
+            self.progress_eta = None
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="run-container"):

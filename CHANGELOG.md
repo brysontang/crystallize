@@ -2,6 +2,15 @@
 
 - Initial alpha release. Future changes may introduce breaking changes frequently until APIs stabilize.
 
+## [0.24.13](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.12...crystallize-ml@v0.24.13) (2025-08-02)
+
+
+### Bug Fixes
+
+* Changelog ([9f47811](https://github.com/brysontang/crystallize/commit/9f47811539e97d96cf477e9a1939b10200b6bb8e))
+* Docs ([9371948](https://github.com/brysontang/crystallize/commit/93719484a8498bfe3ce493635a821a333b4ee951))
+* Docs ([9f47811](https://github.com/brysontang/crystallize/commit/9f47811539e97d96cf477e9a1939b10200b6bb8e))
+
 ## [0.24.12](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.11...crystallize-ml@v0.24.12) (2025-08-01)
 
 

@@ -26,6 +26,7 @@ from ..constants import ASCII_ART_ARRAY
 from ..discovery import discover_configs
 from ..screens.create_experiment import CreateExperimentScreen
 from ..screens.run import _launch_run
+from ..utils import compute_static_eta, format_seconds
 
 from ..widgets import ConfigEditorWidget
 from .loading import LoadingScreen
@@ -73,14 +74,26 @@ class SelectionScreen(Screen):
         """Populate the details panel with information from ``data``."""
 
         details = self.query_one("#details", Static)
-        info = yaml.safe_load(Path(data["path"]).read_text()) or {}
+        cfg_path = Path(data["path"])
+        info = yaml.safe_load(cfg_path.read_text()) or {}
 
         desc = info.get("description", data.get("doc", ""))
-        details.update(str(info["cli"]["icon"]) + " " + data["label"])
+        eta = compute_static_eta(cfg_path)
+        if data.get("type") == "Graph":
+            total = eta
+            for cfg in cfg_path.parent.rglob("config.yaml"):
+                if cfg == cfg_path:
+                    continue
+                total += compute_static_eta(cfg)
+            eta = total
+        eta_str = format_seconds(eta.total_seconds())
+        details.update(
+            f"{info['cli']['icon']} {data['label']}\n{desc}\n⏳ Estimated runtime: {eta_str}"
+        )
 
         container = self.query_one("#config-container")
         await container.remove_children()
-        await container.mount(ConfigEditorWidget(Path(data["path"])))
+        await container.mount(ConfigEditorWidget(cfg_path))
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)

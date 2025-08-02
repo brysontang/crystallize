@@ -65,3 +65,7 @@ def test_immutability_is_preserved(base_ctx):
     # Adding a new key is fine
     log_ctx.add("new", 7)
     assert log_ctx["new"] == 7
+
+    # Direct item assignment delegates to the inner context
+    log_ctx["direct"] = 5
+    assert log_ctx["direct"] == 5

@@ -104,13 +104,57 @@ def _write_summary(log: RichLog, result: Any) -> None:
         _write_experiment_summary(log, result)
 
 
+import json
 import yaml
 from pathlib import Path
+from datetime import timedelta
 
 
 class IndentDumper(yaml.SafeDumper):
     def increase_indent(self, flow=False, indentless=False):
         return super().increase_indent(flow, False)
+
+
+def format_seconds(seconds: float) -> str:
+    """Return a human-friendly time string for ``seconds``."""
+    total = int(seconds)
+    hours, rem = divmod(total, 3600)
+    minutes, secs = divmod(rem, 60)
+    parts: list[str] = []
+    if hours:
+        parts.append(f"{hours}h")
+    if hours or minutes:
+        parts.append(f"{minutes}m")
+    parts.append(f"{secs}s")
+    return " ".join(parts)
+
+
+def compute_static_eta(experiment_config_yaml: Path) -> timedelta:
+    """Estimate total duration for an experiment from historical step timings."""
+    cfg = yaml.safe_load(experiment_config_yaml.read_text()) or {}
+    exp_name = cfg.get("name", experiment_config_yaml.stem)
+    steps_cfg = cfg.get("steps", [])
+    step_names: list[str] = []
+    for st in steps_cfg:
+        if isinstance(st, str):
+            step_names.append(st)
+        elif isinstance(st, dict):
+            step_names.extend(st.keys())
+
+    hist_file = Path.home() / ".cache" / "crystallize" / "steps" / f"{exp_name}.json"
+    try:
+        history = json.loads(hist_file.read_text())
+    except Exception:
+        history = {}
+
+    total = 0.0
+    for name in step_names:
+        class_name = f"{name.title()}Step"
+        durations = history.get(class_name, [])
+        if durations:
+            avg = sum(durations) / len(durations)
+            total += avg
+    return timedelta(seconds=total)
 
 
 def create_experiment_scaffolding(

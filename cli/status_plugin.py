@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Callable, List
+from pathlib import Path
+import json
+import time
 
 from crystallize.plugins.plugins import BasePlugin, LoggingPlugin
 from crystallize.utils.constants import BASELINE_CONDITION, CONDITION_KEY, REPLICATE_KEY
@@ -55,11 +58,14 @@ class CLIStatusPlugin(BasePlugin):
 
     # Add this flag
     sent_start: bool = field(init=False, default=False)
+    _step_start: float | None = field(init=False, default=None)
+    _records: list[dict[str, Any]] = field(init=False, default_factory=list)
 
     def before_run(self, experiment: Experiment) -> None:
         # This hook is now only for internal setup, not for callbacks.
         self.completed = 0
         self.sent_start = False
+        self._records.clear()
 
     def before_replicate(self, experiment: Experiment, ctx: FrozenContext) -> None:
         # Move the 'start' event logic here, guarded by the flag
@@ -104,6 +110,9 @@ class CLIStatusPlugin(BasePlugin):
         ctx.add("textual__status_callback", self.callback)
         ctx.add("textual__emit", emit_step_status)
 
+    def before_step(self, experiment: Experiment, step: PipelineStep) -> None:  # type: ignore[override]
+        self._step_start = time.perf_counter()
+
     def after_step(
         self,
         experiment: Experiment,
@@ -111,17 +120,50 @@ class CLIStatusPlugin(BasePlugin):
         data: Any,
         ctx: FrozenContext,
     ) -> None:
+        if self._step_start is not None:
+            duration = time.perf_counter() - self._step_start
+            record = {
+                "step": step.__class__.__name__,
+                "duration": duration,
+                "condition": ctx.get(CONDITION_KEY, BASELINE_CONDITION),
+                "replicate": ctx.get(REPLICATE_KEY, 0),
+            }
+            self._records.append(record)
+            self._step_start = None
         self.completed += 1
-        percent = 0.0
-        total = self.total_steps * self.total_replicates * self.total_conditions
-        if total:
-            percent = self.completed / total
         self.callback(
             "step_finished",
             {
                 "step": step.__class__.__name__,
             },
         )
+
+    def after_run(self, experiment: Experiment, result: Any) -> None:  # type: ignore[override]
+        prov = result.provenance.get("ctx_changes", {}) if hasattr(result, "provenance") else {}
+        counters: dict[tuple[str, int], int] = {}
+        cache_dir = Path.home() / ".cache" / "crystallize" / "steps"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        hist_file = cache_dir / f"{experiment.name}.json"
+        try:
+            history = json.loads(hist_file.read_text())
+        except Exception:
+            history = {}
+
+        for rec in self._records:
+            cond = rec["condition"]
+            rep = rec["replicate"]
+            idx = counters.get((cond, rep), 0)
+            cache_hit = False
+            step_prov = prov.get(cond, {}).get(rep, [])
+            if idx < len(step_prov):
+                cache_hit = bool(step_prov[idx].get("cache_hit", False))
+            counters[(cond, rep)] = idx + 1
+            if cache_hit:
+                continue
+            step_name = rec["step"]
+            history.setdefault(step_name, []).append(rec["duration"])
+
+        hist_file.write_text(json.dumps(history))
 
 
 exp_var = contextvars.ContextVar("exp_name", default="-")

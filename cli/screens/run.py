@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any, Callable, List, Tuple
 import queue  # Import queue
 import contextlib
+import time
+from collections import deque
 
 import networkx as nx
 from rich.text import Text
@@ -28,6 +30,7 @@ from crystallize.plugins.plugins import ArtifactPlugin, LoggingPlugin
 from ..status_plugin import CLIStatusPlugin, TextualLoggingPlugin
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
+from ..utils import format_seconds
 from .delete_data import ConfirmScreen
 from .prepare_run import PrepareRunScreen
 from .summary import SummaryScreen
@@ -96,6 +99,8 @@ class RunScreen(Screen):
     step_states: dict[str, str] = reactive({})
     treatment_states: dict[str, str] = reactive({})
     plain_text: bool = reactive(False)
+    eta_remaining: str = reactive("--:--")
+    time_info: str = reactive("")
 
     def __init__(self, obj: Any, strategy: str, replicates: int | None) -> None:
         super().__init__()
@@ -105,6 +110,18 @@ class RunScreen(Screen):
         self._result: Any = None
         self.event_queue = queue.Queue()
         self.log_history: list[str] = []
+        self._progress_history: deque[tuple[float, float]] = deque(maxlen=5)
+        self._current_step: str | None = None
+        self._step_start: float | None = None
+
+    async def on_mount(self) -> None:  # pragma: no cover - UI loop
+        self.set_interval(1.0, self._update_elapsed)
+
+    def _update_elapsed(self) -> None:
+        if self._step_start is None:
+            return
+        elapsed = time.perf_counter() - self._step_start
+        self.time_info = f"⏳ Elapsed: {format_seconds(elapsed)} │ ETA: {self.eta_remaining}"
 
     def watch_node_states(self) -> None:
         if not isinstance(self._obj, ExperimentGraph):
@@ -187,7 +204,16 @@ class RunScreen(Screen):
             return
         filled = int(self.progress_percent * 20)
         bar = "[" + "#" * filled + "-" * (20 - filled) + "]"
-        prog_widget.update(f"{bar} {self.progress_percent*100:.0f}%")
+        prog_widget.update(
+            f"{bar} {self.progress_percent*100:.0f}% ETA: {self.eta_remaining}"
+        )
+
+    def watch_time_info(self) -> None:
+        try:
+            t_widget = self.query_one("#time-display", Static)
+        except NoMatches:
+            return
+        t_widget.update(self.time_info)
 
     def watch_plain_text(self) -> None:
         """Toggles visibility between the RichLog and the plain text TextArea."""
@@ -234,15 +260,47 @@ class RunScreen(Screen):
             self.step_states = {name: "pending" for name in self.step_states}
         elif event == "step":
             step = info.get("step")
-            self.progress_percent = info.get("percent", 0.0)
+            percent = float(info.get("percent", 0.0))
+            now = time.perf_counter()
+            if step != self._current_step:
+                self._current_step = step
+                self._progress_history.clear()
+                self._step_start = now
+            self._progress_history.append((now, percent))
+            eta_seconds = None
+            if len(self._progress_history) >= 2 and percent > 0:
+                first_t, first_p = self._progress_history[0]
+                dt = now - first_t
+                dp = percent - first_p
+                if dt > 0 and dp > 0:
+                    rate = dp / dt
+                    eta_seconds = (1.0 - percent) / rate
+            if eta_seconds is not None and eta_seconds >= 0:
+                self.eta_remaining = format_seconds(eta_seconds)
+            else:
+                self.eta_remaining = "--:--"
+            elapsed = now - (self._step_start or now)
+            self.time_info = (
+                f"⏳ Elapsed: {format_seconds(elapsed)} │ ETA: {self.eta_remaining}"
+            )
+            self.progress_percent = percent
             if step and step in self.step_states:
                 self.step_states = {**self.step_states, step: "running"}
         elif event == "step_finished":
             step = info.get("step")
             if step and step in self.step_states:
                 self.step_states = {**self.step_states, step: "completed"}
+            self._current_step = None
+            self._progress_history.clear()
+            self._step_start = None
+            self.eta_remaining = "--:--"
+            self.time_info = ""
         elif event == "reset_progress":
             self.progress_percent = 0.0
+            self._progress_history.clear()
+            self._step_start = time.perf_counter()
+            self.eta_remaining = "--:--"
+            self.time_info = ""
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="run-container"):
@@ -251,6 +309,7 @@ class RunScreen(Screen):
             yield Static("Run started", id="replicate-display")
             yield Static(id="treatment-display")
             yield Static(id="step-display")
+            yield Static(id="time-display")
             yield Static(id="progress-display")
             yield Static(id="dag-display", classes="invisible")
 

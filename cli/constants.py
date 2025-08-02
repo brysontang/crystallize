@@ -91,14 +91,6 @@ ModalScreen {
     align: center middle;
 }
 
-PrepareRunScreen Container {
-    border: round $warning;
-    background: $panel;
-    width: 80%;
-    height: auto;
-    padding: 1;
-}
-
 .confirm-delete-container {
     width: 80%;
     height: auto;

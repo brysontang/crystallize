@@ -3,26 +3,26 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import importlib
+import queue  # Import queue
 import shutil
 import sys
 import traceback
-from pathlib import Path
-from typing import Any, Callable, List, Tuple
-import queue  # Import queue
-import contextlib
 import time
 from collections import deque
+from pathlib import Path
+from typing import Any, Callable, Dict
 
 import networkx as nx
-from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.containers import VerticalScroll, Container
-from textual.css.query import NoMatches
 from textual.binding import Binding
+from textual.containers import Container, Horizontal, Vertical
+from textual.css.query import NoMatches
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, RichLog, Static, TextArea
+from textual.widgets import Button, Footer, Header, RichLog, Static, TextArea, Tree
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -31,9 +31,8 @@ from ..status_plugin import CLIStatusPlugin, TextualLoggingPlugin
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
 from ..utils import format_seconds
-from .delete_data import ConfirmScreen
-from .prepare_run import PrepareRunScreen
 from .summary import SummaryScreen
+from .style.run import CSS
 
 
 def _inject_status_plugin(
@@ -42,11 +41,12 @@ def _inject_status_plugin(
     """Inject CLIStatusPlugin into experiments if not already present."""
 
     def ensure(exp: Experiment) -> None:
-        # --- status plugin ---
-        if exp.get_plugin(CLIStatusPlugin) is None:
-            exp.plugins.append(CLIStatusPlugin(callback))
+        def wrapped(event: str, info: Dict[str, Any], *, _exp=exp) -> None:
+            callback(event, {"experiment": _exp.name, **info})
 
-        # --- logging plugin ---
+        if exp.get_plugin(CLIStatusPlugin) is None:
+            exp.plugins.append(CLIStatusPlugin(wrapped))
+
         exp.plugins = [p for p in exp.plugins if not isinstance(p, LoggingPlugin)]
         exp.plugins.append(TextualLoggingPlugin(writer=writer, verbose=True))
 
@@ -55,6 +55,14 @@ def _inject_status_plugin(
             ensure(obj._graph.nodes[node]["experiment"])
     else:
         ensure(obj)
+
+
+def delete_artifacts(exp: Experiment) -> None:
+    """Remove existing artifacts for an experiment."""
+    plugin = exp.get_plugin(ArtifactPlugin)
+    if plugin and exp.name:
+        base = Path(plugin.root_dir) / exp.name
+        shutil.rmtree(base, ignore_errors=True)
 
 
 @contextlib.contextmanager
@@ -71,8 +79,34 @@ def pristine_stdio():
         sys.stdout, sys.stderr = saved_out, saved_err
 
 
+def _reload_modules(base_path: Path) -> None:
+    """Reload modules located under ``base_path``.
+
+    This removes any modules whose ``__file__`` resides inside ``base_path`` and
+    invalidates import caches so that subsequent imports load fresh code.
+    """
+    importlib.invalidate_caches()
+    resolved = base_path.resolve()
+    for name, module in list(sys.modules.items()):
+        file = getattr(module, "__file__", None)
+        if not file:
+            continue
+        try:
+            path = Path(file).resolve()
+        except OSError:  # pragma: no cover - defensive
+            continue
+        try:
+            is_rel = path.is_relative_to(resolved)
+        except ValueError:  # pragma: no cover - py<3.9 safeguard
+            is_rel = resolved in path.parents or path == resolved
+        if is_rel:
+            del sys.modules[name]
+
+
 class RunScreen(Screen):
     """Display live output of a running experiment."""
+
+    CSS = CSS
 
     class NodeStatusChanged(Message):
         def __init__(self, node_name: str, status: str) -> None:
@@ -90,22 +124,21 @@ class RunScreen(Screen):
         Binding("ctrl+c", "cancel_and_exit", "Close", show=False),
         Binding("s", "summary", "Summary"),
         Binding("t", "toggle_plain_text", "Toggle Plain Text"),
+        Binding("space", "toggle_cache", "Toggle Cache"),
+        Binding("shift+r", "run_or_cancel", "Run"),
         Binding("escape", "cancel_and_exit", "Close"),
     ]
 
-    node_states: dict[str, str] = reactive({})
-    replicate_info: str = reactive("")
-    progress_percent: float = reactive(0.0)
-    step_states: dict[str, str] = reactive({})
-    treatment_states: dict[str, str] = reactive({})
     plain_text: bool = reactive(False)
-    eta_remaining: str = reactive("--:--")
-    time_info: str = reactive("")
+    progress_percent: float = reactive(0.0)
+    eta_remaining: str = reactive("--")
+    top_bar: str = reactive("")
 
-    def __init__(self, obj: Any, strategy: str, replicates: int | None) -> None:
+    def __init__(self, obj: Any, cfg_path: Path, is_graph: bool, replicates: int | None) -> None:
         super().__init__()
         self._obj = obj
-        self._strategy = strategy
+        self._cfg_path = Path(cfg_path)
+        self._is_graph = is_graph
         self._replicates = replicates
         self._result: Any = None
         self.event_queue: queue.Queue[tuple[str, dict[str, Any]]] = queue.Queue()
@@ -113,152 +146,155 @@ class RunScreen(Screen):
         self._progress_history: deque[tuple[float, float]] = deque(maxlen=5)
         self._current_step: str | None = None
         self._step_start: float | None = None
+        self.worker: Any | None = None
+        self._reset_state()
+
+    def _reset_state(self) -> None:
+        self.experiment_states: Dict[str, str] = {}
+        self.experiment_cacheable: Dict[str, bool] = {}
+        self.step_states: Dict[tuple[str, str], str] = {}
+        self.step_cacheable: Dict[tuple[str, str], bool] = {}
+        self.tree_nodes: Dict[tuple[str, ...], Any] = {}
+        self.replicate_progress: tuple[int, int] = (0, 0)
+        self.current_treatment: str = ""
+        self.progress_percent = 0.0
+        self.eta_remaining = "--"
+        self.top_bar = ""
+        self._update_top_bar()
 
     async def on_mount(self) -> None:  # pragma: no cover - UI loop
-        self.set_interval(1.0, self._update_elapsed)
         self._setup_ui()
 
-    def _update_elapsed(self) -> None:
-        if self._step_start is None:
-            return
-        elapsed = time.perf_counter() - self._step_start
-        self.time_info = f"⏳ Elapsed: {format_seconds(elapsed)} │ ETA: {self.eta_remaining}"
+    def _format_label(self, name: str, state: str, cacheable: bool) -> str:
+        state_icon = {
+            "pending": "⏳",
+            "running": "⚙️",
+            "completed": "✅",
+            "errored": "⚠️",
+        }.get(state, "⏳")
+        cache_icon = "🔒" if cacheable else " "
+        return f"{state_icon} {cache_icon} {name}"
 
-    def watch_node_states(self) -> None:
-        if not isinstance(self._obj, ExperimentGraph):
+    def _refresh_node(self, path: tuple[str, ...]) -> None:
+        node = self.tree_nodes.get(path)
+        if not node:
             return
-        try:
-            dag_widget = self.query_one("#dag-display", Static)
-        except NoMatches:
-            return
-
-        text = Text(justify="center")
-        order = list(nx.topological_sort(self._obj._graph))
-        for i, node in enumerate(order):
-            status = self.node_states.get(node, "pending")
-            style = {
-                "completed": "bold green",
-                "running": "bold blue",
-                "pending": "bold white",
-            }.get(status, "bold white")
-            text.append(f"[ {node} ]", style=style)
-            if i < len(order) - 1:
-                text.append(" ⟶  ", style="white")
-        dag_widget.update(text)
-
-    def on_node_status_changed(self, message: NodeStatusChanged) -> None:
-        self.node_states = {**self.node_states, message.node_name: message.status}
-
-    def watch_treatment_states(self) -> None:
-        if not self.treatment_states:
-            return
-        try:
-            treatment_widget = self.query_one("#treatment-display", Static)
-        except NoMatches:
-            return
-        text = Text("Treatments: ", justify="center")
-        total_treatments = len(self.treatment_states)
-        for i, (name, status) in enumerate(self.treatment_states.items()):
-            style = {
-                "running": "bold blue",
-                "pending": "bold white",
-            }.get(status, "bold white")
-            text.append(f"{name}", style=style).append(
-                f"{' | ' if i < total_treatments - 1 else ''}"
+        if len(path) == 1:
+            name = path[0]
+            label = self._format_label(
+                name,
+                self.experiment_states.get(name, "pending"),
+                self.experiment_cacheable.get(name, True),
             )
-        treatment_widget.update(text)
-
-    def watch_step_states(self) -> None:
-        if not self.step_states:
-            return
-        try:
-            step_widget = self.query_one("#step-display", Static)
-        except NoMatches:
-            return
-
-        text = Text(justify="center")
-        steps = list(self.step_states.keys())
-
-        for i, step in enumerate(steps):
-            status = self.step_states[step]
-            style = {
-                "completed": "bold green",
-                "running": "bold blue",
-                "pending": "bold white",
-            }.get(status, "bold white")
-            text.append(f"[ {step} ]", style=style)
-            if i < len(steps) - 1:
-                text.append(" ⟶  ", style="white")
-        step_widget.update(text)
-
-    def watch_replicate_info(self) -> None:
-        try:
-            rep_widget = self.query_one("#replicate-display", Static)
-        except NoMatches:
-            return
-        rep_widget.update(self.replicate_info)
-
-    def watch_progress_percent(self) -> None:
-        try:
-            prog_widget = self.query_one("#progress-display", Static)
-        except NoMatches:
-            return
-        filled = int(self.progress_percent * 20)
-        bar = "[" + "#" * filled + "-" * (20 - filled) + "]"
-        prog_widget.update(
-            f"{bar} {self.progress_percent*100:.0f}% ETA: {self.eta_remaining}"
-        )
-
-    def watch_time_info(self) -> None:
-        try:
-            t_widget = self.query_one("#time-display", Static)
-        except NoMatches:
-            return
-        t_widget.update(self.time_info)
-
-    def watch_plain_text(self) -> None:
-        """Toggles visibility between the RichLog and the plain text TextArea."""
-        try:
-            log_widget = self.query_one("#live_log", RichLog)
-            text_widget = self.query_one("#plain_log", TextArea)
-        except NoMatches:
-            return
-
-        if self.plain_text:
-            # Switched TO plain text mode
-            # Join the history and load it into the TextArea
-            full_log = "".join(self.log_history)
-            text_widget.load_text(full_log)
-
-            # Hide the RichLog and show the TextArea
-            log_widget.display = False
-            text_widget.display = True
-            text_widget.focus()  # Focus the TextArea so it can be scrolled/selected
         else:
-            # Switched BACK to rich text mode
-            log_widget.display = True
-            text_widget.display = False
+            exp, step = path
+            label = self._format_label(
+                step,
+                self.step_states.get((exp, step), "pending"),
+                self.step_cacheable.get((exp, step), True),
+            )
+        node.set_label(label)
+
+    def _build_tree(self) -> None:
+        tree = self.query_one("#node-tree", Tree)
+        tree.root.set_label("Experiments")
+        if isinstance(self._obj, ExperimentGraph):
+            order = list(nx.topological_sort(self._obj._graph))
+            exps = [self._obj._graph.nodes[n]["experiment"] for n in order]
+        else:
+            exps = [self._obj]
+        for exp in exps:
+            self.experiment_states[exp.name] = "pending"
+            self.experiment_cacheable[exp.name] = True
+            exp_node = tree.root.add(
+                self._format_label(exp.name, "pending", True), data=("exp", exp.name, exp)
+            )
+            self.tree_nodes[(exp.name,)] = exp_node
+            for step in exp.pipeline.steps:
+                name = step.__class__.__name__
+                self.step_states[(exp.name, name)] = "pending"
+                self.step_cacheable[(exp.name, name)] = step.cacheable
+                node = exp_node.add(
+                    self._format_label(name, "pending", step.cacheable),
+                    data=("step", exp.name, name, step),
+                )
+                self.tree_nodes[(exp.name, name)] = node
+        tree.root.expand()
+
+    def _reload_object(self) -> None:
+        _reload_modules(self._cfg_path.parent)
+        if self._is_graph:
+            self._obj = ExperimentGraph.from_yaml(self._cfg_path)
+        else:
+            self._obj = Experiment.from_yaml(self._cfg_path)
+
+    def _start_run(self) -> None:
+        tree = self.query_one("#node-tree", Tree)
+        tree.root.remove_children()
+        self._reset_state()
+        self._reload_object()
+        self._build_tree()
+        self._build_artifacts()
+        log_widget = self.query_one("#live_log", RichLog)
+        log_widget.clear()
+        writer = WidgetWriter(log_widget, self.app, self.log_history)
+
+        def queue_callback(event: str, info: dict[str, Any]) -> None:
+            self.event_queue.put((event, info))
+
+        _inject_status_plugin(self._obj, queue_callback, writer=writer)
+
+        async def progress_callback(status: str, name: str) -> None:
+            self.app.call_from_thread(
+                self.on_node_status_changed, self.NodeStatusChanged(name, status)
+            )
+
+        def run_experiment_sync() -> None:
+            result = None
+            try:
+                async def run_with_callback():
+                    with pristine_stdio():
+                        if isinstance(self._obj, ExperimentGraph):
+                            return await self._obj.arun(
+                                strategy="resume",
+                                replicates=self._replicates,
+                                progress_callback=progress_callback,
+                            )
+                        else:
+                            return await _run_object(
+                                self._obj, "resume", self._replicates
+                            )
+
+                result = asyncio.run(run_with_callback())
+            except Exception:
+                tb_str = traceback.format_exc()
+                print(
+                    f"[bold red]An error occurred in the worker:\n{tb_str}[/bold red]"
+                )
+            finally:
+                self.app.call_from_thread(
+                    self.on_experiment_complete, self.ExperimentComplete(result)
+                )
+
+        self.worker = self.run_worker(run_experiment_sync, thread=True)
+        run_btn = self.query_one("#run-btn", Button)
+        run_btn.label = "Cancel"
 
     def _handle_status_event(self, event: str, info: dict[str, Any]) -> None:
+        exp_name = info.get("experiment", "")
         if event == "start":
-            self.step_states = {name: "pending" for name in info.get("steps", [])}
-            self.treatment_states = {
-                name: "pending" for name in info.get("treatments", [])
-            }
-            self.progress_percent = 0.0
-            self.replicate_info = "Run started"
+            self.experiment_states[exp_name] = "running"
+            for step in info.get("steps", []):
+                self.step_states[(exp_name, step)] = "pending"
+                self._refresh_node((exp_name, step))
+            self._refresh_node((exp_name,))
+            self.replicate_progress = (0, info.get("replicates", 0))
         elif event == "replicate":
             rep = info.get("replicate", 0)
             total = info.get("total", 0)
             cond = info.get("condition", "")
-            # Update treatment states for this replicate
-            self.treatment_states = {
-                name: "running" if name == cond else "pending"
-                for name in self.treatment_states
-            }
-
-            self.replicate_info = f"Replicate {rep}/{total}"
-            self.step_states = {name: "pending" for name in self.step_states}
+            self.replicate_progress = (rep, total)
+            self.current_treatment = cond
         elif event == "step":
             step = info.get("step")
             percent = float(info.get("percent", 0.0))
@@ -279,41 +315,82 @@ class RunScreen(Screen):
             if eta_seconds is not None and eta_seconds >= 0:
                 self.eta_remaining = format_seconds(eta_seconds)
             else:
-                self.eta_remaining = "--:--"
-            elapsed = now - (self._step_start or now)
-            self.time_info = (
-                f"⏳ Elapsed: {format_seconds(elapsed)} │ ETA: {self.eta_remaining}"
-            )
+                self.eta_remaining = "--"
             self.progress_percent = percent
-            if step and step in self.step_states:
-                self.step_states = {**self.step_states, step: "running"}
+            if step:
+                self.step_states[(exp_name, step)] = "running"
+                self._refresh_node((exp_name, step))
         elif event == "step_finished":
             step = info.get("step")
-            if step and step in self.step_states:
-                self.step_states = {**self.step_states, step: "completed"}
+            if step:
+                self.step_states[(exp_name, step)] = "completed"
+                self._refresh_node((exp_name, step))
+                exp_steps = [s for (e, s) in self.step_states if e == exp_name]
+                if all(
+                    self.step_states[(exp_name, s)] == "completed" for s in exp_steps
+                ):
+                    self.experiment_states[exp_name] = "completed"
+                    self._refresh_node((exp_name,))
             self._current_step = None
             self._progress_history.clear()
             self._step_start = None
-            self.eta_remaining = "--:--"
-            self.time_info = ""
+            self.eta_remaining = "--"
         elif event == "reset_progress":
             self.progress_percent = 0.0
             self._progress_history.clear()
             self._step_start = time.perf_counter()
-            self.eta_remaining = "--:--"
-            self.time_info = ""
 
-    def compose(self) -> ComposeResult:
-        with VerticalScroll(id="run-container"):
-            yield Header(show_clock=True)
-            yield Static(f"⚡ Running: {self._obj.name}", id="modal-title")
-            yield Static("Run started", id="replicate-display")
-            yield Static(id="treatment-display")
-            yield Static(id="step-display")
-            yield Static(id="time-display")
-            yield Static(id="progress-display")
-            yield Static(id="dag-display", classes="invisible")
+        self._update_top_bar()
 
+    def _update_top_bar(self) -> None:
+        rep, total = self.replicate_progress
+        filled = int(self.progress_percent * 20)
+        bar = "[" + "#" * filled + "-" * (20 - filled) + "]"
+        self.top_bar = (
+            f"Replicate: {rep}/{total} │ Treatment: {self.current_treatment or '--'} │ "
+            f"Current Step Progress: {bar} {self.progress_percent*100:.0f}% (~{self.eta_remaining})"
+        )
+
+    def watch_top_bar(self) -> None:
+        try:
+            self.query_one("#top-bar", Static).update(self.top_bar)
+        except NoMatches:
+            return
+
+    def watch_plain_text(self) -> None:  # pragma: no cover - UI behaviour
+        try:
+            log_widget = self.query_one("#live_log", RichLog)
+            text_widget = self.query_one("#plain_log", TextArea)
+        except NoMatches:
+            return
+
+        if self.plain_text:
+            full_log = "".join(self.log_history)
+            text_widget.load_text(full_log)
+            log_widget.display = False
+            text_widget.display = True
+            text_widget.focus()
+        else:
+            log_widget.display = True
+            text_widget.display = False
+
+    def _build_artifacts(self) -> None:
+        experiments = (
+            [self._obj]
+            if not isinstance(self._obj, ExperimentGraph)
+            else [self._obj._graph.nodes[n]["experiment"] for n in self._obj._graph.nodes]
+        )
+        for exp in experiments:
+            if not self.experiment_cacheable.get(exp.name, True):
+                delete_artifacts(exp)
+
+    def compose(self) -> ComposeResult:  # pragma: no cover - UI layout
+        yield Header(show_clock=True)
+        yield Static(id="top-bar")
+        with Horizontal(id="main-area"):
+            with Vertical(id="sidebar"):
+                yield Tree("", id="node-tree")
+                yield Button("Run", id="run-btn")
             with Container(id="log-viewer"):
                 yield RichLog(highlight=True, markup=True, id="live_log")
                 yield TextArea(
@@ -323,14 +400,12 @@ class RunScreen(Screen):
                     id="plain_log",
                     classes="hidden",
                 )
-
-            yield Footer()
+        yield Footer()
 
     def open_summary_screen(self, result: Any) -> None:
         self.app.push_screen(SummaryScreen(result))
 
     def process_queue(self) -> None:
-        """Polls the queue and processes events from the worker thread."""
         try:
             while not self.event_queue.empty():
                 event, info = self.event_queue.get_nowait()
@@ -338,74 +413,34 @@ class RunScreen(Screen):
         except queue.Empty:
             pass
 
+    def action_run_or_cancel(self) -> None:
+        if self.worker and not self.worker.is_finished:
+            self.worker.cancel()
+            return
+        self._start_run()
+
     def _setup_ui(self) -> None:
-        if isinstance(self._obj, ExperimentGraph):
-            self.node_states = {node: "pending" for node in self._obj._graph.nodes}
-            self.query_one("#dag-display").remove_class("invisible")
-        log_widget = self.query_one("#live_log", RichLog)
-
-        writer = WidgetWriter(log_widget, self.app, self.log_history)
-
-        def queue_callback(event: str, info: dict[str, Any]) -> None:
-            """A simple, thread-safe callback that puts events onto a queue."""
-            self.event_queue.put((event, info))
-
-        # 4️⃣ — Swap in the TextualLoggingPlugin on each experiment
-        # for exp in experiments_we_are_running:
-        #     # Remove any plain LoggingPlugin to avoid duplicate console output
-        #     exp.plugins = [p for p in exp.plugins if not isinstance(p, LoggingPlugin)]
-        #     exp.plugins.append(TextualLoggingPlugin(writer=writer, verbose=True))
-
-        _inject_status_plugin(self._obj, queue_callback, writer=writer)
+        self._reload_object()
+        self._build_tree()
         self.queue_timer = self.set_interval(1 / 15, self.process_queue)
 
-        async def progress_callback(status: str, name: str) -> None:
-            self.app.call_from_thread(
-                self.on_node_status_changed, self.NodeStatusChanged(name, status)
-            )
-
-        def run_experiment_sync() -> None:
-            result = None
-            try:
-
-                async def run_with_callback():
-                    with pristine_stdio():
-                        if isinstance(self._obj, ExperimentGraph):
-                            return await self._obj.arun(
-                                strategy=self._strategy,
-                                replicates=self._replicates,
-                                progress_callback=progress_callback,
-                            )
-                        else:
-                            return await _run_object(
-                                self._obj, self._strategy, self._replicates
-                            )
-
-                result = asyncio.run(run_with_callback())
-
-            except Exception:
-                tb_str = traceback.format_exc()
-                print(
-                    f"[bold red]An error occurred in the worker:\n{tb_str}[/bold red]"
-                )
-            finally:
-                self.app.call_from_thread(
-                    self.on_experiment_complete, self.ExperimentComplete(result)
-                )
-
-        self.worker = self.run_worker(run_experiment_sync, thread=True)
+    def on_node_status_changed(self, message: NodeStatusChanged) -> None:
+        self.experiment_states[message.node_name] = message.status
+        self._refresh_node((message.node_name,))
 
     def on_experiment_complete(self, message: ExperimentComplete) -> None:
-        self.process_queue()  # Process any final messages
+        self.process_queue()
         self._result = message.result
+        run_btn = self.query_one("#run-btn", Button)
+        run_btn.label = "Run"
+        self.worker = None
         try:
             if self._result is not None:
                 self.open_summary_screen(self._result)
         except NoMatches:
             pass
 
-    def on_unmount(self) -> None:
-        """Clean up resources when the screen is removed."""
+    def on_unmount(self) -> None:  # pragma: no cover - cleanup
         if hasattr(self, "queue_timer"):
             self.queue_timer.stop()
         if hasattr(self, "worker") and not self.worker.is_finished:
@@ -417,37 +452,35 @@ class RunScreen(Screen):
     def action_toggle_plain_text(self) -> None:
         self.plain_text = not self.plain_text
 
+    def action_toggle_cache(self) -> None:
+        tree = self.query_one("#node-tree", Tree)
+        node = tree.cursor_node
+        if node is None:
+            return
+        data = node.data
+        if not data:
+            return
+        if data[0] == "exp":
+            exp_name = data[1]
+            self.experiment_cacheable[exp_name] = not self.experiment_cacheable.get(
+                exp_name, True
+            )
+            self._refresh_node((exp_name,))
+        elif data[0] == "step":
+            exp_name, step_name, step_obj = data[1], data[2], data[3]
+            new_val = not self.step_cacheable.get((exp_name, step_name), True)
+            self.step_cacheable[(exp_name, step_name)] = new_val
+            step_obj.cacheable = new_val
+            self._refresh_node((exp_name, step_name))
+
     def action_summary(self) -> None:
         if self._result is not None:
             self.open_summary_screen(self._result)
 
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "run-btn":
+            self.action_run_or_cancel()
 
-async def _launch_run(app: App, obj: Any) -> None:
-    selected = obj
-    deletable: List[Tuple[str, Path]] = []
 
-    if isinstance(selected, ExperimentGraph):
-        for node in selected._graph.nodes:
-            exp: Experiment = selected._graph.nodes[node]["experiment"]
-            plugin = exp.get_plugin(ArtifactPlugin)
-            if not plugin or not exp.name:
-                continue
-            base = Path(plugin.root_dir) / exp.name
-            if base.exists():
-                deletable.append((node, base))
-
-    result = await app.push_screen_wait(PrepareRunScreen(deletable))
-    if result is None:
-        return
-    strategy, idxs = result
-    paths_to_delete = [deletable[i][1] for i in idxs]
-    if paths_to_delete:
-        confirm = await app.push_screen_wait(ConfirmScreen(paths_to_delete))
-        if not confirm:
-            return
-        for p in paths_to_delete:
-            try:
-                shutil.rmtree(p)
-            except OSError:
-                pass
-    await app.push_screen(RunScreen(selected, strategy, None))
+async def _launch_run(app: App, obj: Any, cfg_path: Path, is_graph: bool) -> None:
+    await app.push_screen(RunScreen(obj, cfg_path, is_graph, None))

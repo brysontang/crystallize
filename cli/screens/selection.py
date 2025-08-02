@@ -221,7 +221,7 @@ class SelectionScreen(Screen):
             return
 
         self.app.pop_screen()
-        await _launch_run(self.app, obj)
+        await _launch_run(self.app, obj, cfg, obj_type == "Graph")
 
     def action_run_selected(self) -> None:
         if self._selected_obj is not None:

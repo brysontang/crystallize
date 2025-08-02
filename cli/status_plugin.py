@@ -140,6 +140,19 @@ class CLIStatusPlugin(BasePlugin):
 
     def after_run(self, experiment: Experiment, result: Any) -> None:  # type: ignore[override]
         prov = result.provenance.get("ctx_changes", {}) if hasattr(result, "provenance") else {}
+        errors = getattr(result, "errors", {})
+        skip_runs: set[tuple[str, int]] = set()
+        for key in errors:
+            if "_rep_" not in key:
+                continue
+            cond, rep_str = key.rsplit("_rep_", 1)
+            cond_name = BASELINE_CONDITION if cond == "baseline" else cond
+            try:
+                rep_idx = int(rep_str)
+            except ValueError:
+                continue
+            skip_runs.add((cond_name, rep_idx))
+
         counters: dict[tuple[str, int], int] = {}
         cache_dir = Path.home() / ".cache" / "crystallize" / "steps"
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -152,6 +165,8 @@ class CLIStatusPlugin(BasePlugin):
         for rec in self._records:
             cond = rec["condition"]
             rep = rec["replicate"]
+            if (cond, rep) in skip_runs:
+                continue
             idx = counters.get((cond, rep), 0)
             cache_hit = False
             step_prov = prov.get(cond, {}).get(rep, [])

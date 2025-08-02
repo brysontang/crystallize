@@ -108,7 +108,7 @@ class RunScreen(Screen):
         self._strategy = strategy
         self._replicates = replicates
         self._result: Any = None
-        self.event_queue = queue.Queue()
+        self.event_queue: queue.Queue[tuple[str, dict[str, Any]]] = queue.Queue()
         self.log_history: list[str] = []
         self._progress_history: deque[tuple[float, float]] = deque(maxlen=5)
         self._current_step: str | None = None
@@ -116,6 +116,7 @@ class RunScreen(Screen):
 
     async def on_mount(self) -> None:  # pragma: no cover - UI loop
         self.set_interval(1.0, self._update_elapsed)
+        self._setup_ui()
 
     def _update_elapsed(self) -> None:
         if self._step_start is None:
@@ -337,7 +338,7 @@ class RunScreen(Screen):
         except queue.Empty:
             pass
 
-    def on_mount(self) -> None:
+    def _setup_ui(self) -> None:
         if isinstance(self._obj, ExperimentGraph):
             self.node_states = {node: "pending" for node in self._obj._graph.nodes}
             self.query_one("#dag-display").remove_class("invisible")

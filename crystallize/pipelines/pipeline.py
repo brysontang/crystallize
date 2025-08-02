@@ -86,6 +86,9 @@ class Pipeline:
                     result = load_cache(step_hash, input_hash)
                     cache_hit = True
                 except (FileNotFoundError, IOError):
+                    if experiment is not None:
+                        for plugin in experiment.plugins:
+                            plugin.before_step(experiment, step, ctx)
                     try:
                         result = step(data, target_ctx)
                         if inspect.isawaitable(result):
@@ -97,6 +100,9 @@ class Pipeline:
                     store_cache(step_hash, input_hash, result)
                     cache_hit = False
             else:
+                if experiment is not None:
+                    for plugin in experiment.plugins:
+                        plugin.before_step(experiment, step, ctx)
                 try:
                     result = step(data, target_ctx)
                     if inspect.isawaitable(result):

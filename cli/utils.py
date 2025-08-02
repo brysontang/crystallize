@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional
 from rich.table import Table
 from rich.text import Text
 from textual.widgets import RichLog
+from crystallize.experiments.experiment import Experiment
+from crystallize.experiments.experiment_graph import ExperimentGraph
 
 
 def _build_experiment_table(result: Any) -> Optional[Table]:
@@ -94,6 +96,7 @@ def _write_summary(log: RichLog, result: Any) -> None:
         _write_experiment_summary(log, result)
 
 
+import json
 import yaml
 from pathlib import Path
 
@@ -101,6 +104,126 @@ from pathlib import Path
 class IndentDumper(yaml.SafeDumper):
     def increase_indent(self, flow=False, indentless=False):
         return super().increase_indent(flow, False)
+
+
+def load_step_durations(experiment_name: str) -> dict[str, list[float]]:
+    path = Path.home() / ".cache" / "crystallize" / "steps" / f"{experiment_name}.json"
+    try:
+        return json.loads(path.read_text())
+    except FileNotFoundError:
+        return {}
+
+
+def _step_cache_key(name: str) -> str:
+    """Convert a step identifier to the class name used in the cache."""
+
+    return f"{name.title()}Step"
+
+
+def _estimate_experiment_time_cfg(cfg: dict[str, Any], name: str) -> float:
+    """Estimate runtime for an experiment from its YAML config."""
+
+    step_specs = cfg.get("steps", [])
+    step_names = []
+    for spec in step_specs:
+        if isinstance(spec, dict):
+            step_name = next(iter(spec))
+        else:
+            step_name = str(spec)
+        step_names.append(_step_cache_key(step_name))
+
+    durations = load_step_durations(name)
+    total = 0.0
+    for key in step_names:
+        times = durations.get(key)
+        if times:
+            total += sum(times) / len(times)
+
+    replicates = int(cfg.get("replicates", 1))
+    treatments = cfg.get("treatments", {})
+    conditions = len(treatments) + 1 if isinstance(treatments, dict) else 1
+    return total * replicates * conditions
+
+
+def estimate_experiment_time_from_yaml(config_path: str | Path) -> float:
+    """Estimate runtime for ``config_path`` without importing modules."""
+
+    path = Path(config_path)
+    cfg = yaml.safe_load(path.read_text()) or {}
+    name = cfg.get("name") or path.parent.name
+    return _estimate_experiment_time_cfg(cfg, name)
+
+
+def _extract_datasource_refs(ds_spec: Any) -> set[str]:
+    """Return experiment names referenced via ``experiment#artifact`` strings."""
+
+    refs: set[str] = set()
+    if isinstance(ds_spec, str):
+        if "#" in ds_spec:
+            refs.add(ds_spec.split("#", 1)[0])
+    elif isinstance(ds_spec, dict):
+        for val in ds_spec.values():
+            refs.update(_extract_datasource_refs(val))
+    elif isinstance(ds_spec, list):
+        for item in ds_spec:
+            refs.update(_extract_datasource_refs(item))
+    return refs
+
+
+def estimate_graph_time_from_yaml(config_path: str | Path) -> float:
+    """Estimate runtime for a graph starting from ``config_path``."""
+
+    path = Path(config_path)
+    root = path.parent.parent
+    seen: set[str] = set()
+
+    def _walk(cfg_path: Path) -> float:
+        cfg = yaml.safe_load(cfg_path.read_text()) or {}
+        name = cfg.get("name") or cfg_path.parent.name
+        if name in seen:
+            return 0.0
+        seen.add(name)
+        total = _estimate_experiment_time_cfg(cfg, name)
+        for ref in _extract_datasource_refs(cfg.get("datasource")):
+            upstream = root / ref / "config.yaml"
+            if upstream.exists():
+                total += _walk(upstream)
+        return total
+
+    return _walk(path)
+
+
+def estimate_experiment_time(exp: Experiment) -> float:
+    durations = load_step_durations(exp.name or exp.id)
+    total = 0.0
+    for step in exp.pipeline.steps:
+        times = durations.get(step.__class__.__name__)
+        if times:
+            total += sum(times) / len(times)
+    total *= exp.replicates * (len(exp.treatments) + 1)
+    return total
+
+
+def estimate_graph_time(graph: ExperimentGraph) -> float:
+    total = 0.0
+    for node in graph._graph.nodes:
+        exp = graph._graph.nodes[node]["experiment"]
+        total += estimate_experiment_time(exp)
+    return total
+
+
+def format_eta(seconds: float) -> str:
+    seconds = int(seconds)
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    parts: list[str] = []
+    if h:
+        parts.append(f"{h}h")
+    if m:
+        parts.append(f"{m}m")
+    if s or not parts:
+        parts.append(f"{s}s")
+    return " ".join(parts)
 
 
 def create_experiment_scaffolding(

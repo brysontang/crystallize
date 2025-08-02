@@ -12,6 +12,7 @@ Plugins allow you to inject behavior around the execution of an experiment. Each
 - `init_hook(experiment)`: configure defaults when the experiment instance is created.
 - `before_run(experiment)`: run logic at the start of `run()` before replicates execute.
 - `before_replicate(experiment, ctx)`: invoked prior to each replicate's pipeline.
+- `before_step(experiment, step, ctx)`: run before each `PipelineStep` executes.
 - `after_step(experiment, step, data, ctx)`: observe the output of every `PipelineStep`. Do not mutate `data` or `ctx` here.
 - `after_run(experiment, result)`: called after the result object is assembled.
 - `run_experiment_loop(experiment, replicate_fn)`: optional hook to override how replicates are executed (e.g., parallelism).

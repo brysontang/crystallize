@@ -27,6 +27,11 @@ from ..discovery import discover_configs
 from ..screens.create_experiment import CreateExperimentScreen
 from ..screens.run import _launch_run
 
+from ..utils import (
+    estimate_experiment_time_from_yaml,
+    estimate_graph_time_from_yaml,
+    format_eta,
+)
 from ..widgets import ConfigEditorWidget
 
 
@@ -72,13 +77,20 @@ class SelectionScreen(Screen):
         """Populate the details panel with information from ``data``."""
 
         # details = self.query_one("#details", Static)
-        info = yaml.safe_load(Path(data["path"]).read_text()) or {}
-
-        desc = info.get("description", data.get("doc", ""))
-        # details.update(desc)
-
         container = self.query_one("#config-container")
         await container.remove_children()
+
+        eta_sec = 0.0
+        try:
+            cfg_path = Path(data["path"])
+            if data["type"] == "Graph":
+                eta_sec = estimate_graph_time_from_yaml(cfg_path)
+            else:
+                eta_sec = estimate_experiment_time_from_yaml(cfg_path)
+        except Exception:
+            eta_sec = 0.0
+        eta_text = format_eta(eta_sec)
+        await container.mount(Static(f"Estimated time: {eta_text}", id="eta"))
         await container.mount(ConfigEditorWidget(Path(data["path"])))
 
     def compose(self) -> ComposeResult:

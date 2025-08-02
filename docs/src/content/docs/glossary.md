@@ -82,7 +82,7 @@ An object subclassing `BasePlugin` that hooks into the experiment lifecycle. Plu
 
 ## BasePlugin
 
-The abstract base class defining available hooks: `init_hook`, `before_run`, `before_replicate`, `after_step`, and `after_run`.
+The abstract base class defining available hooks: `init_hook`, `before_run`, `before_replicate`, `before_step`, `after_step`, and `after_run`.
 
 ## Hook
 

@@ -52,6 +52,12 @@ class BasePlugin(ABC):
         """Run prior to each pipeline execution for a replicate."""
         pass
 
+    def before_step(
+        self, experiment: Experiment, step: PipelineStep, ctx: FrozenContext
+    ) -> None:
+        """Invoke immediately before a :class:`PipelineStep` runs."""
+        pass
+
     def after_step(
         self,
         experiment: Experiment,
@@ -243,6 +249,7 @@ class ArtifactPlugin(BasePlugin):
         def dump_condition(name: str, metrics: Mapping[str, Any]) -> None:
             dest = base / name
             os.makedirs(dest, exist_ok=True)
+
             def _default(o: Any) -> Any:
                 try:
                     import numpy as np

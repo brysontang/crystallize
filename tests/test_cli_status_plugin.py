@@ -3,8 +3,13 @@ from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.experiments.treatment import Treatment
+import json
+from pathlib import Path
+
 from cli.status_plugin import CLIStatusPlugin
 from cli.screens.run import _inject_status_plugin
+from cli.utils import estimate_experiment_time, estimate_experiment_time_from_yaml
+from crystallize.utils import cache as cache_utils
 
 
 events: list[tuple[str, dict[str, object]]] = []
@@ -46,7 +51,10 @@ def test_cli_status_plugin_progress():
     assert events[0][0] == "start"
     assert any(evt == "replicate" for evt, _ in events)
     step_events = [info for evt, info in events if evt == "step_finished"]
-    assert len(step_events) == len(exp.pipeline.steps) * (len(exp.treatments) + 1) * exp.replicates
+    assert (
+        len(step_events)
+        == len(exp.pipeline.steps) * (len(exp.treatments) + 1) * exp.replicates
+    )
     rep_events = [info for evt, info in events if evt == "replicate"]
     assert len(rep_events) == 4
 
@@ -71,3 +79,40 @@ def test_inject_status_plugin_deduplicates_graph():
     exp2 = graph._graph.nodes["e"]["experiment"]
     count = sum(isinstance(p, CLIStatusPlugin) for p in exp2.plugins)
     assert count == 1
+
+
+def test_status_plugin_records_times(tmp_path, monkeypatch):
+    plugin = CLIStatusPlugin(lambda e, i: None)
+
+    @pipeline_step(cacheable=True)
+    def cached_step(data, ctx):
+        return data
+
+    exp = Experiment(
+        datasource=ds(),
+        pipeline=Pipeline([cached_step()]),
+        plugins=[plugin],
+        name="timed",
+    )
+    exp.validate()
+
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(cache_utils, "CACHE_DIR", tmp_path / "cache")
+
+    exp.run()
+    step_name = cached_step().__class__.__name__
+    path = tmp_path / ".cache" / "crystallize" / "steps" / "timed.json"
+    data = json.loads(path.read_text())
+    assert step_name in data and len(data[step_name]) == 1
+
+    exp.run()  # second run uses cache
+    data2 = json.loads(path.read_text())
+    assert len(data2[step_name]) == 1
+
+    eta = estimate_experiment_time(exp)
+    assert eta >= data2[step_name][0]
+
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text("name: timed\nsteps:\n  - cached_step\n")
+    eta_yaml = estimate_experiment_time_from_yaml(cfg)
+    assert eta_yaml >= data2[step_name][0]

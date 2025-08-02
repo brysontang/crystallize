@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, List
 
 from crystallize.plugins.plugins import BasePlugin
@@ -10,6 +11,8 @@ from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.experiments.experiment import Experiment
 
 import inspect
+import json
+import time
 
 STEP_KEY = "step_name"
 
@@ -37,6 +40,7 @@ class CLIStatusPlugin(BasePlugin):
 
     # Add this flag
     sent_start: bool = field(init=False, default=False)
+    step_start: float | None = field(init=False, default=None)
 
     def before_run(self, experiment: Experiment) -> None:
         # This hook is now only for internal setup, not for callbacks.
@@ -86,6 +90,11 @@ class CLIStatusPlugin(BasePlugin):
         ctx.add("textual__status_callback", self.callback)
         ctx.add("textual__emit", emit_step_status)
 
+    def before_step(
+        self, experiment: Experiment, step: PipelineStep, ctx: FrozenContext
+    ) -> None:
+        self.step_start = time.perf_counter()
+
     def after_step(
         self,
         experiment: Experiment,
@@ -93,6 +102,10 @@ class CLIStatusPlugin(BasePlugin):
         data: Any,
         ctx: FrozenContext,
     ) -> None:
+        if self.step_start is not None:
+            duration = time.perf_counter() - self.step_start
+            self._record_duration(experiment, step.__class__.__name__, duration)
+            self.step_start = None
         self.completed += 1
         percent = 0.0
         total = self.total_steps * self.total_replicates * self.total_conditions
@@ -104,3 +117,17 @@ class CLIStatusPlugin(BasePlugin):
                 "step": step.__class__.__name__,
             },
         )
+
+    def _record_duration(
+        self, experiment: Experiment, step_name: str, duration: float
+    ) -> None:
+        exp_name = experiment.name or experiment.id
+        cache_dir = Path.home() / ".cache" / "crystallize" / "steps"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        path = cache_dir / f"{exp_name}.json"
+        try:
+            data = json.loads(path.read_text())
+        except FileNotFoundError:
+            data = {}
+        data.setdefault(step_name, []).append(duration)
+        path.write_text(json.dumps(data))

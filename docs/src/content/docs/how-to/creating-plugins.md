@@ -10,6 +10,7 @@ Crystallize's plugin system lets you modify behavior without subclassing `Experi
 - `init_hook(experiment)`: called during `Experiment.__init__`. Configure default attributes here.
 - `before_run(experiment)`: executes at the start of `run()` before any replicates.
 - `before_replicate(experiment, ctx)`: invoked before each replicate.
+- `before_step(experiment, step, ctx)`: called right before a pipeline step executes.
 - `after_step(experiment, step, data, ctx)`: called after each pipeline step. Should not mutate `data` or `ctx`.
 - `after_run(experiment, result)`: runs after the result object is created.
 

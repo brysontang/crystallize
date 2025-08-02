@@ -2,6 +2,17 @@
 
 - Initial alpha release. Future changes may introduce breaking changes frequently until APIs stabilize.
 
+## [0.24.12](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.11...crystallize-ml@v0.24.12) (2025-08-01)
+
+
+### Bug Fixes
+
+* Code coverage ([477b12f](https://github.com/brysontang/crystallize/commit/477b12f599e442c01a1d2497a5ca9dfb5f4b7f17))
+* Linting errors ([477b12f](https://github.com/brysontang/crystallize/commit/477b12f599e442c01a1d2497a5ca9dfb5f4b7f17))
+* Plugins now have a before_step ([dca6973](https://github.com/brysontang/crystallize/commit/dca69739cb487e93986f2684f00fb4c84037edfc))
+* Textual now has a TextualLoggingPlugin that allows the user to d… ([882c35b](https://github.com/brysontang/crystallize/commit/882c35b97599f793a9111765611b0242b9e88f1f))
+* Textual now has a TextualLoggingPlugin that allows the user to do ctx.logger ([dca6973](https://github.com/brysontang/crystallize/commit/dca69739cb487e93986f2684f00fb4c84037edfc))
+
 ## [0.24.11](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.10...crystallize-ml@v0.24.11) (2025-08-01)
 
 ### Bug Fixes

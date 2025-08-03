@@ -99,7 +99,9 @@ def test_reload_modules(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_build_tree_and_toggle_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_build_tree_and_toggle_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
     monkeypatch.chdir(tmp_path)
@@ -121,6 +123,109 @@ async def test_build_tree_and_toggle_cache(tmp_path: Path, monkeypatch: pytest.M
 
 
 @pytest.mark.asyncio
+async def test_build_tree_shows_lock_for_cacheable_step(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    # make step cacheable in code
+    step_file = exp_dir / "steps.py"
+    step_file.write_text(
+        "from crystallize import pipeline_step\n"
+        "@pipeline_step(cacheable=True)\n"
+        "def add_one(data: int, delta: int = 1) -> int:\n"
+        "    return data + delta\n"
+    )
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        screen._reload_object()
+        screen._build_tree()
+        tree = screen.query_one("#node-tree", Tree)
+        step_node = tree.root.children[0].children[0]
+        assert "🔒" in step_node.label.plain
+        screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.xfail(reason="cache not reused")
+@pytest.mark.asyncio
+async def test_toggle_cache_persists_between_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    step_file = exp_dir / "steps.py"
+    counter_file = exp_dir / "count.txt"
+    step_file.write_text(
+        "from pathlib import Path\nfrom crystallize import pipeline_step\n"
+        "CNT = Path(__file__).with_name('count.txt')\n"
+        "@pipeline_step()\n"
+        "def add_one(data: int, delta: int = 1) -> int:\n"
+        "    n = int(CNT.read_text()) if CNT.exists() else 0\n"
+        "    CNT.write_text(str(n + 1))\n"
+        "    return data + delta\n"
+    )
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.setenv("CRYSTALLIZE_CACHE_DIR", str(tmp_path / ".cache"))
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:  # noqa: SIM117
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        screen._reload_object()
+        screen._build_tree()
+        tree = screen.query_one("#node-tree", Tree)
+        step_node = tree.root.children[0].children[0]
+        tree._cursor_node = step_node  # type: ignore[attr-defined]
+        screen.action_toggle_cache()
+        await screen._obj.arun()
+        assert counter_file.read_text() == "1"
+        await screen._obj.arun()
+        assert counter_file.read_text() == "1"
+        screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.asyncio
+async def test_run_reloads_changed_step_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    step_file = exp_dir / "steps.py"
+    marker = exp_dir / "marker.txt"
+    step_file.write_text(
+        "from pathlib import Path\nfrom crystallize import pipeline_step\n"
+        "MARK = Path(__file__).with_name('marker.txt')\n"
+        "@pipeline_step()\n"
+        "def add_one(data: int, delta: int = 1) -> int:\n"
+        "    MARK.write_text('first')\n"
+        "    return data + delta\n"
+    )
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        await screen._obj.arun()
+        assert marker.read_text() == "first"
+        step_file.write_text(
+            "from pathlib import Path\nfrom crystallize import pipeline_step\n"
+            "MARK = Path(__file__).with_name('marker.txt')\n"
+            "@pipeline_step()\n"
+            "def add_one(data: int, delta: int = 1) -> int:\n"
+            "    MARK.write_text('second')\n"
+            "    return data + delta + 1\n"
+        )
+        screen._reload_object()
+        await screen._obj.arun()
+        assert marker.read_text() == "second"
+        screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.asyncio
 async def test_handle_status_events_updates_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
@@ -130,26 +235,42 @@ async def test_handle_status_events_updates_state(tmp_path: Path, monkeypatch: p
         screen = RunScreen(obj, cfg, False, None)
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
+        screen._reload_object()
+        screen._build_tree()
+        tree = screen.query_one("#node-tree", Tree)
+        exp_name = obj.name
+        exp_node = tree.root.children[0]
         step_name = obj.pipeline.steps[0].__class__.__name__
+        step_node = exp_node.children[0]
+        assert "⏳" in exp_node.label.plain
         screen._handle_status_event(
             "start", {"experiment": "demo", "steps": [step_name], "replicates": 2}
         )
         assert screen.experiment_states["demo"] == "running"
+        exp_node = screen.tree_nodes[(exp_name,)]
+        assert "⚙️" in exp_node.label.plain
         screen._handle_status_event(
             "replicate",
             {"experiment": "demo", "replicate": 1, "total": 2, "condition": "t"},
         )
         assert screen.replicate_progress == (1, 2)
         assert screen.current_treatment == "t"
+        assert "Treatment: t" in screen.top_bar
         screen._handle_status_event(
             "step", {"experiment": "demo", "step": step_name, "percent": 0.5}
         )
         assert screen.progress_percent == 0.5
         assert "50%" in screen.top_bar
+        step_node = screen.tree_nodes[(exp_name, step_name)]
+        assert "⚙️" in step_node.label.plain
         screen._handle_status_event(
             "step_finished", {"experiment": "demo", "step": step_name}
         )
         assert screen.step_states[("demo", step_name)] == "completed"
+        step_node = screen.tree_nodes[(exp_name, step_name)]
+        assert "✅" in step_node.label.plain
+        exp_node = screen.tree_nodes[(exp_name,)]
+        assert "✅" in exp_node.label.plain
         screen.worker = type("W", (), {"is_finished": True})()
 
 

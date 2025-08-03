@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-
 import importlib
 import sys
 import time
+from pathlib import Path
+from typing import Any
 
 import pytest
+from textual.app import App
+from textual.widgets import Button, Tree
 
 from cli.screens.run import RunScreen, _inject_status_plugin, delete_artifacts, _reload_modules
 from cli.status_plugin import CLIStatusPlugin
 from cli.utils import create_experiment_scaffolding
+from cli.widgets.writer import WidgetWriter
 from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.plugins.plugins import ArtifactPlugin
-from cli.widgets.writer import WidgetWriter
 
 
 @data_source
@@ -30,21 +31,26 @@ def add_one(data, ctx):
 
 
 class DummyWidget:
-    def write(self, msg):
+    def write(self, msg: str) -> None:  # pragma: no cover - simple stub
         pass
 
-    def refresh(self):
+    def refresh(self) -> None:  # pragma: no cover - simple stub
         pass
 
 
 class DummyApp:
-    def call_from_thread(self, func, *args, **kwargs):
+    def call_from_thread(self, func, *args, **kwargs) -> None:  # pragma: no cover
         func(*args, **kwargs)
 
 
 def test_delete_artifacts(tmp_path: Path) -> None:
     plugin = ArtifactPlugin(root_dir=str(tmp_path))
-    exp = Experiment(datasource=dummy_source(), pipeline=Pipeline([add_one()]), name="e", plugins=[plugin])
+    exp = Experiment(
+        datasource=dummy_source(),
+        pipeline=Pipeline([add_one()]),
+        name="e",
+        plugins=[plugin],
+    )
     exp.validate()
     path = Path(plugin.root_dir) / "e"
     path.mkdir()
@@ -54,7 +60,12 @@ def test_delete_artifacts(tmp_path: Path) -> None:
 
 def test_inject_status_plugin_adds_experiment(tmp_path: Path) -> None:
     plugin = ArtifactPlugin(root_dir=str(tmp_path))
-    exp = Experiment(datasource=dummy_source(), pipeline=Pipeline([add_one()]), name="exp", plugins=[plugin])
+    exp = Experiment(
+        datasource=dummy_source(),
+        pipeline=Pipeline([add_one()]),
+        name="exp",
+        plugins=[plugin],
+    )
     exp.validate()
     events: list[dict[str, Any]] = []
 
@@ -87,45 +98,26 @@ def test_reload_modules(tmp_path: Path) -> None:
     sys.modules.pop("pkg", None)
 
 
-class StubNode:
-    def __init__(self, label: str, data: Any | None = None) -> None:
-        self.label = label
-        self.data = data
-        self.children: list[StubNode] = []
-
-    def add(self, label: str, data: Any | None = None) -> StubNode:
-        node = StubNode(label, data)
-        self.children.append(node)
-        return node
-
-    def set_label(self, label: str) -> None:
-        self.label = label
-
-    def expand(self) -> None:  # pragma: no cover - stub
-        pass
-
-
-class StubTree:
-    def __init__(self) -> None:
-        self.root = StubNode("root")
-        self.cursor_node: StubNode | None = None
-
-
 @pytest.mark.asyncio
 async def test_build_tree_and_toggle_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
     monkeypatch.chdir(tmp_path)
     obj = Experiment.from_yaml(cfg)
-    screen = RunScreen(obj, cfg, False, None)
-    tree = StubTree()
-    screen.query_one = lambda *_args, **_kwargs: tree  # type: ignore[assignment]
-    screen._reload_object()
-    screen._build_tree()
-    exp_name = obj.name
-    step_name = obj.pipeline.steps[0].__class__.__name__
-    assert (exp_name,) in screen.tree_nodes
-    assert (exp_name, step_name) in screen.tree_nodes
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        screen._reload_object()
+        screen._build_tree()
+        tree = screen.query_one("#node-tree", Tree)
+        exp_name = screen._obj.name
+        step_name = screen._obj.pipeline.steps[0].__class__.__name__
+        step_node = tree.root.children[0].children[0]
+        assert "🔒" not in step_node.label.plain
+        assert (exp_name,) in screen.tree_nodes
+        assert (exp_name, step_name) in screen.tree_nodes
+        screen.worker = type("W", (), {"is_finished": True})()
 
 
 @pytest.mark.asyncio
@@ -134,64 +126,105 @@ async def test_handle_status_events_updates_state(tmp_path: Path, monkeypatch: p
     cfg = exp_dir / "config.yaml"
     monkeypatch.chdir(tmp_path)
     obj = Experiment.from_yaml(cfg)
-    screen = RunScreen(obj, cfg, False, None)
-    step_name = obj.pipeline.steps[0].__class__.__name__
-    screen._handle_status_event("start", {"experiment": "demo", "steps": [step_name], "replicates": 2})
-    assert screen.experiment_states["demo"] == "running"
-    screen._handle_status_event("replicate", {"experiment": "demo", "replicate": 1, "total": 2, "condition": "t"})
-    assert screen.replicate_progress == (1, 2)
-    screen._handle_status_event("step", {"experiment": "demo", "step": step_name, "percent": 0.5})
-    assert screen.progress_percent == 0.5
-    assert "50%" in screen.top_bar
-    screen._handle_status_event("step_finished", {"experiment": "demo", "step": step_name})
-    assert screen.step_states[("demo", step_name)] == "completed"
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        step_name = obj.pipeline.steps[0].__class__.__name__
+        screen._handle_status_event(
+            "start", {"experiment": "demo", "steps": [step_name], "replicates": 2}
+        )
+        assert screen.experiment_states["demo"] == "running"
+        screen._handle_status_event(
+            "replicate",
+            {"experiment": "demo", "replicate": 1, "total": 2, "condition": "t"},
+        )
+        assert screen.replicate_progress == (1, 2)
+        assert screen.current_treatment == "t"
+        screen._handle_status_event(
+            "step", {"experiment": "demo", "step": step_name, "percent": 0.5}
+        )
+        assert screen.progress_percent == 0.5
+        assert "50%" in screen.top_bar
+        screen._handle_status_event(
+            "step_finished", {"experiment": "demo", "step": step_name}
+        )
+        assert screen.step_states[("demo", step_name)] == "completed"
+        screen.worker = type("W", (), {"is_finished": True})()
 
 
-def test_run_or_cancel_behaviour(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.asyncio
+async def test_run_or_cancel_behaviour(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
     monkeypatch.chdir(tmp_path)
     obj = Experiment.from_yaml(cfg)
-    screen = RunScreen(obj, cfg, False, None)
-    called = False
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        called = False
 
-    def fake_start() -> None:
-        nonlocal called
-        called = True
+        def fake_start() -> None:
+            nonlocal called
+            called = True
 
-    screen._start_run = fake_start  # type: ignore[assignment]
-    screen.action_run_or_cancel()
-    assert called
+        screen._start_run = fake_start  # type: ignore[assignment]
+        screen.action_run_or_cancel()
+        assert called
 
-    class DummyWorker:
-        is_finished = False
-        cancelled = False
+        class DummyWorker:
+            is_finished = False
+            cancelled = False
 
-        def cancel(self) -> None:
-            self.cancelled = True
+            def cancel(self) -> None:
+                self.cancelled = True
 
-    worker = DummyWorker()
-    screen.worker = worker
-    screen.action_run_or_cancel()
-    assert worker.cancelled
+        worker = DummyWorker()
+        screen.worker = worker
+        screen.action_run_or_cancel()
+        assert worker.cancelled
+        screen.worker = type("W", (), {"is_finished": True})()
 
 
-def test_on_experiment_complete_opens_summary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.asyncio
+async def test_on_experiment_complete_opens_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
     monkeypatch.chdir(tmp_path)
     obj = Experiment.from_yaml(cfg)
-    screen = RunScreen(obj, cfg, False, None)
-    opened: list[Any] = []
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        opened: list[Any] = []
 
-    def fake_open(res: Any) -> None:
-        opened.append(res)
+        def fake_open(res: Any) -> None:
+            opened.append(res)
 
-    btn = StubNode("Run")
-    screen.query_one = lambda *_a, **_k: btn  # type: ignore[assignment]
-    screen.open_summary_screen = fake_open  # type: ignore[assignment]
-    message = screen.ExperimentComplete(result=123)
-    screen.on_experiment_complete(message)
-    assert opened == [123]
-    assert screen.worker is None
-    assert btn.label == "Run"
+        screen.open_summary_screen = fake_open  # type: ignore[assignment]
+        message = screen.ExperimentComplete(result=123)
+        screen.on_experiment_complete(message)
+        run_btn = screen.query_one("#run-btn", Button)
+        assert opened == [123]
+        assert screen.worker is None
+        assert run_btn.label == "Run"
+        screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.asyncio
+async def test_step_logs_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        log_widget = screen.query_one("#live_log")
+        log_widget.write("hello")
+        screen.log_history.append("hello")
+        assert any("hello" in msg for msg in screen.log_history)

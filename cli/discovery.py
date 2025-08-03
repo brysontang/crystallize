@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional, Tuple, Type
 import yaml
 
 from crystallize.experiments.experiment_graph import ExperimentGraph
+from .errors import ExperimentLoadError, format_load_error
 
 
 def _import_module(
@@ -82,7 +83,7 @@ def discover_configs(
 ) -> Tuple[
     Dict[str, Dict[str, Any]],
     Dict[str, Dict[str, Any]],
-    Dict[str, BaseException],
+    Dict[str, ExperimentLoadError],
 ]:
     """Discover experiments and graphs defined via ``config.yaml``."""
 
@@ -97,7 +98,7 @@ def discover_configs(
 
     graphs: Dict[str, Dict[str, Any]] = {}
     experiments: Dict[str, Dict[str, Any]] = {}
-    errors: Dict[str, BaseException] = {}
+    errors: Dict[str, ExperimentLoadError] = {}
 
     abs_directory = directory.resolve()
     cwd = Path.cwd()
@@ -144,7 +145,7 @@ def discover_configs(
             else:
                 experiments[label] = info
         except BaseException as exc:  # noqa: BLE001
-            errors[str(cfg)] = exc
+            errors[str(cfg)] = format_load_error(cfg, exc)
 
     return graphs, experiments, errors
 

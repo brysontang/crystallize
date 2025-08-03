@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from typing import Dict
-
 from textual.app import ComposeResult
 from textual.containers import Container
-from textual.widgets import Button, Static, Tree
 from textual.screen import ModalScreen
+from textual.widgets import Button, Static
 
 
-class LoadErrorsScreen(ModalScreen[None]):
-    """Display import errors found during discovery."""
+class LoadErrorScreen(ModalScreen[None]):
+    """Modal screen displaying a single load error."""
 
     BINDINGS = [
         ("ctrl+c", "close", "Close"),
@@ -17,18 +15,14 @@ class LoadErrorsScreen(ModalScreen[None]):
         ("q", "close", "Close"),
     ]
 
-    def __init__(self, errors: Dict[str, BaseException]) -> None:
+    def __init__(self, message: str) -> None:
         super().__init__()
-        self._errors = errors
+        self._message = message
 
     def compose(self) -> ComposeResult:
         with Container():
-            yield Static("Load Errors", id="modal-title")
-            tree = Tree("Failed to load files")
-            for file, err in self._errors.items():
-                node = tree.root.add(str(file))
-                node.add(str(err))
-            yield tree
+            yield Static("Load Error", id="modal-title")
+            yield Static(self._message, id="error-msg")
             yield Button("Close", id="close")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

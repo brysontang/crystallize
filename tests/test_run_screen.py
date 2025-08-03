@@ -10,7 +10,15 @@ import pytest
 from textual.app import App
 from textual.widgets import Button, Tree
 
-from cli.screens.run import RunScreen, _inject_status_plugin, _reload_modules
+import pytest
+from textual.app import App
+
+from cli.screens.run import (
+    RunScreen,
+    _inject_status_plugin,
+    delete_artifacts,
+    _reload_modules,
+)
 from cli.status_plugin import CLIStatusPlugin
 from cli.utils import create_experiment_scaffolding
 from cli.widgets.writer import WidgetWriter
@@ -82,6 +90,95 @@ def test_reload_modules(tmp_path: Path) -> None:
     assert mod2.VALUE == 2
     sys.path.remove(str(tmp_path))
     sys.modules.pop("pkg", None)
+
+
+@pytest.mark.asyncio
+async def test_exit_after_finished(tmp_path: Path):
+    datasources = tmp_path / "datasources.py"
+    datasources.write_text(
+        "from crystallize import data_source\n\n@data_source\ndef source(ctx):\n    return 0\n"
+    )
+    steps = tmp_path / "steps.py"
+    steps.write_text(
+        "from crystallize import pipeline_step\n\n@pipeline_step()\ndef add_one(data, ctx):\n    return data + 1\n"
+    )
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        """
+name: exp
+datasource:
+  x: source
+steps:
+  - add_one
+"""
+    )
+    exp = Experiment.from_yaml(cfg)
+    screen = RunScreen(exp, cfg, False, None)
+
+    class TestApp(App):
+        async def on_mount(self) -> None:  # pragma: no cover - test helper
+            await self.push_screen(screen)
+
+    app = TestApp()
+    async with app.run_test() as pilot:
+        await pilot.press("shift+r")
+        while screen.worker and not screen.worker.is_finished:
+            await pilot.pause()
+        await pilot.pause()
+        await pilot.press("q")  # close summary
+        await pilot.press("q")  # exit run screen
+        assert screen not in app.screen_stack
+
+
+@pytest.mark.asyncio
+async def test_step_cache_persists(tmp_path: Path):
+    datasources = tmp_path / "datasources.py"
+    datasources.write_text(
+        "from crystallize import data_source\n\n@data_source\ndef source(ctx):\n    return 0\n"
+    )
+    steps = tmp_path / "steps.py"
+    steps.write_text(
+        "from crystallize import pipeline_step\n\n@pipeline_step()\ndef add_one(data, ctx):\n    return data + 1\n"
+    )
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        """
+name: exp
+datasource:
+  x: source
+steps:
+  - add_one
+"""
+    )
+    exp = Experiment.from_yaml(cfg)
+    screen = RunScreen(exp, cfg, False, None)
+
+    class TestApp(App):
+        async def on_mount(self) -> None:  # pragma: no cover - test helper
+            await self.push_screen(screen)
+
+    app = TestApp()
+    async with app.run_test() as pilot:
+        step_key = next(iter(screen.step_cacheable))
+        screen.step_cacheable[step_key] = False
+        node = screen.tree_nodes[step_key]
+        data = node.data
+        if data and data[0] == "step":
+            data[3].cacheable = False
+        screen._refresh_node(step_key)
+        assert not screen.step_cacheable[step_key]
+        await pilot.press("shift+r")
+        while screen.worker and not screen.worker.is_finished:
+            await pilot.pause()
+        await pilot.pause()
+        await pilot.press("q")  # close summary
+        await pilot.press("shift+r")
+        assert not screen.step_cacheable[step_key]
+        while screen.worker and not screen.worker.is_finished:
+            await pilot.pause()
+        await pilot.pause()
+        await pilot.press("q")
+        await pilot.press("q")
 
 
 @pytest.mark.asyncio
@@ -194,7 +291,9 @@ async def test_top_bar_shows_current_experiment(
 
 
 @pytest.mark.asyncio
-async def test_handle_status_events_updates_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_handle_status_events_updates_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
     monkeypatch.chdir(tmp_path)
@@ -243,7 +342,9 @@ async def test_handle_status_events_updates_state(tmp_path: Path, monkeypatch: p
 
 
 @pytest.mark.asyncio
-async def test_run_or_cancel_behaviour(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_run_or_cancel_behaviour(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
     monkeypatch.chdir(tmp_path)
@@ -304,7 +405,9 @@ async def test_on_experiment_complete_opens_summary(
 
 
 @pytest.mark.asyncio
-async def test_step_logs_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_step_logs_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
     monkeypatch.chdir(tmp_path)
@@ -344,6 +447,7 @@ async def test_tree_expanded_shows_step_status_on_experiment(
         exp_node = screen.tree_nodes[(exp_name,)]
         assert "⚙️" in exp_node.label.plain
         screen.worker = type("W", (), {"is_finished": True})()
+
 
 @pytest.mark.asyncio
 async def test_tree_collapsed_shows_step_status_on_experiment(

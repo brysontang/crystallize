@@ -198,7 +198,6 @@ class RunScreen(Screen):
 
     def _build_tree(self) -> None:
         tree = self.query_one("#node-tree", Tree)
-        tree.root.set_label("Experiments")
         if isinstance(self._obj, ExperimentGraph):
             order = list(nx.topological_sort(self._obj._graph))
             exps = [self._obj._graph.nodes[n]["experiment"] for n in order]
@@ -206,17 +205,23 @@ class RunScreen(Screen):
             exps = [self._obj]
         for exp in exps:
             self.experiment_states[exp.name] = "pending"
-            self.experiment_cacheable[exp.name] = True
+            self.experiment_cacheable.setdefault(exp.name, True)
             exp_node = tree.root.add(
-                self._format_label(exp.name, "pending", True), data=("exp", exp.name, exp)
+                self._format_label(
+                    exp.name, "pending", self.experiment_cacheable.get(exp.name, True)
+                ),
+                data=("exp", exp.name, exp),
             )
             self.tree_nodes[(exp.name,)] = exp_node
             for step in exp.pipeline.steps:
                 name = step.__class__.__name__
-                self.step_states[(exp.name, name)] = "pending"
-                self.step_cacheable[(exp.name, name)] = step.cacheable
+                key = (exp.name, name)
+                self.step_states[key] = "pending"
+                cacheable = self.step_cacheable.get(key, step.cacheable)
+                self.step_cacheable[key] = cacheable
+                step.cacheable = cacheable
                 node = exp_node.add(
-                    self._format_label(name, "pending", step.cacheable),
+                    self._format_label(name, "pending", cacheable),
                     data=("step", exp.name, name, step),
                 )
                 self.tree_nodes[(exp.name, name)] = node
@@ -232,7 +237,11 @@ class RunScreen(Screen):
     def _start_run(self) -> None:
         tree = self.query_one("#node-tree", Tree)
         tree.root.remove_children()
+        prev_exp_cache = self.experiment_cacheable.copy()
+        prev_step_cache = self.step_cacheable.copy()
         self._reset_state()
+        self.experiment_cacheable.update(prev_exp_cache)
+        self.step_cacheable.update(prev_step_cache)
         self._reload_object()
         self._build_tree()
         self._build_artifacts()
@@ -424,6 +433,8 @@ class RunScreen(Screen):
 
     def _setup_ui(self) -> None:
         self._reload_object()
+        tree = self.query_one("#node-tree", Tree)
+        tree.show_root = False
         self._build_tree()
         self.queue_timer = self.set_interval(1 / 15, self.process_queue)
 
@@ -446,7 +457,7 @@ class RunScreen(Screen):
     def on_unmount(self) -> None:  # pragma: no cover - cleanup
         if hasattr(self, "queue_timer"):
             self.queue_timer.stop()
-        if hasattr(self, "worker") and not self.worker.is_finished:
+        if getattr(self, "worker", None) is not None and not self.worker.is_finished:
             self.worker.cancel()
 
     def action_cancel_and_exit(self) -> None:

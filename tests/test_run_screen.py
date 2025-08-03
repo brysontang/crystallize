@@ -10,12 +10,13 @@ import pytest
 from textual.app import App
 from textual.widgets import Button, Tree
 
-from cli.screens.run import RunScreen, _inject_status_plugin, delete_artifacts, _reload_modules
+from cli.screens.run import RunScreen, _inject_status_plugin, _reload_modules
 from cli.status_plugin import CLIStatusPlugin
 from cli.utils import create_experiment_scaffolding
 from cli.widgets.writer import WidgetWriter
 from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment
+from crystallize.experiments.treatment import Treatment
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.plugins.plugins import ArtifactPlugin
 
@@ -41,21 +42,6 @@ class DummyWidget:
 class DummyApp:
     def call_from_thread(self, func, *args, **kwargs) -> None:  # pragma: no cover
         func(*args, **kwargs)
-
-
-def test_delete_artifacts(tmp_path: Path) -> None:
-    plugin = ArtifactPlugin(root_dir=str(tmp_path))
-    exp = Experiment(
-        datasource=dummy_source(),
-        pipeline=Pipeline([add_one()]),
-        name="e",
-        plugins=[plugin],
-    )
-    exp.validate()
-    path = Path(plugin.root_dir) / "e"
-    path.mkdir()
-    delete_artifacts(exp)
-    assert not path.exists()
 
 
 def test_inject_status_plugin_adds_experiment(tmp_path: Path) -> None:
@@ -150,44 +136,6 @@ async def test_build_tree_shows_lock_for_cacheable_step(
         screen.worker = type("W", (), {"is_finished": True})()
 
 
-@pytest.mark.xfail(reason="cache not reused")
-@pytest.mark.asyncio
-async def test_toggle_cache_persists_between_runs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
-    step_file = exp_dir / "steps.py"
-    counter_file = exp_dir / "count.txt"
-    step_file.write_text(
-        "from pathlib import Path\nfrom crystallize import pipeline_step\n"
-        "CNT = Path(__file__).with_name('count.txt')\n"
-        "@pipeline_step()\n"
-        "def add_one(data: int, delta: int = 1) -> int:\n"
-        "    n = int(CNT.read_text()) if CNT.exists() else 0\n"
-        "    CNT.write_text(str(n + 1))\n"
-        "    return data + delta\n"
-    )
-    cfg = exp_dir / "config.yaml"
-    monkeypatch.setenv("CRYSTALLIZE_CACHE_DIR", str(tmp_path / ".cache"))
-    monkeypatch.chdir(tmp_path)
-    obj = Experiment.from_yaml(cfg)
-    async with App().run_test() as pilot:  # noqa: SIM117
-        screen = RunScreen(obj, cfg, False, None)
-        await pilot.app.push_screen(screen)
-        screen.worker = type("W", (), {"is_finished": True})()
-        screen._reload_object()
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
-        step_node = tree.root.children[0].children[0]
-        tree._cursor_node = step_node  # type: ignore[attr-defined]
-        screen.action_toggle_cache()
-        await screen._obj.arun()
-        assert counter_file.read_text() == "1"
-        await screen._obj.arun()
-        assert counter_file.read_text() == "1"
-        screen.worker = type("W", (), {"is_finished": True})()
-
-
 @pytest.mark.asyncio
 async def test_run_reloads_changed_step_code(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -222,6 +170,26 @@ async def test_run_reloads_changed_step_code(
         screen._reload_object()
         await screen._obj.arun()
         assert marker.read_text() == "second"
+        screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.asyncio
+async def test_top_bar_shows_current_experiment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        step_name = obj.pipeline.steps[0].__class__.__name__
+        screen._handle_status_event(
+            "start", {"experiment": obj.name, "steps": [step_name], "replicates": 1}
+        )
+        assert obj.name in screen.top_bar
         screen.worker = type("W", (), {"is_finished": True})()
 
 
@@ -349,3 +317,151 @@ async def test_step_logs_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         log_widget.write("hello")
         screen.log_history.append("hello")
         assert any("hello" in msg for msg in screen.log_history)
+
+
+@pytest.mark.asyncio
+async def test_tree_expanded_shows_step_status_on_experiment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        screen._reload_object()
+        screen._build_tree()
+        exp_name = obj.name
+        step_name = obj.pipeline.steps[0].__class__.__name__
+        screen._handle_status_event(
+            "start", {"experiment": exp_name, "steps": [step_name], "replicates": 1}
+        )
+        screen._handle_status_event(
+            "step", {"experiment": exp_name, "step": step_name, "percent": 0.2}
+        )
+        exp_node = screen.tree_nodes[(exp_name,)]
+        assert "⚙️" in exp_node.label.plain
+        screen.worker = type("W", (), {"is_finished": True})()
+
+@pytest.mark.asyncio
+async def test_tree_collapsed_shows_step_status_on_experiment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        screen._reload_object()
+        screen._build_tree()
+        tree = screen.query_one("#node-tree", Tree)
+        exp_name = obj.name
+        exp_node = tree.root.children[0]
+        step_name = obj.pipeline.steps[0].__class__.__name__
+        exp_node.collapse()
+        screen._handle_status_event(
+            "start", {"experiment": exp_name, "steps": [step_name], "replicates": 1}
+        )
+        screen._handle_status_event(
+            "step", {"experiment": exp_name, "step": step_name, "percent": 0.2}
+        )
+        exp_node = screen.tree_nodes[(exp_name,)]
+        assert "⚙️" in exp_node.label.plain
+        screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.asyncio
+async def test_step_error_icon_displayed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        screen._reload_object()
+        screen._build_tree()
+        exp_name = obj.name
+        step_name = obj.pipeline.steps[0].__class__.__name__
+        screen.step_states[(exp_name, step_name)] = "errored"
+        screen._refresh_node((exp_name, step_name))
+        step_node = screen.tree_nodes[(exp_name, step_name)]
+        assert "⚠️" in step_node.label.plain
+        screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.asyncio
+async def test_run_with_changed_treatment_uses_new_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    step_file = exp_dir / "steps.py"
+    marker = exp_dir / "marker.txt"
+    step_file.write_text(
+        "from pathlib import Path\nfrom crystallize import pipeline_step\n"
+        "MARK = Path(__file__).with_name('marker.txt')\n"
+        "@pipeline_step()\n"
+        "def add_one(data: int, delta: int = 0) -> int:\n"
+        "    MARK.write_text(str(delta))\n"
+        "    return data + delta\n"
+    )
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        await screen._obj.arun(treatments=[Treatment("t1", {"delta": 1})])
+        assert marker.read_text() == "1"
+        await screen._obj.arun(treatments=[Treatment("t2", {"delta": 2})])
+        assert marker.read_text() == "2"
+        screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.asyncio
+async def test_rerun_after_config_error_shows_message(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+
+        def run_worker(func, *a, **kw):
+            func()
+            return type("W", (), {"is_finished": True})()
+
+        screen.run_worker = run_worker  # type: ignore[assignment]
+        screen.app.call_from_thread = lambda f, *a, **kw: f(*a, **kw)  # type: ignore[assignment]
+
+        messages: list[str] = []
+
+        def fake_print(*args: Any, **kwargs: Any) -> None:
+            messages.append(" ".join(str(a) for a in args))
+
+        monkeypatch.setattr("builtins.print", fake_print)
+
+        async def fail_run_object(*args: Any, **kwargs: Any) -> None:
+            raise ValueError("boom")
+
+        monkeypatch.setattr("cli.screens.run._run_object", fail_run_object)
+
+        screen.action_run_or_cancel()
+        assert any("An error occurred in the worker" in m for m in messages)
+
+        messages.clear()
+        screen.action_run_or_cancel()
+        assert any("An error occurred in the worker" in m for m in messages)

@@ -10,15 +10,7 @@ import pytest
 from textual.app import App
 from textual.widgets import Button, Tree
 
-import pytest
-from textual.app import App
-
-from cli.screens.run import (
-    RunScreen,
-    _inject_status_plugin,
-    delete_artifacts,
-    _reload_modules,
-)
+from cli.screens.run import RunScreen, _inject_status_plugin, _reload_modules
 from cli.status_plugin import CLIStatusPlugin
 from cli.utils import create_experiment_scaffolding
 from cli.widgets.writer import WidgetWriter
@@ -121,7 +113,7 @@ steps:
 
     app = TestApp()
     async with app.run_test() as pilot:
-        await pilot.press("shift+r")
+        await pilot.press("R")
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
         await pilot.pause()
@@ -167,12 +159,12 @@ steps:
             data[3].cacheable = False
         screen._refresh_node(step_key)
         assert not screen.step_cacheable[step_key]
-        await pilot.press("shift+r")
+        await pilot.press("R")
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
         await pilot.pause()
         await pilot.press("q")  # close summary
-        await pilot.press("shift+r")
+        await pilot.press("R")
         assert not screen.step_cacheable[step_key]
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
@@ -196,12 +188,19 @@ async def test_build_tree_and_toggle_cache(
         screen._reload_object()
         screen._build_tree()
         tree = screen.query_one("#node-tree", Tree)
-        exp_name = screen._obj.name
-        step_name = screen._obj.pipeline.steps[0].__class__.__name__
         step_node = tree.root.children[0].children[0]
-        assert "🔒" not in step_node.label.plain
-        assert (exp_name,) in screen.tree_nodes
-        assert (exp_name, step_name) in screen.tree_nodes
+        tree.focus()
+        tree._cursor_node = step_node  # type: ignore[attr-defined]
+        tree._cursor_line = step_node.line  # type: ignore[attr-defined]
+        called = False
+
+        def wrapped() -> None:
+            nonlocal called
+            called = True
+
+        screen.action_toggle_cache = wrapped  # type: ignore[assignment]
+        await pilot.press("l")
+        assert called
         screen.worker = type("W", (), {"is_finished": True})()
 
 
@@ -360,7 +359,7 @@ async def test_run_or_cancel_behaviour(
             called = True
 
         screen._start_run = fake_start  # type: ignore[assignment]
-        screen.action_run_or_cancel()
+        await pilot.press("R")
         assert called
 
         class DummyWorker:
@@ -372,7 +371,7 @@ async def test_run_or_cancel_behaviour(
 
         worker = DummyWorker()
         screen.worker = worker
-        screen.action_run_or_cancel()
+        await pilot.press("R")
         assert worker.cancelled
         screen.worker = type("W", (), {"is_finished": True})()
 
@@ -563,9 +562,9 @@ async def test_rerun_after_config_error_shows_message(
 
         monkeypatch.setattr("cli.screens.run._run_object", fail_run_object)
 
-        screen.action_run_or_cancel()
+        await pilot.press("R")
         assert any("An error occurred in the worker" in m for m in messages)
 
         messages.clear()
-        screen.action_run_or_cancel()
+        await pilot.press("R")
         assert any("An error occurred in the worker" in m for m in messages)

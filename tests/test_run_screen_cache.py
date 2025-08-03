@@ -155,3 +155,33 @@ async def test_build_artifacts_respects_experiment_lock(
         screen._build_artifacts()
         assert not exp_path.exists()
         screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.asyncio
+async def test_resume_marks_completed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    plugin = obj.get_plugin(ArtifactPlugin)
+    assert plugin is not None
+    plugin.root_dir = str(tmp_path / "artifacts")
+    obj.validate()
+    await obj.arun()
+    obj2 = Experiment.from_yaml(cfg)
+    plugin2 = obj2.get_plugin(ArtifactPlugin)
+    assert plugin2 is not None
+    plugin2.root_dir = str(tmp_path / "artifacts")
+    obj2.validate()
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj2, cfg, False, None)
+        screen._reload_object = lambda: None  # type: ignore[assignment]
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        tree = screen.query_one("#node-tree", Tree)
+        exp_node = tree.root.children[0]
+        step_node = exp_node.children[0]
+        assert "✅" in exp_node.label.plain
+        assert "✅" in step_node.label.plain

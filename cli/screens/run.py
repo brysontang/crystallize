@@ -12,7 +12,7 @@ import traceback
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, List
 
 import networkx as nx
 from textual.app import App, ComposeResult
@@ -27,6 +27,7 @@ from textual.widgets import Button, Footer, Header, RichLog, Static, TextArea, T
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.plugins.plugins import ArtifactPlugin, LoggingPlugin
+from crystallize.utils.constants import METADATA_FILENAME
 from ..status_plugin import CLIStatusPlugin, TextualLoggingPlugin
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
@@ -124,8 +125,8 @@ class RunScreen(Screen):
         Binding("ctrl+c", "cancel_and_exit", "Close", show=False),
         Binding("s", "summary", "Summary"),
         Binding("t", "toggle_plain_text", "Toggle Plain Text"),
-        Binding("space", "toggle_cache", "Toggle Cache"),
-        Binding("shift+r", "run_or_cancel", "Run"),
+        Binding("l", "toggle_cache", "Toggle Cache"),
+        Binding("R", "run_or_cancel", "Run"),
         Binding("escape", "cancel_and_exit", "Close"),
     ]
 
@@ -203,6 +204,7 @@ class RunScreen(Screen):
             exps = [self._obj._graph.nodes[n]["experiment"] for n in order]
         else:
             exps = [self._obj]
+        self._experiments = exps
         for exp in exps:
             self.experiment_states[exp.name] = "pending"
             self.experiment_cacheable.setdefault(exp.name, True)
@@ -226,6 +228,35 @@ class RunScreen(Screen):
                 )
                 self.tree_nodes[(exp.name, name)] = node
         tree.root.expand()
+        self._mark_cached_completion(exps)
+
+    def _mark_cached_completion(self, exps: List[Experiment]) -> None:
+        for exp in exps:
+            if not self.experiment_cacheable.get(exp.name, True):
+                continue
+            plugin = exp.get_plugin(ArtifactPlugin)
+            if plugin is None:
+                continue
+            exp_dir = exp.name or exp.id
+            version = getattr(plugin, "version", None)
+            if version is None:
+                base_dir = Path(plugin.root_dir) / exp_dir
+                versions = [
+                    int(p.name[1:])
+                    for p in base_dir.glob("v*")
+                    if p.name.startswith("v") and p.name[1:].isdigit()
+                ]
+                version = max(versions, default=0)
+            meta_path = (
+                Path(plugin.root_dir) / exp_dir / f"v{version}" / METADATA_FILENAME
+            )
+            if meta_path.exists():
+                self.experiment_states[exp.name] = "completed"
+                for step in exp.pipeline.steps:
+                    name = step.__class__.__name__
+                    self.step_states[(exp.name, name)] = "completed"
+                    self._refresh_node((exp.name, name))
+                self._refresh_node((exp.name,))
 
     def _reload_object(self) -> None:
         _reload_modules(self._cfg_path.parent)
@@ -387,7 +418,7 @@ class RunScreen(Screen):
             text_widget.display = False
 
     def _build_artifacts(self) -> None:
-        experiments = (
+        experiments = getattr(self, "_experiments", []) or (
             [self._obj]
             if not isinstance(self._obj, ExperimentGraph)
             else [self._obj._graph.nodes[n]["experiment"] for n in self._obj._graph.nodes]
@@ -395,6 +426,7 @@ class RunScreen(Screen):
         for exp in experiments:
             if not self.experiment_cacheable.get(exp.name, True):
                 delete_artifacts(exp)
+        self._mark_cached_completion(experiments)
 
     def compose(self) -> ComposeResult:  # pragma: no cover - UI layout
         yield Header(show_clock=True)

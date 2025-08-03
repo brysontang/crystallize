@@ -24,7 +24,9 @@ from crystallize.experiments.experiment_graph import ExperimentGraph
 
 from ..constants import ASCII_ART_ARRAY
 from ..discovery import discover_configs
+from ..errors import ExperimentLoadError, format_load_error
 from ..screens.create_experiment import CreateExperimentScreen
+from ..screens.load_error import LoadErrorScreen
 from ..screens.run import _launch_run
 from ..utils import compute_static_eta, format_seconds
 
@@ -59,12 +61,13 @@ class SelectionScreen(Screen):
     BINDINGS = [
         ("n", "create_experiment", "New Experiment"),
         ("r", "refresh", "Refresh"),
+        ("e", "show_errors", "Errors"),
         ("q", "quit", "Quit"),
     ]
 
     def __init__(self) -> None:
         super().__init__()
-        self._load_errors: Dict[str, BaseException] = {}
+        self._load_errors: Dict[str, ExperimentLoadError] = {}
         self._experiments: Dict[str, Dict[str, Any]] = {}
         self._graphs: Dict[str, Dict[str, Any]] = {}
         self._selected_obj: Dict[str, Any] | None = None
@@ -78,6 +81,8 @@ class SelectionScreen(Screen):
         info = yaml.safe_load(cfg_path.read_text()) or {}
 
         desc = info.get("description", data.get("doc", ""))
+        cli_info = info.get("cli", {})
+        icon = cli_info.get("icon", "🧪")
         eta = compute_static_eta(cfg_path)
         if data.get("type") == "Graph":
             total = eta
@@ -87,9 +92,7 @@ class SelectionScreen(Screen):
                 total += compute_static_eta(cfg)
             eta = total
         eta_str = format_seconds(eta.total_seconds())
-        details.update(
-            f"{info['cli']['icon']} {data['label']}\n{desc}\n⏳ Estimated runtime: {eta_str}"
-        )
+        details.update(f"{icon} {data['label']}\n{desc}\n⏳ Estimated runtime: {eta_str}")
 
         container = self.query_one("#config-container")
         await container.remove_children()
@@ -123,7 +126,7 @@ class SelectionScreen(Screen):
     ) -> Tuple[
         Dict[str, Dict[str, Any]],
         Dict[str, Dict[str, Any]],
-        Dict[str, BaseException],
+        Dict[str, ExperimentLoadError],
     ]:
         """Locate ``config.yaml`` files and classify them."""
 
@@ -213,11 +216,10 @@ class SelectionScreen(Screen):
             else:
                 obj = Experiment.from_yaml(cfg)
         except BaseException as exc:  # noqa: BLE001
-            self._load_errors[str(cfg)] = exc
-            from ..screens.load_errors import LoadErrorsScreen
-
+            load_err = format_load_error(cfg, exc)
+            self._load_errors[str(cfg)] = load_err
             self.app.pop_screen()
-            self.app.push_screen(LoadErrorsScreen({str(cfg): exc}))
+            self.app.push_screen(LoadErrorScreen(str(load_err)))
             return
 
         self.app.pop_screen()
@@ -253,9 +255,8 @@ class SelectionScreen(Screen):
 
     def action_show_errors(self) -> None:
         if self._load_errors:
-            from ..screens.load_errors import LoadErrorsScreen
-
-            self.app.push_screen(LoadErrorsScreen(self._load_errors))
+            err = next(iter(self._load_errors.values()))
+            self.app.push_screen(LoadErrorScreen(str(err)))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":

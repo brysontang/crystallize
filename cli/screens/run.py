@@ -157,6 +157,7 @@ class RunScreen(Screen):
         self.tree_nodes: Dict[tuple[str, ...], Any] = {}
         self.replicate_progress: tuple[int, int] = (0, 0)
         self.current_treatment: str = ""
+        self.current_experiment: str = ""
         self.progress_percent = 0.0
         self.eta_remaining = "--"
         self.top_bar = ""
@@ -283,6 +284,7 @@ class RunScreen(Screen):
     def _handle_status_event(self, event: str, info: dict[str, Any]) -> None:
         exp_name = info.get("experiment", "")
         if event == "start":
+            self.current_experiment = exp_name
             self.experiment_states[exp_name] = "running"
             for step in info.get("steps", []):
                 self.step_states[(exp_name, step)] = "pending"
@@ -347,6 +349,7 @@ class RunScreen(Screen):
         filled = int(self.progress_percent * 20)
         bar = "[" + "#" * filled + "-" * (20 - filled) + "]"
         self.top_bar = (
+            f"Experiment: {self.current_experiment or '--'} │ "
             f"Replicate: {rep}/{total} │ Treatment: {self.current_treatment or '--'} │ "
             f"Current Step Progress: {bar} {self.progress_percent*100:.0f}% (~{self.eta_remaining})"
         )

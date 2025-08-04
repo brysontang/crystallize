@@ -145,7 +145,10 @@ def pipeline_step(cacheable: bool = False) -> Callable[..., PipelineStep]:
                     return compute_hash(payload)
 
             FunctionStep.__name__ = f"{fn.__name__.title()}Step"
-            return FunctionStep()
+            step = FunctionStep()  # ← create instance
+            step.__orig_source__ = inspect.getsourcefile(fn)
+            step.__orig_lineno__ = inspect.getsourcelines(fn)[1]
+            return step
 
         return update_wrapper(factory, fn)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import importlib
 import sys
 import time
@@ -10,6 +11,7 @@ import pytest
 from textual.app import App
 from textual.widgets import Button, RichLog, TabbedContent, TextArea, Tree
 
+import cli.screens.run as run_module
 from cli.screens.run import RunScreen, _inject_status_plugin, _reload_modules
 from cli.status_plugin import CLIStatusPlugin
 from cli.utils import create_experiment_scaffolding
@@ -203,8 +205,11 @@ steps:
         await pilot.press("R")
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
-        await pilot.pause()
         tabs = screen.query_one("#output-tabs", TabbedContent)
+        for _ in range(50):
+            if tabs.active == "summary":
+                break
+            await pilot.pause()
         assert tabs.active == "summary"
         await pilot.press("t")
         summary_rich = screen.query_one("#summary_log", RichLog)
@@ -275,7 +280,8 @@ async def test_build_tree_shows_lock_for_cacheable_step(
 
 @pytest.mark.asyncio
 async def test_step_nodes_are_leaves(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
@@ -662,3 +668,128 @@ async def test_start_run_load_error_shows_error_tab(
         tabs = screen.query_one("#output-tabs", TabbedContent)
         assert tabs.active == "errors"
         assert any("loadfail" in msg for msg in screen.error_history)
+
+
+@pytest.mark.parametrize(
+    ("editor", "expected"),
+    [
+        ("code", ["code", "-g", "dummy:7"]),
+        ("vim", ["vim", "+7", "dummy"]),
+    ],
+)
+def test_open_in_editor_builds_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, editor: str, expected: list[str]
+) -> None:
+    called: dict[str, list[str]] = {}
+
+    def fake_run(cmd, check=False):
+        called["cmd"] = cmd
+
+    monkeypatch.setattr(run_module, "pristine_stdio", contextlib.nullcontext)
+    monkeypatch.setattr(run_module, "_suspend_tui", contextlib.nullcontext)
+    monkeypatch.setattr(run_module.subprocess, "run", fake_run)
+    monkeypatch.setenv("EDITOR", editor)
+    run_module._open_in_editor("dummy", 7)
+    assert called["cmd"] == expected
+
+
+@pytest.mark.asyncio
+async def test_action_edit_step_opens_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    datasources = tmp_path / "datasources.py"
+    datasources.write_text(
+        "from crystallize import data_source\n\n@data_source\ndef source(ctx):\n    return 0\n"
+    )
+    steps = tmp_path / "steps.py"
+    steps.write_text(
+        "from crystallize import pipeline_step\n\n@pipeline_step()\ndef add_one(data, ctx):\n    return data + 1\n"
+    )
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        """
+name: exp
+datasource:
+  x: source
+steps:
+  - add_one
+"""
+    )
+    exp = Experiment.from_yaml(cfg)
+    screen = RunScreen(exp, cfg, False, None)
+
+    recorded: dict[str, Any] = {}
+
+    def fake_open(path: str, line: int | None = None) -> None:
+        recorded["path"] = path
+        recorded["line"] = line
+
+    monkeypatch.setattr(run_module, "_open_in_editor", fake_open)
+    monkeypatch.setenv("EDITOR", "echo")
+
+    class TestApp(App):
+        async def on_mount(self) -> None:  # pragma: no cover - test helper
+            await self.push_screen(screen)
+
+    app = TestApp()
+    async with app.run_test():
+        screen._build_tree()
+        tree = screen.query_one("#node-tree", Tree)
+        step_node = tree.root.children[0].children[0]
+        monkeypatch.setattr(Tree, "cursor_node", property(lambda self: step_node))
+        screen.action_edit_step()
+
+    assert recorded["path"].endswith(".py")
+    assert recorded["line"] > 0
+
+
+@pytest.mark.asyncio
+async def test_action_edit_step_no_editor_shows_hint_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    datasources = tmp_path / "datasources.py"
+    datasources.write_text(
+        "from crystallize import data_source\n\n@data_source\ndef source(ctx):\n    return 0\n"
+    )
+    steps = tmp_path / "steps.py"
+    steps.write_text(
+        "from crystallize import pipeline_step\n\n@pipeline_step()\ndef add_one(data, ctx):\n    return data + 1\n"
+    )
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        """
+name: exp
+datasource:
+  x: source
+steps:
+  - add_one
+"""
+    )
+    exp = Experiment.from_yaml(cfg)
+    screen = RunScreen(exp, cfg, False, None)
+
+    messages: list[str] = []
+    monkeypatch.setattr(
+        RunScreen, "_write_error", lambda self, text: messages.append(text)
+    )
+    for var in ("CRYSTALLIZE_EDITOR", "EDITOR", "VISUAL"):
+        monkeypatch.delenv(var, raising=False)
+
+    class TestApp(App):
+        async def on_mount(self) -> None:  # pragma: no cover - test helper
+            await self.push_screen(screen)
+
+    app = TestApp()
+    async with app.run_test():
+        screen._build_tree()
+        tree = screen.query_one("#node-tree", Tree)
+        step_node = tree.root.children[0].children[0]
+        monkeypatch.setattr(Tree, "cursor_node", property(lambda self: step_node))
+        screen.action_edit_step()
+        screen.action_edit_step()
+
+    assert (
+        messages[0]
+        == "Set $EDITOR (e.g. export EDITOR=vim) to enable 'e' to open files."
+    )
+    assert messages[1] == "No editor configured"

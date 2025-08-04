@@ -106,7 +106,7 @@ print(result.metrics)
 
 ### Command Line Interface
 
-The `crystallize` command opens a terminal UI for browsing and executing experiments. Highlight an experiment or graph to view its details and press <kbd>Enter</kbd> to run it. The details panel includes a live config editor so you can adjust values directly in `config.yaml`.
+The `crystallize` command opens a terminal UI for browsing and executing experiments. Highlight an experiment or graph to view its details and press <kbd>Enter</kbd> to run it. The details panel includes a live config editor so you can adjust values directly in `config.yaml`. While running, press <kbd>e</kbd> to open the selected step in your preferred editor (set `$EDITOR`).
 
 Experiments can define a `cli` section in `config.yaml` to control grouping and style:
 

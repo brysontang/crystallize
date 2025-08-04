@@ -119,9 +119,7 @@ def _suspend_tui(app: App | None = None) -> Iterable[None]:
 def _open_in_editor(path: str, line: int | None = None) -> None:
     """Open ``path`` in the user's configured editor."""
     editor = (
-        os.getenv("CRYSTALLIZE_EDITOR")
-        or os.getenv("EDITOR")
-        or os.getenv("VISUAL")
+        os.getenv("CRYSTALLIZE_EDITOR") or os.getenv("EDITOR") or os.getenv("VISUAL")
     )
     if not editor:
         raise RuntimeError("No editor configured")
@@ -445,12 +443,6 @@ class RunScreen(Screen):
             self.event_queue.put((event, info))
 
         _inject_status_plugin(self._obj, queue_callback, writer=writer)
-        for exp in self._experiments:
-            all_names = {
-                t.name for t in self._all_treatments_map.get(exp.name, [])
-            }
-            active_names = {t.name for t in exp.treatments}
-            exp.strategy = "rerun" if all_names != active_names else "resume"
 
         async def progress_callback(status: str, name: str) -> None:
             self.app.call_from_thread(
@@ -471,9 +463,7 @@ class RunScreen(Screen):
                                 progress_callback=progress_callback,
                             )
                         else:
-                            return await _run_object(
-                                self._obj, None, self._replicates
-                            )
+                            return await _run_object(self._obj, None, self._replicates)
 
                 result = asyncio.run(run_with_callback())
             except Exception:
@@ -747,7 +737,10 @@ class RunScreen(Screen):
 
         writer = _Writer()
         _write_summary(
-            writer, out_obj, highlight=highlight_label, inactive=self._inactive_treatments
+            writer,
+            out_obj,
+            highlight=highlight_label,
+            inactive=self._inactive_treatments,
         )
         self.summary_plain_text = console.export_text()
         summary_plain = self.query_one("#summary_plain", TextArea)
@@ -810,7 +803,9 @@ class RunScreen(Screen):
 
                         tabs_widget = tabs.get_child_by_type(ContentTabs)
                         summary_tab = next(
-                            t for t in tabs_widget.query("Tab") if "summary" in (t.id or "")
+                            t
+                            for t in tabs_widget.query("Tab")
+                            if "summary" in (t.id or "")
                         )
                         tabs_widget._activate_tab(summary_tab)  # type: ignore[attr-defined]
                         tabs.active = "summary"
@@ -994,9 +989,7 @@ class RunScreen(Screen):
         tree = self.query_one("#treatment-tree", Tree)
         node = tree.cursor_node
         selected = (
-            node.data[1]
-            if node and node.data and node.data[0] == "treatment"
-            else None
+            node.data[1] if node and node.data and node.data[0] == "treatment" else None
         )
         if self._result is not None:
             self.render_summary(self._result, selected, all_treatments=True)

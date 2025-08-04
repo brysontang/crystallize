@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.7.2...crystallize-extras@v0.7.3) (2025-08-04)
+
+
+### Bug Fixes
+
+* Minor wording ([6ae4c3a](https://github.com/brysontang/crystallize/commit/6ae4c3abc3042c0c11e5bcd7694294593b4a8b31))
+
 ## [0.7.2](https://github.com/brysontang/crystallize/compare/crystallize-extras@v0.7.1...crystallize-extras@v0.7.2) (2025-08-04)
 
 

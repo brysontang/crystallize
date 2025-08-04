@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+from rich.style import Style
 from textual.app import App
 from textual.widgets import Tree
 
@@ -205,5 +206,5 @@ async def test_color_rendering(tmp_path: Path) -> None:
         )
         tree._cursor_node = node_b
         label_b = screen.action_toggle_treatment()
-        assert "color:green" in str(node_a.label.style)
-        assert label_b is not None and "color:red" in str(label_b.style)
+        assert Style.parse(node_a.label.style) == Style.parse("green")
+        assert label_b is not None and Style.parse(label_b.style) == Style.parse("red")

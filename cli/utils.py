@@ -112,21 +112,12 @@ def _write_summary(
     highlight: str | None = None,
     inactive: set[str] | None = None,
 ) -> None:
-    def _has_output(res: Any) -> bool:
-        table = _build_experiment_table(res, highlight=highlight, inactive=inactive)
-        return (
-            table is not None
-            or bool(res.metrics.hypotheses)
-            or bool(res.errors)
-        )
-
     if isinstance(result, dict):
         for name, res in result.items():
-            if _has_output(res):
-                log.write(Text(name, style="bold underline"))
-                _write_experiment_summary(
-                    log, res, highlight=highlight, inactive=inactive
-                )
+            log.write(Text(name, style="bold underline"))
+            _write_experiment_summary(
+                log, res, highlight=highlight, inactive=inactive
+            )
     else:
         _write_experiment_summary(log, result, highlight=highlight, inactive=inactive)
 

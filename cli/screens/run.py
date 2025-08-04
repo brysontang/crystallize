@@ -177,7 +177,7 @@ class RunScreen(Screen):
         Binding("ctrl+c", "cancel_and_exit", "Close", show=False),
         Binding("s", "summary", "Summary"),
         Binding("t", "toggle_plain_text", "Toggle Plain Text"),
-        Binding("l", "toggle_cache", "Toggle Cache"),
+        Binding("l", "toggle_cache", "Toggle cache"),
         Binding("R", "run_or_cancel", "Run"),
         Binding("escape", "cancel_and_exit", "Close"),
         Binding("e", "edit_selected_node", "Edit"),
@@ -296,9 +296,10 @@ class RunScreen(Screen):
         for t in self._all_treatments:
             color = "green" if t.name not in self._inactive_treatments else "red"
             t_node = tree.root.add(
-                Text(t.name, style=f"color:{color}"),
+                Text(t.name, style=color),
                 data=("treatment", t.name, t),
             )
+            self.tree_nodes[(t.name,)] = t_node
             for k, v in t.apply_map.items():
                 t_node.add(
                     Text(f"{k}: {v}"), data=("ctx", k, v), allow_expand=False
@@ -339,11 +340,13 @@ class RunScreen(Screen):
     def _reload_object(self) -> None:
         _reload_modules(self._cfg_path.parent)
         state_path = self._cfg_path.with_suffix(".state.json")
-        try:
-            data = json.loads(state_path.read_text())
-            self._inactive_treatments = set(data.get("inactive_treatments", []))
-        except Exception:
-            self._inactive_treatments = set()
+        data = {}
+        if state_path.exists():
+            try:
+                data = json.loads(state_path.read_text())
+            except (OSError, ValueError) as exc:
+                self._write_error(f"Failed to parse {state_path.name}: {exc}")
+        self._inactive_treatments = set(data.get("inactive_treatments", []))
         if self._is_graph:
             self._obj = ExperimentGraph.from_yaml(self._cfg_path)
             exps = [self._obj._graph.nodes[n]["experiment"] for n in self._obj._graph]
@@ -811,10 +814,10 @@ class RunScreen(Screen):
         name = node.data[1]
         if name in self._inactive_treatments:
             self._inactive_treatments.remove(name)
-            label = Text(name, style="color:green")
+            label = Text(name, style="green")
         else:
             self._inactive_treatments.add(name)
-            label = Text(name, style="color:red")
+            label = Text(name, style="red")
         node.set_label(label)
         state_path = self._cfg_path.with_suffix(".state.json")
         state_path.write_text(

@@ -66,11 +66,12 @@ async def test_toggle_state_persistence(tmp_path: Path) -> None:
         screen._reload_object()
         plugin = screen._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#treatment-tree", Tree)
         node_b = next(
             n for n in tree.root.children if n.data and n.data[1] == "treatment_b"
         )
+        tree.focus()
         tree._cursor_node = node_b
         screen.action_toggle_treatment()
     state_path = cfg.with_suffix(".state.json")
@@ -91,15 +92,16 @@ async def test_toggle_state_persistence(tmp_path: Path) -> None:
         screen2._reload_object()
         plugin = screen2._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
-        screen2._build_tree()
+        screen2._build_trees()
         assert "treatment_b" in screen2._inactive_treatments
         assert [t.name for t in screen2._obj.treatments] == ["treatment_a"]
 
         state_path.unlink()
-        tree = screen2.query_one("#node-tree", Tree)
+        tree = screen2.query_one("#treatment-tree", Tree)
         node_b = next(
             n for n in tree.root.children if n.data and n.data[1] == "treatment_b"
         )
+        tree.focus()
         tree._cursor_node = node_b
         screen2.action_toggle_treatment()
         data = json.loads(state_path.read_text())
@@ -128,11 +130,12 @@ async def test_summary_shows_inactive_metrics(tmp_path: Path) -> None:
         screen._reload_object()
         plugin = screen._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#treatment-tree", Tree)
         node_b = next(
             n for n in tree.root.children if n.data and n.data[1] == "treatment_b"
         )
+        tree.focus()
         tree._cursor_node = node_b
         screen.action_toggle_treatment()
         screen._reload_object()
@@ -165,11 +168,13 @@ async def test_add_treatment_placeholder(tmp_path: Path, monkeypatch) -> None:
         screen._reload_object()
         plugin = screen._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#treatment-tree", Tree)
         assert tree.root.children[-1].data[0] == "add_treatment"
         node_add = tree.root.children[-1]
+        tree.focus()
         tree._cursor_node = node_add
+        monkeypatch.setattr(RunScreen, "_focused_tree", lambda self: tree)
         monkeypatch.setattr("cli.screens.run._open_in_editor", lambda *a, **k: None)
         screen.action_edit_selected_node()
     lines = cfg.read_text().splitlines()
@@ -194,15 +199,56 @@ async def test_color_rendering(tmp_path: Path) -> None:
         screen._reload_object()
         plugin = screen._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#treatment-tree", Tree)
         node_a = next(
             n for n in tree.root.children if n.data and n.data[1] == "treatment_a"
         )
         node_b = next(
             n for n in tree.root.children if n.data and n.data[1] == "treatment_b"
         )
+        tree.focus()
         tree._cursor_node = node_b
         label_b = screen.action_toggle_treatment()
         assert str(node_a.label.style) == "green"
         assert label_b is not None and str(label_b.style) == "red"
+
+
+@pytest.mark.asyncio
+async def test_edit_apply_variable(tmp_path: Path, monkeypatch) -> None:
+    cfg = _write_config(tmp_path)
+    exp = Experiment.from_yaml(cfg)
+    plugin = exp.get_plugin(ArtifactPlugin)
+    plugin.root_dir = str(tmp_path)
+    screen = RunScreen(exp, cfg, False, None)
+
+    class AppTest(App):
+        async def on_mount(self) -> None:  # pragma: no cover - helper
+            await self.push_screen(screen)
+
+    app = AppTest()
+    async with app.run_test():
+        screen._reload_object()
+        plugin = screen._obj.get_plugin(ArtifactPlugin)
+        plugin.root_dir = str(tmp_path)
+        screen._build_trees()
+        tree = screen.query_one("#treatment-tree", Tree)
+        t_node = next(
+            n for n in tree.root.children if n.data and n.data[1] == "treatment_b"
+        )
+        ctx_node = next(
+            n for n in t_node.children if n.data and n.data[2] == "val"
+        )
+        tree.focus()
+        tree._cursor_node = ctx_node
+        captured: dict[str, int] = {}
+
+        def fake_open(path: str, line: int | None = None) -> None:
+            captured["line"] = line or 0
+
+        monkeypatch.setattr(RunScreen, "_focused_tree", lambda self: tree)
+        monkeypatch.setattr("cli.screens.run._open_in_editor", fake_open)
+        screen.action_edit_selected_node()
+    lines = cfg.read_text().splitlines()
+    expected = lines.index("    val: 2") + 1
+    assert captured["line"] == expected

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import yaml
 
 
 def find_treatment_line(path: Path, name: str) -> int:
@@ -52,3 +51,31 @@ def ensure_new_treatment_placeholder(path: Path) -> int:
     newline = "\n" if text.endswith("\n") else ""
     path.write_text("\n".join(lines) + newline, encoding="utf-8")
     return insert + 1
+
+
+def find_treatment_apply_line(path: Path, name: str, key: str) -> int:
+    try:
+        lines = path.read_text().splitlines()
+    except Exception:
+        return 1
+    in_block = False
+    block_indent = ""
+    t_indent = ""
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if stripped.startswith("treatments:"):
+            in_block = True
+            block_indent = line[: len(line) - len(stripped)] + "  "
+            continue
+        if in_block and t_indent:
+            if stripped and not line.startswith(t_indent):
+                break
+            if stripped.startswith(f"{key}:"):
+                return i
+            continue
+        if in_block:
+            if stripped and not line.startswith(block_indent):
+                break
+            if stripped.startswith(f"{name}:"):
+                t_indent = line[: len(line) - len(stripped)] + "  "
+    return 1

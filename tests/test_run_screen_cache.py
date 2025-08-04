@@ -47,12 +47,13 @@ async def test_toggle_cache_persists_between_runs(
         screen = RunScreen(obj, cfg, False, None)
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
-        tree = screen.query_one("#node-tree", Tree)
+        tree = screen.query_one("#exp-tree", Tree)
         tree.root.remove_children()
         screen._reload_object()
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#exp-tree", Tree)
         step_node = tree.root.children[0].children[0]
+        tree.focus()
         tree._cursor_node = step_node  # type: ignore[attr-defined]
         screen.action_toggle_cache()
         await screen._obj.arun()
@@ -99,9 +100,10 @@ async def test_all_steps_cache_when_toggled(
         screen._reload_object = lambda: None  # type: ignore[assignment]
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#exp-tree", Tree)
         exp_node = tree.root.children[0]
+        tree.focus()
         for step_node in exp_node.children:
             tree._cursor_node = step_node  # type: ignore[attr-defined]
             screen.action_toggle_cache()
@@ -129,7 +131,7 @@ async def test_build_artifacts_respects_experiment_lock(
         screen._reload_object = lambda: None  # type: ignore[assignment]
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
-        screen._build_tree()
+        screen._build_trees()
         exp_path = Path(plugin.root_dir) / "demo"
         exp_path.mkdir(parents=True)
         screen._build_artifacts()
@@ -165,7 +167,7 @@ async def test_resume_marks_completed(
         screen._reload_object = lambda: None  # type: ignore[assignment]
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
-        tree = screen.query_one("#node-tree", Tree)
+        tree = screen.query_one("#exp-tree", Tree)
         exp_node = tree.root.children[0]
         step_node = exp_node.children[0]
         assert "✅" in exp_node.label.plain

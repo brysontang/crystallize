@@ -10,7 +10,7 @@ CSS = """
     padding-top: 1;
 }
 
-#node-tree {
+#exp-tree, #treatment-tree {
     height: 1fr;
 }
 

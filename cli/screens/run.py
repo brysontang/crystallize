@@ -51,7 +51,11 @@ from ..status_plugin import CLIStatusPlugin, TextualLoggingPlugin
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
 from ..utils import _write_summary, format_seconds
-from ..yaml_edit import ensure_new_treatment_placeholder, find_treatment_line
+from ..yaml_edit import (
+    ensure_new_treatment_placeholder,
+    find_treatment_line,
+    find_treatment_apply_line,
+)
 from .style.run import CSS
 
 
@@ -175,7 +179,7 @@ class RunScreen(Screen):
     BINDINGS = [
         Binding("q", "cancel_and_exit", "Close", show=False),
         Binding("ctrl+c", "cancel_and_exit", "Close", show=False),
-        Binding("s", "summary", "Summary"),
+        Binding("S", "summary", "Summary"),
         Binding("t", "toggle_plain_text", "Toggle Plain Text"),
         Binding("l", "toggle_cache", "Toggle Cache"),
         Binding("R", "run_or_cancel", "Run"),
@@ -266,8 +270,12 @@ class RunScreen(Screen):
             )
         node.set_label(label)
 
-    def _build_tree(self) -> None:
-        tree = self.query_one("#node-tree", Tree)
+    def _build_trees(self) -> None:
+        exp_tree = self.query_one("#exp-tree", Tree)
+        treat_tree = self.query_one("#treatment-tree", Tree)
+        exp_tree.root.remove_children()
+        treat_tree.root.remove_children()
+        self.tree_nodes.clear()
         if isinstance(self._obj, ExperimentGraph):
             order = list(nx.topological_sort(self._obj._graph))
             exps = [self._obj._graph.nodes[n]["experiment"] for n in order]
@@ -278,7 +286,7 @@ class RunScreen(Screen):
         for exp in exps:
             self.experiment_states[exp.name] = "pending"
             self.experiment_cacheable.setdefault(exp.name, True)
-            exp_node = tree.root.add(
+            exp_node = exp_tree.root.add(
                 self._format_label(
                     exp.name, "pending", self.experiment_cacheable.get(exp.name, True)
                 ),
@@ -300,19 +308,22 @@ class RunScreen(Screen):
                 self.tree_nodes[(exp.name, name)] = node
         for t in self._all_treatments:
             color = "green" if t.name not in self._inactive_treatments else "red"
-            t_node = tree.root.add(
+            t_node = treat_tree.root.add(
                 Text(t.name, style=color),
                 data=("treatment", t.name, t),
             )
             self.tree_nodes[("treatment", t.name)] = t_node
             for k, v in t.apply_map.items():
                 t_node.add(
-                    Text(f"{k}: {v}"), data=("ctx", k, v), allow_expand=False
+                    Text(f"{k}: {v}"),
+                    data=("ctx", t.name, k),
+                    allow_expand=False,
                 )
-        tree.root.add("[+ add treatment]", data=("add_treatment",))
-        tree.root.expand()
+        treat_tree.root.add("[+ add treatment]", data=("add_treatment",))
+        exp_tree.root.expand()
+        treat_tree.root.expand()
         self._mark_cached_completion(exps)
-        tree.focus()
+        exp_tree.focus()
 
     def _mark_cached_completion(self, exps: List[Experiment]) -> None:
         for exp in exps:
@@ -341,6 +352,15 @@ class RunScreen(Screen):
                     self.step_states[(exp.name, name)] = "completed"
                     self._refresh_node((exp.name, name))
                 self._refresh_node((exp.name,))
+
+    def _focused_tree(self) -> Tree | None:
+        treat_tree = self.query_one("#treatment-tree", Tree)
+        exp_tree = self.query_one("#exp-tree", Tree)
+        if treat_tree.has_focus:
+            return treat_tree
+        if exp_tree.has_focus:
+            return exp_tree
+        return None
 
     def _reload_object(self) -> None:
         _reload_modules(self._cfg_path.parent)
@@ -374,8 +394,10 @@ class RunScreen(Screen):
         self.error_history.append(text)
 
     def _start_run(self) -> None:
-        tree = self.query_one("#node-tree", Tree)
-        tree.root.remove_children()
+        exp_tree = self.query_one("#exp-tree", Tree)
+        treat_tree = self.query_one("#treatment-tree", Tree)
+        exp_tree.root.remove_children()
+        treat_tree.root.remove_children()
         prev_exp_cache = self.experiment_cacheable.copy()
         prev_step_cache = self.step_cacheable.copy()
         self._reset_state()
@@ -387,7 +409,7 @@ class RunScreen(Screen):
         self.error_history.clear()
         try:
             self._reload_object()
-            self._build_tree()
+            self._build_trees()
             self._build_artifacts()
         except Exception:
             tb_str = traceback.format_exc()
@@ -600,7 +622,10 @@ class RunScreen(Screen):
         yield Static(id="top-bar")
         with Horizontal(id="main-area"):
             with Vertical(id="sidebar"):
-                yield Tree("", id="node-tree")
+                yield Static("Experiments", id="exp-header")
+                yield Tree("", id="exp-tree")
+                yield Static("Treatments", id="treat-header")
+                yield Tree("", id="treatment-tree")
                 yield Button("Run", id="run-btn")
             with TabbedContent(initial="logs", id="output-tabs"):
                 with TabPane("Logs", id="logs"):
@@ -718,9 +743,11 @@ class RunScreen(Screen):
 
     def _setup_ui(self) -> None:
         self._reload_object()
-        tree = self.query_one("#node-tree", Tree)
-        tree.show_root = False
-        self._build_tree()
+        exp_tree = self.query_one("#exp-tree", Tree)
+        treat_tree = self.query_one("#treatment-tree", Tree)
+        exp_tree.show_root = False
+        treat_tree.show_root = False
+        self._build_trees()
         self.queue_timer = self.set_interval(1 / 15, self.process_queue)
 
     def on_node_status_changed(self, message: NodeStatusChanged) -> None:
@@ -788,13 +815,13 @@ class RunScreen(Screen):
     def action_toggle_cache(self) -> None:
         """Toggle caching for the selected experiment or step."""
 
-        tree = self.query_one("#node-tree", Tree)
+        tree = self.query_one("#exp-tree", Tree)
+        if not tree.has_focus:
+            return
         node = tree.cursor_node
-        if node is None:
+        if node is None or not node.data:
             return
         data = node.data
-        if not data:
-            return
         if data[0] == "exp":
             exp_name = data[1]
             self.experiment_cacheable[exp_name] = not self.experiment_cacheable.get(
@@ -811,7 +838,7 @@ class RunScreen(Screen):
     def action_toggle_treatment(self) -> Text | None:
         """Toggle active state for the selected treatment and persist it."""
 
-        tree = self.query_one("#node-tree", Tree)
+        tree = self.query_one("#treatment-tree", Tree)
         node = tree.cursor_node
         if not node or not node.data or node.data[0] != "treatment":
             return None
@@ -830,7 +857,9 @@ class RunScreen(Screen):
 
     def action_edit_selected_node(self) -> None:
         global _ACTIVE_APP
-        tree = self.query_one("#node-tree", Tree)
+        tree = self._focused_tree()
+        if tree is None:
+            return
         node = tree.cursor_node
         if not node or not node.data:
             return
@@ -880,6 +909,18 @@ class RunScreen(Screen):
                 self._show_editor_hint(str(exc))
             finally:
                 _ACTIVE_APP = None
+        elif kind == "ctx":
+            t_name = node.data[1]
+            key = node.data[2]
+            path = str(self._cfg_path)
+            line = find_treatment_apply_line(self._cfg_path, t_name, key)
+            try:
+                _ACTIVE_APP = self.app
+                _open_in_editor(path, line)
+            except RuntimeError as exc:
+                self._show_editor_hint(str(exc))
+            finally:
+                _ACTIVE_APP = None
 
         elif kind == "add_treatment":
             path = str(self._cfg_path)
@@ -917,7 +958,7 @@ class RunScreen(Screen):
         return 1  # fallback to top of file
 
     def action_summary(self) -> None:
-        tree = self.query_one("#node-tree", Tree)
+        tree = self.query_one("#treatment-tree", Tree)
         node = tree.cursor_node
         selected = (
             node.data[1]

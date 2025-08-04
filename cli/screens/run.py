@@ -146,7 +146,9 @@ class RunScreen(Screen):
     eta_remaining: str = reactive("--")
     top_bar: str = reactive("")
 
-    def __init__(self, obj: Any, cfg_path: Path, is_graph: bool, replicates: int | None) -> None:
+    def __init__(
+        self, obj: Any, cfg_path: Path, is_graph: bool, replicates: int | None
+    ) -> None:
         super().__init__()
         self._obj = obj
         self._cfg_path = Path(cfg_path)
@@ -336,6 +338,7 @@ class RunScreen(Screen):
             result = None
             error: str | None = None
             try:
+
                 async def run_with_callback():
                     with pristine_stdio():
                         if isinstance(self._obj, ExperimentGraph):
@@ -352,9 +355,7 @@ class RunScreen(Screen):
                 result = asyncio.run(run_with_callback())
             except Exception:
                 error = traceback.format_exc()
-                print(
-                    f"[bold red]An error occurred in the worker:\n{error}[/bold red]"
-                )
+                print(f"[bold red]An error occurred in the worker:\n{error}[/bold red]")
             finally:
                 self.app.call_from_thread(
                     self.on_experiment_complete,
@@ -457,6 +458,7 @@ class RunScreen(Screen):
             summary_widget = self.query_one("#summary_log", RichLog)
             summary_plain = self.query_one("#summary_plain", TextArea)
             error_widget = self.query_one("#error_log", RichLog)
+            error_plain = self.query_one("#error_plain", TextArea)
             tabs = self.query_one("#output-tabs", TabbedContent)
         except NoMatches:
             return
@@ -465,23 +467,26 @@ class RunScreen(Screen):
             full_log = "".join(self.log_history)
             text_widget.load_text(full_log)
             summary_plain.load_text(self.summary_plain_text)
+            error_plain.load_text("".join(self.error_history))
             log_widget.display = False
             text_widget.display = True
             summary_widget.display = False
             summary_plain.display = True
-            error_widget.display = True
+            error_widget.display = False
+            error_plain.display = True
             if tabs.active == "summary":
                 summary_plain.focus()
             elif tabs.active == "logs":
                 text_widget.focus()
             else:
-                error_widget.focus()
+                error_plain.focus()
         else:
             log_widget.display = True
             text_widget.display = False
             summary_widget.display = True
             summary_plain.display = False
             error_widget.display = True
+            error_plain.display = False
             if tabs.active == "summary":
                 summary_widget.focus()
             elif tabs.active == "logs":
@@ -493,7 +498,9 @@ class RunScreen(Screen):
         experiments = getattr(self, "_experiments", []) or (
             [self._obj]
             if not isinstance(self._obj, ExperimentGraph)
-            else [self._obj._graph.nodes[n]["experiment"] for n in self._obj._graph.nodes]
+            else [
+                self._obj._graph.nodes[n]["experiment"] for n in self._obj._graph.nodes
+            ]
         )
         for exp in experiments:
             if not self.experiment_cacheable.get(exp.name, True):
@@ -528,6 +535,13 @@ class RunScreen(Screen):
                     )
                 with TabPane("Errors", id="errors"):
                     yield RichLog(highlight=True, markup=True, id="error_log")
+                    yield TextArea(
+                        "",
+                        read_only=True,
+                        show_line_numbers=False,
+                        id="error_plain",
+                        classes="hidden",
+                    )
         yield Footer()
 
     def render_summary(self, result: Any) -> None:
@@ -536,6 +550,7 @@ class RunScreen(Screen):
         _write_summary(summary_log, result)
 
         console = Console(record=True)
+
         class _Writer:
             def write(self, renderable: Any) -> None:
                 console.print(renderable)
@@ -583,6 +598,7 @@ class RunScreen(Screen):
         self.worker = None
         if message.error:
             try:
+                self.error_history.append(message.error)
                 self._write_error(message.error)
                 tabs = self.query_one("#output-tabs", TabbedContent)
                 tabs.active = "errors"

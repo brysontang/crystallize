@@ -5,8 +5,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import importlib
+import inspect
+import os
 import queue  # Import queue
 import shutil
+import subprocess
 import sys
 import traceback
 import time
@@ -90,6 +93,37 @@ def pristine_stdio():
         sys.stdout, sys.stderr = saved_out, saved_err
 
 
+@contextlib.contextmanager
+def _suspend_tui() -> None:
+    """Restore real stdio so an external editor can run cleanly."""
+    app = App.app
+    app.disable_input()
+    try:
+        yield
+    finally:
+        app.enable_input()
+
+
+def _open_in_editor(path: str, line: int | None = None) -> None:
+    editor = (
+        os.getenv("CRYSTALLIZE_EDITOR")
+        or os.getenv("EDITOR")
+        or os.getenv("VISUAL")
+    )
+    if not editor:
+        raise RuntimeError("No editor configured")
+
+    if "code" in editor or "cursor" in editor:
+        cmd = [editor, "-g", f"{path}:{line or 1}"]
+    elif os.path.basename(editor) in {"vim", "nvim", "nano", "helix"}:
+        cmd = [editor, f"+{line or 1}", path]
+    else:
+        cmd = [editor, path]
+
+    with pristine_stdio(), _suspend_tui():
+        subprocess.run(cmd, check=False)
+
+
 def _reload_modules(base_path: Path) -> None:
     """Reload modules located under ``base_path``.
 
@@ -139,6 +173,7 @@ class RunScreen(Screen):
         Binding("l", "toggle_cache", "Toggle Cache"),
         Binding("R", "run_or_cancel", "Run"),
         Binding("escape", "cancel_and_exit", "Close"),
+        Binding("e", "edit_step", "Edit"),
     ]
 
     plain_text: bool = reactive(False)
@@ -163,6 +198,7 @@ class RunScreen(Screen):
         self._step_start: float | None = None
         self.worker: Any | None = None
         self._reset_state()
+        self._editor_hint_shown = False
 
     def _reset_state(self) -> None:
         self.experiment_states: Dict[str, str] = {}
@@ -652,6 +688,25 @@ class RunScreen(Screen):
             self.step_cacheable[(exp_name, step_name)] = new_val
             step_obj.cacheable = new_val
             self._refresh_node((exp_name, step_name))
+
+    def action_edit_step(self) -> None:
+        tree = self.query_one("#node-tree", Tree)
+        node = tree.cursor_node
+        if not node or node.data[0] != "step":
+            return
+        step_obj = node.data[3]
+        path = inspect.getsourcefile(step_obj.__class__)
+        line = inspect.getsourcelines(step_obj.__class__)[1]
+        try:
+            _open_in_editor(path, line)
+        except RuntimeError as exc:
+            if not self._editor_hint_shown:
+                self._write_error(
+                    "Set $EDITOR (e.g. export EDITOR=vim) to enable 'e' to open files."
+                )
+                self._editor_hint_shown = True
+            else:
+                self._write_error(str(exc))
 
     def action_summary(self) -> None:
         if self._result is not None:

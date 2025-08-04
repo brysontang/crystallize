@@ -31,7 +31,7 @@ Let's run our new experiment without any modifications.
 
 1. Back on the main screen, your `hello-crystallize` experiment is highlighted. Press <kbd>Enter</kbd>.
 2. The **Prepare Run** screen appears. Make sure only **datasource** and **steps** are enabled and select `rerun` to execute everything from scratch.
-3. Press **Run** to start. The view switches to a live log, showing the pipeline for both the baseline and two example treatments. If something goes wrong while loading or running, the interface opens an **Errors** tab with the traceback so you can diagnose the issue.
+3. Press **Run** to start. The view switches to a live log, showing the pipeline for both the baseline and two example treatments. If something goes wrong while loading or running, the interface opens an **Errors** tab with the traceback so you can diagnose the issue. You can highlight any step in the tree and press <kbd>e</kbd> to open its source in your editor (set `$EDITOR`).
 
 ### Step 3: The Summary Tab – Instant Results!
 

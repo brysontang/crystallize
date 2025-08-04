@@ -126,8 +126,9 @@ class RunScreen(Screen):
             super().__init__()
 
     class ExperimentComplete(Message):
-        def __init__(self, result: Any) -> None:
+        def __init__(self, result: Any, error: str | None = None) -> None:
             self.result = result
+            self.error = error
             super().__init__()
 
     BINDINGS = [
@@ -154,6 +155,7 @@ class RunScreen(Screen):
         self._result: Any = None
         self.event_queue: queue.Queue[tuple[str, dict[str, Any]]] = queue.Queue()
         self.log_history: list[str] = []
+        self.error_history: list[str] = []
         self._progress_history: deque[tuple[float, float]] = deque(maxlen=5)
         self._current_step: str | None = None
         self._step_start: float | None = None
@@ -280,6 +282,11 @@ class RunScreen(Screen):
         else:
             self._obj = Experiment.from_yaml(self._cfg_path)
 
+    def _write_error(self, text: str) -> None:
+        error_log = self.query_one("#error_log", RichLog)
+        error_log.write(f"[bold red]{text}[/bold red]")
+        self.error_history.append(text)
+
     def _start_run(self) -> None:
         tree = self.query_one("#node-tree", Tree)
         tree.root.remove_children()
@@ -288,9 +295,21 @@ class RunScreen(Screen):
         self._reset_state()
         self.experiment_cacheable.update(prev_exp_cache)
         self.step_cacheable.update(prev_step_cache)
-        self._reload_object()
-        self._build_tree()
-        self._build_artifacts()
+        run_btn = self.query_one("#run-btn", Button)
+        error_widget = self.query_one("#error_log", RichLog)
+        error_widget.clear()
+        self.error_history.clear()
+        try:
+            self._reload_object()
+            self._build_tree()
+            self._build_artifacts()
+        except Exception:
+            tb_str = traceback.format_exc()
+            self._write_error(tb_str)
+            tabs = self.query_one("#output-tabs", TabbedContent)
+            tabs.active = "errors"
+            run_btn.label = "Run"
+            return
         tabs = self.query_one("#output-tabs", TabbedContent)
         tabs.active = "logs"
         tabs.refresh()
@@ -315,6 +334,7 @@ class RunScreen(Screen):
 
         def run_experiment_sync() -> None:
             result = None
+            error: str | None = None
             try:
                 async def run_with_callback():
                     with pristine_stdio():
@@ -331,17 +351,17 @@ class RunScreen(Screen):
 
                 result = asyncio.run(run_with_callback())
             except Exception:
-                tb_str = traceback.format_exc()
+                error = traceback.format_exc()
                 print(
-                    f"[bold red]An error occurred in the worker:\n{tb_str}[/bold red]"
+                    f"[bold red]An error occurred in the worker:\n{error}[/bold red]"
                 )
             finally:
                 self.app.call_from_thread(
-                    self.on_experiment_complete, self.ExperimentComplete(result)
+                    self.on_experiment_complete,
+                    self.ExperimentComplete(result, error),
                 )
 
         self.worker = self.run_worker(run_experiment_sync, thread=True)
-        run_btn = self.query_one("#run-btn", Button)
         run_btn.label = "Cancel"
 
     def _handle_status_event(self, event: str, info: dict[str, Any]) -> None:
@@ -436,6 +456,7 @@ class RunScreen(Screen):
             text_widget = self.query_one("#plain_log", TextArea)
             summary_widget = self.query_one("#summary_log", RichLog)
             summary_plain = self.query_one("#summary_plain", TextArea)
+            error_widget = self.query_one("#error_log", RichLog)
             tabs = self.query_one("#output-tabs", TabbedContent)
         except NoMatches:
             return
@@ -448,19 +469,25 @@ class RunScreen(Screen):
             text_widget.display = True
             summary_widget.display = False
             summary_plain.display = True
+            error_widget.display = True
             if tabs.active == "summary":
                 summary_plain.focus()
-            else:
+            elif tabs.active == "logs":
                 text_widget.focus()
+            else:
+                error_widget.focus()
         else:
             log_widget.display = True
             text_widget.display = False
             summary_widget.display = True
             summary_plain.display = False
+            error_widget.display = True
             if tabs.active == "summary":
                 summary_widget.focus()
-            else:
+            elif tabs.active == "logs":
                 log_widget.focus()
+            else:
+                error_widget.focus()
 
     def _build_artifacts(self) -> None:
         experiments = getattr(self, "_experiments", []) or (
@@ -499,6 +526,8 @@ class RunScreen(Screen):
                         id="summary_plain",
                         classes="hidden",
                     )
+                with TabPane("Errors", id="errors"):
+                    yield RichLog(highlight=True, markup=True, id="error_log")
         yield Footer()
 
     def render_summary(self, result: Any) -> None:
@@ -552,6 +581,14 @@ class RunScreen(Screen):
         run_btn = self.query_one("#run-btn", Button)
         run_btn.label = "Run"
         self.worker = None
+        if message.error:
+            try:
+                self._write_error(message.error)
+                tabs = self.query_one("#output-tabs", TabbedContent)
+                tabs.active = "errors"
+            except NoMatches:
+                pass
+            return
         try:
             if self._result is not None:
                 self.render_summary(self._result)

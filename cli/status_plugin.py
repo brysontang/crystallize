@@ -112,6 +112,10 @@ class CLIStatusPlugin(BasePlugin):
 
     def before_step(self, experiment: Experiment, step: PipelineStep) -> None:  # type: ignore[override]
         self._step_start = time.perf_counter()
+        self.callback(
+            "step",
+            {"step": step.__class__.__name__, "percent": 0.0},
+        )
 
     def after_step(
         self,

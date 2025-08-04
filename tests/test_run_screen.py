@@ -384,12 +384,15 @@ async def test_handle_status_events_updates_state(
         assert screen.current_treatment == "t"
         assert "Treatment: t" in screen.top_bar
         screen._handle_status_event(
+            "step", {"experiment": "demo", "step": step_name, "percent": 0.0}
+        )
+        step_node = screen.tree_nodes[(exp_name, step_name)]
+        assert "⚙️" in step_node.label.plain
+        screen._handle_status_event(
             "step", {"experiment": "demo", "step": step_name, "percent": 0.5}
         )
         assert screen.progress_percent == 0.5
         assert "50%" in screen.top_bar
-        step_node = screen.tree_nodes[(exp_name, step_name)]
-        assert "⚙️" in step_node.label.plain
         screen._handle_status_event(
             "step_finished", {"experiment": "demo", "step": step_name}
         )
@@ -608,7 +611,7 @@ async def test_run_with_changed_treatment_uses_new_value(
 
 
 @pytest.mark.asyncio
-async def test_rerun_after_config_error_shows_message(
+async def test_rerun_after_config_error_shows_error_tab(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
@@ -627,21 +630,35 @@ async def test_rerun_after_config_error_shows_message(
         screen.run_worker = run_worker  # type: ignore[assignment]
         screen.app.call_from_thread = lambda f, *a, **kw: f(*a, **kw)  # type: ignore[assignment]
 
-        messages: list[str] = []
-
-        def fake_print(*args: Any, **kwargs: Any) -> None:
-            messages.append(" ".join(str(a) for a in args))
-
-        monkeypatch.setattr("builtins.print", fake_print)
-
-        async def fail_run_object(*args: Any, **kwargs: Any) -> None:
+        def fake_asyncio_run(*args: Any, **kwargs: Any) -> None:
             raise ValueError("boom")
 
-        monkeypatch.setattr("cli.screens.run._run_object", fail_run_object)
+        monkeypatch.setattr("cli.screens.run.asyncio.run", fake_asyncio_run)
 
         await pilot.press("R")
-        assert any("An error occurred in the worker" in m for m in messages)
+        tabs = screen.query_one("#output-tabs", TabbedContent)
+        assert tabs.active == "errors"
+        assert any("boom" in msg for msg in screen.error_history)
 
-        messages.clear()
+
+@pytest.mark.asyncio
+async def test_start_run_load_error_shows_error_tab(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+
+        def boom() -> None:
+            raise RuntimeError("loadfail")
+
+        screen._reload_object = boom  # type: ignore[assignment]
         await pilot.press("R")
-        assert any("An error occurred in the worker" in m for m in messages)
+        tabs = screen.query_one("#output-tabs", TabbedContent)
+        assert tabs.active == "errors"
+        assert any("loadfail" in msg for msg in screen.error_history)

@@ -625,6 +625,9 @@ class Experiment:
         to_run = []
         base_dir: Optional[Path] = None
         if strategy == "resume" and plugin is not None:
+            # Resuming a run: inspect previous version directories to see which
+            # conditions already completed and load their metrics to avoid
+            # re-executing them.
             exp_dir = Path(plugin.root_dir) / (self.name or self.id)
             versions = [
                 int(p.name[1:])
@@ -632,20 +635,25 @@ class Experiment:
                 if p.name.startswith("v") and p.name[1:].isdigit()
             ]
             if versions:
+                # Use the latest version directory as the source for previously
+                # completed condition metrics.
                 base_dir = exp_dir / f"v{max(versions)}"
                 conditions_to_check = [BASELINE_CONDITION] + [
                     t.name for t in run_treatments
                 ]
                 for cond in conditions_to_check:
-                    # --- END OF FIX ---
                     res_file = base_dir / cond / "results.json"
                     marker = base_dir / cond / ".crystallize_complete"
+                    # Only treat a condition as completed if both the results
+                    # file and completion marker exist. Otherwise mark it to
+                    # be re-run.
                     if res_file.exists() and marker.exists():
                         with open(res_file) as f:
                             loaded_metrics[cond] = json.load(f).get("metrics", {})
                     else:
                         to_run.append(cond)
             else:
+                # No previous versions found; all conditions must run.
                 to_run = [BASELINE_CONDITION] + [t.name for t in run_treatments]
         else:
             to_run = [BASELINE_CONDITION] + [t.name for t in run_treatments]
@@ -727,7 +735,8 @@ class Experiment:
 
                 aggregate = self._aggregate_results(results_list)
 
-                # merge loaded metrics
+                # Merge metrics loaded from completed runs with newly produced
+                # metrics from this execution.
                 for metric, vals in loaded_metrics.get(BASELINE_CONDITION, {}).items():
                     aggregate.baseline_metrics.setdefault(metric, []).extend(vals)
                 for t_name, metrics_dict in loaded_metrics.items():

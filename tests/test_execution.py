@@ -76,6 +76,18 @@ def test_parallel_execution_invalid_type():
         exec_plugin.run_experiment_loop(DummyExperiment(1), lambda i: i)
 
 
+def test_parallel_execution_async_suggests_async_plugin():
+    exec_plugin = ParallelExecution()
+    exp = DummyExperiment(1)
+
+    async def rep_fn(i: int) -> int:
+        return i
+
+    with pytest.raises(TypeError) as excinfo:
+        exec_plugin.run_experiment_loop(exp, rep_fn)
+    assert "AsyncExecution" in str(excinfo.value)
+
+
 def test_async_execution_progress(monkeypatch):
     called = []
 

@@ -31,11 +31,11 @@ Let's run our new experiment without any modifications.
 
 1. Back on the main screen, your `hello-crystallize` experiment is highlighted. Press <kbd>Enter</kbd>.
 2. The **Prepare Run** screen appears. Make sure only **datasource** and **steps** are enabled and select `rerun` to execute everything from scratch.
-3. Press **Run** to start. The view switches to a live log, showing the pipeline for both the baseline and two example treatments.
+3. Press **Run** to start. The view switches to a live log, showing the pipeline for both the baseline and two example treatments. If something goes wrong while loading or running, the interface opens an **Errors** tab with the traceback so you can diagnose the issue.
 
-### Step 3: The Summary Screen – Instant Results!
+### Step 3: The Summary Tab – Instant Results!
 
-After the run, the **Execution Summary** appears. Because we included example code, the summary is already populated with meaningful results. You'll see two main tables:
+After the run, the view switches to the **Summary** tab. Because we included example code, the summary is already populated with meaningful results. You'll see two main tables:
 
 - **Metrics Table:** Shows the raw metrics collected during the run. The example code calculates a `val` metric, and you can see how its value differs between the baseline, `increase_by_one`, and `increase_by_two` treatments.
 - **Hypothesis Table:** Displays the results of the statistical test defined in the example. It compares each treatment to the baseline and reports a `p_value` and whether the result was significant.
@@ -46,7 +46,7 @@ Just by scaffolding and running, you've already got a complete experimental resu
 
 A single run is great, but for statistical confidence we need more replicates.
 
-1. Press <kbd>Esc</kbd> or <kbd>q</kbd> twice to close the summary and return to the main screen.
+1. Press <kbd>Esc</kbd> or <kbd>q</kbd> to exit the run screen and return to the main screen.
 2. With `hello-crystallize` highlighted, look at the configuration tree on the right. This is a live editor for your `config.yaml`.
 3. Use the arrow keys to navigate to `replicates`. Press <kbd>e</kbd> to edit, change the value from `1` to `10`, and press <kbd>Enter</kbd> to save.
 
@@ -55,6 +55,6 @@ A single run is great, but for statistical confidence we need more replicates.
 1. Press <kbd>Enter</kbd> on your experiment again.
 2. Choose `rerun`.
 3. The live runner now shows progress for all 10 replicates.
-4. When you reach the **Execution Summary**, you'll see metrics from all 10 runs, giving you a much more robust statistical result for your hypotheses.
+4. When the run completes, the **Summary** tab shows metrics from all 10 runs, giving you a much more robust statistical result for your hypotheses.
 
 Congratulations! You've just seen the full power of the CLI workflow: scaffolding a working experiment, running it, and scaling it up for statistical significance, all in just a few minutes.

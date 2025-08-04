@@ -2,7 +2,7 @@ import copy
 import logging
 from collections import defaultdict
 from types import MappingProxyType
-from typing import Any, DefaultDict, List, Mapping, Optional, Tuple
+from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Tuple, cast  # noqa: F401
 
 from crystallize.datasources.artifacts import ArtifactLog
 from crystallize.utils.exceptions import ContextMutationError
@@ -92,7 +92,7 @@ class LoggingContext(FrozenContext):
         object.__setattr__(self, "logger", logger or ctx.logger)
 
         # Read log
-        object.__setattr__(self, "reads", {})  # type: Dict[str, Any]
+        object.__setattr__(self, "reads", cast(Dict[str, Any], {}))
 
     # --------------- proxy helpers --------------- #
     def _log_read(self, key: str, value: Any) -> None:  # noqa: D401

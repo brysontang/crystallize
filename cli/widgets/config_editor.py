@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import yaml
 from pathlib import Path
 from typing import Any, Dict, List
+
+import yaml
 
 from ..utils import add_placeholder
 
@@ -223,9 +224,7 @@ class ConfigEditorWidget(Container):
 
     async def action_edit(self) -> None:
         node = self.cfg_tree.cursor_node
-        if node.parent.is_root:
-            return
-        if node is None or node.data is None:
+        if node is None or node.data is None or node.parent is None or node.parent.is_root:
             return
 
         def _edit_sync(result: str | None) -> None:
@@ -366,7 +365,7 @@ class ConfigEditorWidget(Container):
                         value = int(value)
                 except ValueError:
                     value = result["value"]
-                tr[result["name"]] = {result["context_field"]: result["value"]}
+                tr[result["name"]] = {result["context_field"]: value}
             self.cfg_tree.root.remove_children()
             self.cfg_tree._build_tree(self.cfg_tree.root, self._data, [])
             self.cfg_tree.focus()

@@ -43,8 +43,9 @@ class Treatment:
 
     @property
     def apply_map(self) -> dict[str, Any]:
-        items = getattr(self._apply_fn, "items", {})
-        return dict(items) if isinstance(items, Mapping) else {}
+        if isinstance(self._apply_fn, _MappingApplier):
+            return dict(self._apply_fn.items)
+        return {}
 
     # ---- framework use --------------------------------------------------
 

@@ -26,7 +26,8 @@ def find_treatment_line(path: Path, name: str) -> int:
 
 
 def ensure_new_treatment_placeholder(path: Path) -> int:
-    lines = path.read_text().splitlines()
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
     treat_idx = None
     indent = ""
     for i, line in enumerate(lines):
@@ -48,5 +49,6 @@ def ensure_new_treatment_placeholder(path: Path) -> int:
     placeholder = f"{indent}# new treatment"
     if insert >= len(lines) or lines[insert].strip() != "# new treatment":
         lines.insert(insert, placeholder)
-    path.write_text("\n".join(lines) + "\n")
+    newline = "\n" if text.endswith("\n") else ""
+    path.write_text("\n".join(lines) + newline, encoding="utf-8")
     return insert + 1

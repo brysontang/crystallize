@@ -403,12 +403,11 @@ class RunScreen(Screen):
 
         _inject_status_plugin(self._obj, queue_callback, writer=writer)
         for exp in self._experiments:
-            all_ts = self._all_treatments_map.get(exp.name, [])
-            exp.strategy = (
-                "rerun"
-                if any(t.name in self._inactive_treatments for t in all_ts)
-                else "resume"
-            )
+            all_names = {
+                t.name for t in self._all_treatments_map.get(exp.name, [])
+            }
+            active_names = {t.name for t in exp.treatments}
+            exp.strategy = "rerun" if all_names != active_names else "resume"
 
         async def progress_callback(status: str, name: str) -> None:
             self.app.call_from_thread(
@@ -802,24 +801,26 @@ class RunScreen(Screen):
             step_obj.cacheable = new_val
             self._refresh_node((exp_name, step_name))
 
-    def action_toggle_treatment(self) -> None:
+    def action_toggle_treatment(self) -> Text | None:
         """Toggle active state for the selected treatment and persist it."""
 
         tree = self.query_one("#node-tree", Tree)
         node = tree.cursor_node
         if not node or not node.data or node.data[0] != "treatment":
-            return
+            return None
         name = node.data[1]
         if name in self._inactive_treatments:
             self._inactive_treatments.remove(name)
-            node.set_label(Text(name, style="color:green"))
+            label = Text(name, style="color:green")
         else:
             self._inactive_treatments.add(name)
-            node.set_label(Text(name, style="color:red"))
+            label = Text(name, style="color:red")
+        node.set_label(label)
         state_path = self._cfg_path.with_suffix(".state.json")
         state_path.write_text(
             json.dumps({"inactive_treatments": sorted(self._inactive_treatments)})
         )
+        return label
 
     def action_edit_selected_node(self) -> None:
         global _ACTIVE_APP

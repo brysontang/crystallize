@@ -204,6 +204,6 @@ async def test_color_rendering(tmp_path: Path) -> None:
             n for n in tree.root.children if n.data and n.data[1] == "treatment_b"
         )
         tree._cursor_node = node_b
-        screen.action_toggle_treatment()
+        label_b = screen.action_toggle_treatment()
         assert "color:green" in str(node_a.label.style)
-        assert "color:red" in str(node_b.label.style)
+        assert label_b is not None and "color:red" in str(label_b.style)

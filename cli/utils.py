@@ -112,27 +112,21 @@ def _write_summary(
     highlight: str | None = None,
     inactive: set[str] | None = None,
 ) -> None:
+    def _has_output(res: Any) -> bool:
+        table = _build_experiment_table(res, highlight=highlight, inactive=inactive)
+        return (
+            table is not None
+            or bool(res.metrics.hypotheses)
+            or bool(res.errors)
+        )
+
     if isinstance(result, dict):
         for name, res in result.items():
-            table = _build_experiment_table(
-                res, highlight=highlight, inactive=inactive
-            )
-            has_table = table is not None or bool(res.metrics.hypotheses)
-            has_errors = bool(res.errors)
-
-            if has_table or has_errors:
+            if _has_output(res):
                 log.write(Text(name, style="bold underline"))
-                if table:
-                    log.write(table)
-                    log.write("\n")
-                for hyp_table in _build_hypothesis_tables(res):
-                    log.write(hyp_table)
-                    log.write("\n")
-                if res.errors:
-                    log.write(Text("Errors occurred", style="bold red"))
-                    for cond, err in res.errors.items():
-                        traceback_str = getattr(err, "traceback_str", str(err))
-                        log.write(Text(f"{cond}:\n{traceback_str}", style="bold yellow"))
+                _write_experiment_summary(
+                    log, res, highlight=highlight, inactive=inactive
+                )
     else:
         _write_experiment_summary(log, result, highlight=highlight, inactive=inactive)
 

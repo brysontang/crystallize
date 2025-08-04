@@ -1,8 +1,8 @@
 from typing import Any, Callable, Mapping, Union
+
 from crystallize.utils.context import FrozenContext
 
 
-# Add this helper class at the top of the file
 class _MappingApplier:
     """A picklable callable that applies a mapping to a context."""
 
@@ -40,6 +40,11 @@ class Treatment:
         else:
 
             self._apply_fn = _MappingApplier(apply)
+
+    @property
+    def apply_map(self) -> dict[str, Any]:
+        items = getattr(self._apply_fn, "items", {})
+        return dict(items) if isinstance(items, Mapping) else {}
 
     # ---- framework use --------------------------------------------------
 

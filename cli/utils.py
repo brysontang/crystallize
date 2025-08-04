@@ -24,7 +24,8 @@ def _build_experiment_table(
     table.add_column("Metric", style="cyan")
     table.add_column("Baseline", style="magenta")
     for t in treatments:
-        color = "red" if inactive and t in inactive else "green"
+        base = t.split(" (v")[0]
+        color = "red" if inactive and base in inactive else "green"
         table.add_column(t, style=color)
     metric_names = set(metrics.baseline.metrics)
     if not metric_names:
@@ -113,18 +114,25 @@ def _write_summary(
 ) -> None:
     if isinstance(result, dict):
         for name, res in result.items():
-            has_table = _build_experiment_table(
+            table = _build_experiment_table(
                 res, highlight=highlight, inactive=inactive
-            ) is not None or bool(
-                res.metrics.hypotheses
             )
+            has_table = table is not None or bool(res.metrics.hypotheses)
             has_errors = bool(res.errors)
 
             if has_table or has_errors:
                 log.write(Text(name, style="bold underline"))
-                _write_experiment_summary(
-                    log, res, highlight=highlight, inactive=inactive
-                )
+                if table:
+                    log.write(table)
+                    log.write("\n")
+                for hyp_table in _build_hypothesis_tables(res):
+                    log.write(hyp_table)
+                    log.write("\n")
+                if res.errors:
+                    log.write(Text("Errors occurred", style="bold red"))
+                    for cond, err in res.errors.items():
+                        traceback_str = getattr(err, "traceback_str", str(err))
+                        log.write(Text(f"{cond}:\n{traceback_str}", style="bold yellow"))
     else:
         _write_experiment_summary(log, result, highlight=highlight, inactive=inactive)
 

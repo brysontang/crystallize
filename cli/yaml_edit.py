@@ -26,12 +26,7 @@ def find_treatment_line(path: Path, name: str) -> int:
 
 
 def ensure_new_treatment_placeholder(path: Path) -> int:
-    text = path.read_text()
-    try:
-        yaml.safe_load(text)
-    except Exception:
-        pass
-    lines = text.splitlines()
+    lines = path.read_text().splitlines()
     treat_idx = None
     indent = ""
     for i, line in enumerate(lines):

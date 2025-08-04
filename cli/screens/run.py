@@ -218,6 +218,7 @@ class RunScreen(Screen):
         self._experiments: list[Experiment] = []
         self._exp_map: Dict[str, Experiment] = {}
         self._all_treatments: list[Treatment] = []
+        self._all_treatments_map: Dict[str, list[Treatment]] = {}
         self.replicate_progress: tuple[int, int] = (0, 0)
         self.current_treatment: str = ""
         self.current_experiment: str = ""
@@ -298,12 +299,10 @@ class RunScreen(Screen):
                 Text(t.name, style=f"color:{color}"),
                 data=("treatment", t.name, t),
             )
-            items = getattr(getattr(t, "_apply_fn", None), "items", {})
-            if isinstance(items, dict):
-                for k, v in items.items():
-                    t_node.add(
-                        Text(f"{k}: {v}"), data=("ctx", k, v), allow_expand=False
-                    )
+            for k, v in t.apply_map.items():
+                t_node.add(
+                    Text(f"{k}: {v}"), data=("ctx", k, v), allow_expand=False
+                )
         tree.root.add("[+ add treatment]", data=("add_treatment",))
         tree.root.expand()
         self._mark_cached_completion(exps)
@@ -352,8 +351,10 @@ class RunScreen(Screen):
             self._obj = Experiment.from_yaml(self._cfg_path)
             exps = [self._obj]
         self._all_treatments = []
+        self._all_treatments_map = {}
         for exp in exps:
             self._all_treatments.extend(exp.treatments)
+            self._all_treatments_map[exp.name] = list(exp.treatments)
             exp.treatments = [
                 t for t in exp.treatments if t.name not in self._inactive_treatments
             ]
@@ -402,10 +403,12 @@ class RunScreen(Screen):
 
         _inject_status_plugin(self._obj, queue_callback, writer=writer)
         for exp in self._experiments:
-            for t in exp.treatments:
-                exp.strategy = (
-                    "resume" if t.name not in self._inactive_treatments else "rerun"
-                )
+            all_ts = self._all_treatments_map.get(exp.name, [])
+            exp.strategy = (
+                "rerun"
+                if any(t.name in self._inactive_treatments for t in all_ts)
+                else "resume"
+            )
 
         async def progress_callback(status: str, name: str) -> None:
             self.app.call_from_thread(
@@ -777,6 +780,8 @@ class RunScreen(Screen):
         self.plain_text = not self.plain_text
 
     def action_toggle_cache(self) -> None:
+        """Toggle caching for the selected experiment or step."""
+
         tree = self.query_one("#node-tree", Tree)
         node = tree.cursor_node
         if node is None:
@@ -798,6 +803,8 @@ class RunScreen(Screen):
             self._refresh_node((exp_name, step_name))
 
     def action_toggle_treatment(self) -> None:
+        """Toggle active state for the selected treatment and persist it."""
+
         tree = self.query_one("#node-tree", Tree)
         node = tree.cursor_node
         if not node or not node.data or node.data[0] != "treatment":

@@ -62,7 +62,7 @@ async def test_toggle_state_persistence(tmp_path: Path) -> None:
             await self.push_screen(screen)
 
     app = TestApp()
-    async with app.run_test() as pilot:
+    async with app.run_test():
         screen._reload_object()
         plugin = screen._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
@@ -87,13 +87,23 @@ async def test_toggle_state_persistence(tmp_path: Path) -> None:
             await self.push_screen(screen2)
 
     app2 = TestApp2()
-    async with app2.run_test() as pilot:
+    async with app2.run_test():
         screen2._reload_object()
         plugin = screen2._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
         screen2._build_tree()
         assert "treatment_b" in screen2._inactive_treatments
         assert [t.name for t in screen2._obj.treatments] == ["treatment_a"]
+
+        state_path.unlink()
+        tree = screen2.query_one("#node-tree", Tree)
+        node_b = next(
+            n for n in tree.root.children if n.data and n.data[1] == "treatment_b"
+        )
+        tree._cursor_node = node_b
+        screen2.action_toggle_treatment()
+        data = json.loads(state_path.read_text())
+        assert data["inactive_treatments"] == []
 
 
 @pytest.mark.asyncio
@@ -114,7 +124,7 @@ async def test_summary_shows_inactive_metrics(tmp_path: Path) -> None:
             await self.push_screen(screen)
 
     app = AppTest()
-    async with app.run_test() as pilot:
+    async with app.run_test():
         screen._reload_object()
         plugin = screen._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
@@ -134,6 +144,8 @@ async def test_summary_shows_inactive_metrics(tmp_path: Path) -> None:
         text = screen.summary_plain_text
         assert "treatment_a" in text and "treatment_b" in text
         assert text.index("treatment_b") < text.index("treatment_a")
+        screen.action_summary()
+        assert screen.query_one("#summary_log").visible
 
 
 @pytest.mark.asyncio
@@ -149,7 +161,7 @@ async def test_add_treatment_placeholder(tmp_path: Path, monkeypatch) -> None:
             await self.push_screen(screen)
 
     app = TestApp()
-    async with app.run_test() as pilot:
+    async with app.run_test():
         screen._reload_object()
         plugin = screen._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
@@ -179,7 +191,7 @@ async def test_color_rendering(tmp_path: Path) -> None:
             await self.push_screen(screen)
 
     app = AppTest()
-    async with app.run_test() as pilot:
+    async with app.run_test():
         screen._reload_object()
         plugin = screen._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
@@ -193,5 +205,5 @@ async def test_color_rendering(tmp_path: Path) -> None:
         )
         tree._cursor_node = node_b
         screen.action_toggle_treatment()
-        assert node_a._label.style == "color:green"
-        assert node_b._label.style == "color:red"
+        assert "color:green" in str(node_a.label.style)
+        assert "color:red" in str(node_b.label.style)

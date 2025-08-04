@@ -50,8 +50,8 @@ class ParallelExecution(BasePlugin):
         # This plugin is for SYNC tasks. If given an ASYNC task, raise a clear error.
         if inspect.iscoroutinefunction(replicate_fn):
             raise TypeError(
-                "ParallelExecution with Thread/Process pools cannot run async tasks. "
-                "Use the AsyncExecution plugin for I/O-bound concurrency."
+                "ParallelExecution only supports synchronous tasks. "
+                "Use the AsyncExecution plugin for async workloads."
             )
 
         if self.executor_type not in VALID_EXECUTOR_TYPES:

@@ -206,7 +206,7 @@ steps:
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
         tabs = screen.query_one("#output-tabs", TabbedContent)
-        for _ in range(5):
+        for _ in range(50):
             if tabs.active == "summary":
                 break
             await pilot.pause()

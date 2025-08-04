@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from textual.app import App
-from textual.widgets import Button, Tree
+from textual.widgets import Button, RichLog, TabbedContent, TextArea, Tree
 
 from cli.screens.run import RunScreen, _inject_status_plugin, _reload_modules
 from cli.status_plugin import CLIStatusPlugin
@@ -92,7 +92,8 @@ async def test_exit_after_finished(tmp_path: Path):
     )
     steps = tmp_path / "steps.py"
     steps.write_text(
-        "from crystallize import pipeline_step\n\n@pipeline_step()\ndef add_one(data, ctx):\n    return data + 1\n"
+        "from crystallize import pipeline_step\nimport time\n\n@pipeline_step()\n"
+        "def add_one(data, ctx):\n    time.sleep(0.1)\n    return data + 1\n"
     )
     cfg = tmp_path / "config.yaml"
     cfg.write_text(
@@ -117,7 +118,6 @@ steps:
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
         await pilot.pause()
-        await pilot.press("q")  # close summary
         await pilot.press("q")  # exit run screen
         assert screen not in app.screen_stack
 
@@ -163,13 +163,54 @@ steps:
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
         await pilot.pause()
-        await pilot.press("q")  # close summary
         await pilot.press("R")
         assert not screen.step_cacheable[step_key]
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
         await pilot.pause()
         await pilot.press("q")
+
+
+@pytest.mark.asyncio
+async def test_summary_tab_and_plain_text(tmp_path: Path):
+    datasources = tmp_path / "datasources.py"
+    datasources.write_text(
+        "from crystallize import data_source\n\n@data_source\ndef source(ctx):\n    return 0\n"
+    )
+    steps = tmp_path / "steps.py"
+    steps.write_text(
+        "from crystallize import pipeline_step\n\n@pipeline_step()\ndef add_one(data, ctx):\n    return data + 1\n"
+    )
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        """
+name: exp
+datasource:
+  x: source
+steps:
+  - add_one
+"""
+    )
+    exp = Experiment.from_yaml(cfg)
+    screen = RunScreen(exp, cfg, False, None)
+
+    class TestApp(App):
+        async def on_mount(self) -> None:  # pragma: no cover - test helper
+            await self.push_screen(screen)
+
+    app = TestApp()
+    async with app.run_test() as pilot:
+        await pilot.press("R")
+        while screen.worker and not screen.worker.is_finished:
+            await pilot.pause()
+        await pilot.pause()
+        tabs = screen.query_one("#output-tabs", TabbedContent)
+        assert tabs.active == "summary"
+        await pilot.press("t")
+        summary_rich = screen.query_one("#summary_log", RichLog)
+        summary_plain = screen.query_one("#summary_plain", TextArea)
+        assert summary_plain.display
+        assert not summary_rich.display
         await pilot.press("q")
 
 
@@ -390,14 +431,16 @@ async def test_on_experiment_complete_opens_summary(
         screen.worker = type("W", (), {"is_finished": True})()
         opened: list[Any] = []
 
-        def fake_open(res: Any) -> None:
+        def fake_render(res: Any) -> None:
             opened.append(res)
 
-        screen.open_summary_screen = fake_open  # type: ignore[assignment]
+        screen.render_summary = fake_render  # type: ignore[assignment]
         message = screen.ExperimentComplete(result=123)
         screen.on_experiment_complete(message)
         run_btn = screen.query_one("#run-btn", Button)
+        tabs = screen.query_one("#output-tabs", TabbedContent)
         assert opened == [123]
+        assert tabs.active == "summary"
         assert screen.worker is None
         assert run_btn.label == "Run"
         screen.worker = type("W", (), {"is_finished": True})()

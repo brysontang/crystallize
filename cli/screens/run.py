@@ -17,12 +17,23 @@ from typing import Any, Callable, Dict, List
 import networkx as nx
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, RichLog, Static, TextArea, Tree
+from textual.widgets import (
+    Button,
+    Footer,
+    Header,
+    RichLog,
+    Static,
+    TabPane,
+    TabbedContent,
+    TextArea,
+    Tree,
+)
+from rich.console import Console
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -31,8 +42,7 @@ from crystallize.utils.constants import METADATA_FILENAME
 from ..status_plugin import CLIStatusPlugin, TextualLoggingPlugin
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
-from ..utils import format_seconds
-from .summary import SummaryScreen
+from ..utils import _write_summary, format_seconds
 from .style.run import CSS
 
 
@@ -162,6 +172,7 @@ class RunScreen(Screen):
         self.progress_percent = 0.0
         self.eta_remaining = "--"
         self.top_bar = ""
+        self.summary_plain_text = ""
         self._update_top_bar()
 
     async def on_mount(self) -> None:  # pragma: no cover - UI loop
@@ -276,8 +287,16 @@ class RunScreen(Screen):
         self._reload_object()
         self._build_tree()
         self._build_artifacts()
+        tabs = self.query_one("#output-tabs", TabbedContent)
+        tabs.active = "logs"
+        tabs.refresh()
         log_widget = self.query_one("#live_log", RichLog)
         log_widget.clear()
+        summary_log = self.query_one("#summary_log", RichLog)
+        summary_log.clear()
+        summary_plain = self.query_one("#summary_plain", TextArea)
+        summary_plain.load_text("")
+        self.summary_plain_text = ""
         writer = WidgetWriter(log_widget, self.app, self.log_history)
 
         def queue_callback(event: str, info: dict[str, Any]) -> None:
@@ -404,18 +423,33 @@ class RunScreen(Screen):
         try:
             log_widget = self.query_one("#live_log", RichLog)
             text_widget = self.query_one("#plain_log", TextArea)
+            summary_widget = self.query_one("#summary_log", RichLog)
+            summary_plain = self.query_one("#summary_plain", TextArea)
+            tabs = self.query_one("#output-tabs", TabbedContent)
         except NoMatches:
             return
 
         if self.plain_text:
             full_log = "".join(self.log_history)
             text_widget.load_text(full_log)
+            summary_plain.load_text(self.summary_plain_text)
             log_widget.display = False
             text_widget.display = True
-            text_widget.focus()
+            summary_widget.display = False
+            summary_plain.display = True
+            if tabs.active == "summary":
+                summary_plain.focus()
+            else:
+                text_widget.focus()
         else:
             log_widget.display = True
             text_widget.display = False
+            summary_widget.display = True
+            summary_plain.display = False
+            if tabs.active == "summary":
+                summary_widget.focus()
+            else:
+                log_widget.focus()
 
     def _build_artifacts(self) -> None:
         experiments = getattr(self, "_experiments", []) or (
@@ -435,19 +469,43 @@ class RunScreen(Screen):
             with Vertical(id="sidebar"):
                 yield Tree("", id="node-tree")
                 yield Button("Run", id="run-btn")
-            with Container(id="log-viewer"):
-                yield RichLog(highlight=True, markup=True, id="live_log")
-                yield TextArea(
-                    "",
-                    read_only=True,
-                    show_line_numbers=False,
-                    id="plain_log",
-                    classes="hidden",
-                )
+            with TabbedContent(initial="logs", id="output-tabs"):
+                with TabPane("Logs", id="logs"):
+                    yield RichLog(highlight=True, markup=True, id="live_log")
+                    yield TextArea(
+                        "",
+                        read_only=True,
+                        show_line_numbers=False,
+                        id="plain_log",
+                        classes="hidden",
+                    )
+                with TabPane("Summary", id="summary"):
+                    yield RichLog(highlight=True, markup=True, id="summary_log")
+                    yield TextArea(
+                        "",
+                        read_only=True,
+                        show_line_numbers=False,
+                        id="summary_plain",
+                        classes="hidden",
+                    )
         yield Footer()
 
-    def open_summary_screen(self, result: Any) -> None:
-        self.app.push_screen(SummaryScreen(result))
+    def render_summary(self, result: Any) -> None:
+        summary_log = self.query_one("#summary_log", RichLog)
+        summary_log.clear()
+        _write_summary(summary_log, result)
+
+        console = Console(record=True)
+        class _Writer:
+            def write(self, renderable: Any) -> None:
+                console.print(renderable)
+
+        writer = _Writer()
+        _write_summary(writer, result)
+        self.summary_plain_text = console.export_text()
+        summary_plain = self.query_one("#summary_plain", TextArea)
+        summary_plain.load_text(self.summary_plain_text)
+        self.watch_plain_text()
 
     def process_queue(self) -> None:
         try:
@@ -482,7 +540,9 @@ class RunScreen(Screen):
         self.worker = None
         try:
             if self._result is not None:
-                self.open_summary_screen(self._result)
+                self.render_summary(self._result)
+                tabs = self.query_one("#output-tabs", TabbedContent)
+                tabs.active = "summary"
         except NoMatches:
             pass
 
@@ -521,7 +581,9 @@ class RunScreen(Screen):
 
     def action_summary(self) -> None:
         if self._result is not None:
-            self.open_summary_screen(self._result)
+            self.render_summary(self._result)
+            tabs = self.query_one("#output-tabs", TabbedContent)
+            tabs.active = "summary"
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":

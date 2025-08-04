@@ -128,7 +128,7 @@ SelectionList {
     padding: 0 1;
 }
 
-#log-viewer {
+#output-tabs {
     margin-top: 1;
 }
 

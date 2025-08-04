@@ -205,8 +205,11 @@ steps:
         await pilot.press("R")
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
-        await pilot.pause()
         tabs = screen.query_one("#output-tabs", TabbedContent)
+        for _ in range(50):
+            if tabs.active == "summary":
+                break
+            await pilot.pause()
         assert tabs.active == "summary"
         await pilot.press("t")
         summary_rich = screen.query_one("#summary_log", RichLog)

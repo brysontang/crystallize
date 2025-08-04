@@ -12,5 +12,6 @@ title: Plugins
 ---------------
 - **plugins**
 - **execution**
+- **artifacts**
 
 

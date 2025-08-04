@@ -2,6 +2,64 @@
 
 - Initial alpha release. Future changes may introduce breaking changes frequently until APIs stabilize.
 
+## [0.25.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.12...crystallize-ml@v0.25.0) (2025-08-04)
+
+
+### Features
+
+* Add artifact retention and caching ([fee3481](https://github.com/brysontang/crystallize/commit/fee3481fd6daf38c65b605d6586596974de2c71a))
+* **cli:** Add treatment panel toggling and summary ([c30ea14](https://github.com/brysontang/crystallize/commit/c30ea142101da26a285b22cb037aff0632213558))
+* **cli:** Add treatment panel toggling and summary ([70bdb1b](https://github.com/brysontang/crystallize/commit/70bdb1bde4a5ccfc8084bcafc338cd6741051073))
+* **cli:** Open steps in external editor ([3e03304](https://github.com/brysontang/crystallize/commit/3e033040dbed0e063e74caad4bb6f0c9b5ba8b67))
+* **cli:** Split experiment and treatment trees ([9081904](https://github.com/brysontang/crystallize/commit/908190486bab165e4445a8c684c279d2ee17191c))
+* **cli:** Streamline run screen with cache toggling ([5fff14c](https://github.com/brysontang/crystallize/commit/5fff14c4b0fe8baba7bd0ce9c923a28439242377))
+* **cli:** Style run screen layout ([f1a381d](https://github.com/brysontang/crystallize/commit/f1a381d86363ce8c23f6b0b5dd98a5fcbb78d52f))
+* **crystallize-ml:** Add artifact retention and caching ([bcd5bdd](https://github.com/brysontang/crystallize/commit/bcd5bdd4365719f2bbf579de6fe61035a09bb6ba))
+* **crystallize-ml:** Open steps in external editor ([9b1b447](https://github.com/brysontang/crystallize/commit/9b1b447de18c92003ce634faf58b25fec0b69102))
+* Pipeline ETA and timing enhancements ([6285a71](https://github.com/brysontang/crystallize/commit/6285a7130af355f11b198d98cd8bff90dd6fffbf))
+
+
+### Bug Fixes
+
+* Added async ollama step ([57fe3b7](https://github.com/brysontang/crystallize/commit/57fe3b7222ee94ef9af477f6af417bbf9f963008))
+* Added dotenv as dependency ([a7cc023](https://github.com/brysontang/crystallize/commit/a7cc02334c30a0bd7f443230acf6f55316d0725b))
+* Cache state not sticking ([54b618f](https://github.com/brysontang/crystallize/commit/54b618f92fe4c6e22edc003a656eaf736cdbabb0))
+* Can open experiment.yaml from runner screen ([a7cc023](https://github.com/brysontang/crystallize/commit/a7cc02334c30a0bd7f443230acf6f55316d0725b))
+* Changelog ([9f47811](https://github.com/brysontang/crystallize/commit/9f47811539e97d96cf477e9a1939b10200b6bb8e))
+* **cli:** Add load error screen ([4908076](https://github.com/brysontang/crystallize/commit/49080766604f47dc056d7a0fb4b5ec1b50cbd2b9))
+* **cli:** Add summary tab and sidebar padding ([8f00650](https://github.com/brysontang/crystallize/commit/8f006503e1f1cf9665570187e0f79f46a8a5c6ae))
+* **cli:** Address review feedback ([6408d5f](https://github.com/brysontang/crystallize/commit/6408d5fca5996614d7f0ec67697c1404035584fd))
+* **cli:** Correct treatment colors and state parsing ([18fec0f](https://github.com/brysontang/crystallize/commit/18fec0febdcd6cf806f6c8068f88884276ab1360))
+* **cli:** Ensure run screen opens summary tab ([ac46997](https://github.com/brysontang/crystallize/commit/ac46997d7ed160e0781d99ee42f81180f16ef71d))
+* **cli:** Load historical treatment metrics and color cursor ([9b04660](https://github.com/brysontang/crystallize/commit/9b04660bff1831cb294294d97792b3f1dc5fca97))
+* **cli:** Mark resumed experiments complete and update key bindings ([9adf12f](https://github.com/brysontang/crystallize/commit/9adf12f9d0c1e8228701644515608eefa515c15d))
+* **cli:** Mark resumed experiments complete and update key bindings ([363a57c](https://github.com/brysontang/crystallize/commit/363a57cda32dc137505ebdf59703e5c6604edfd0))
+* **cli:** Refine summary scope and keep pruned metrics ([48df400](https://github.com/brysontang/crystallize/commit/48df4001dfd368cbb2b2908afed60a10da7e1710))
+* **cli:** Refine treatment panel internals ([b7dff5d](https://github.com/brysontang/crystallize/commit/b7dff5d9f44cc7dd5c7d322c0a7c9a984b037382))
+* **cli:** Refine treatment toggling and summary\n\n- compute experiment strategy based on inactive treatments\n- strip version suffix when colouring summary rows\n- render context keys via apply_map and expose property\n- remove YAML parsing and harden tests\n\nfix(crystallize-ml): expose treatment apply_map ([1a6533a](https://github.com/brysontang/crystallize/commit/1a6533a42ad68d59e7b96cfbb55dc2efddcd47eb))
+* **cli:** Reset run state per replicate ([748b218](https://github.com/brysontang/crystallize/commit/748b218540bbcef501839bacc6b7aa80d163ac18))
+* **cli:** Show experiment name in run screen ([c256ebd](https://github.com/brysontang/crystallize/commit/c256ebdd3a3e3ee264bf1ae79eeb6d533aebb83c))
+* **cli:** Stabilize run screen summary tab test ([f764f84](https://github.com/brysontang/crystallize/commit/f764f84201bc5dac1d5c73d7f9556d043b3d713f))
+* Close run screen bug ([54b618f](https://github.com/brysontang/crystallize/commit/54b618f92fe4c6e22edc003a656eaf736cdbabb0))
+* **crystallize-ml:** Clarify resume logic and async guidance ([4775879](https://github.com/brysontang/crystallize/commit/477587934ff1ff873c3a08380ec42c63ef4c3528))
+* **crystallize-ml:** Clarify resume logic and async guidance ([5ef5a54](https://github.com/brysontang/crystallize/commit/5ef5a541e596b2e683e8baa5bef9630601b21349))
+* **crystallize-ml:** Refine artifact pruning ([b067bc6](https://github.com/brysontang/crystallize/commit/b067bc641c517378a930072838eb1b6264672bd9))
+* Docs ([9371948](https://github.com/brysontang/crystallize/commit/93719484a8498bfe3ce493635a821a333b4ee951))
+* Docs ([9f47811](https://github.com/brysontang/crystallize/commit/9f47811539e97d96cf477e9a1939b10200b6bb8e))
+* Error can be toggled to plain text ([5520e68](https://github.com/brysontang/crystallize/commit/5520e68eceab0c013819f3b31be47f02b371f1d3))
+* Ignore timings for failed steps ([5b303ee](https://github.com/brysontang/crystallize/commit/5b303ee123c7b40ed0657d50e1c42e896448a765))
+* Lint issue ([a7cc023](https://github.com/brysontang/crystallize/commit/a7cc02334c30a0bd7f443230acf6f55316d0725b))
+* Opening in editor no longer opens the library ([a7cc023](https://github.com/brysontang/crystallize/commit/a7cc02334c30a0bd7f443230acf6f55316d0725b))
+* Refine artifact pruning and metrics loading ([359ee94](https://github.com/brysontang/crystallize/commit/359ee94ba62c94e04a479b7da459b9bf42fb113a))
+* Test coverage ([54b618f](https://github.com/brysontang/crystallize/commit/54b618f92fe4c6e22edc003a656eaf736cdbabb0))
+* Use context emit callback directly ([88104b0](https://github.com/brysontang/crystallize/commit/88104b08f1d49e991c1c227fb89a1f773f090f37))
+* Will resume if all treatments aren't selected ([dedd0f9](https://github.com/brysontang/crystallize/commit/dedd0f920fe8d5e65b242c5e6d206b7b2fcc5be9))
+
+
+### Documentation
+
+* Add architecture overview ([ccfd426](https://github.com/brysontang/crystallize/commit/ccfd4266958f027e3c5ec0b3eeee654de6d391f5))
+
 ## [0.24.12](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.11...crystallize-ml@v0.24.12) (2025-08-01)
 
 

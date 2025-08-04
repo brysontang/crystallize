@@ -15,7 +15,7 @@ import traceback
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Iterable
 
 import networkx as nx
 from textual.app import App, ComposeResult
@@ -91,6 +91,41 @@ def pristine_stdio():
         yield
     finally:
         sys.stdout, sys.stderr = saved_out, saved_err
+
+
+_ACTIVE_APP: App | None = None
+
+
+@contextlib.contextmanager
+def _suspend_tui(app: App | None = None) -> Iterable[None]:
+    """Suspend the Textual application if provided."""
+    active = app or _ACTIVE_APP
+    if active is not None:
+        with active.suspend():
+            yield
+    else:  # pragma: no cover - fallback when no app available
+        yield
+
+
+def _open_in_editor(path: str, line: int | None = None) -> None:
+    """Open ``path`` in the user's configured editor."""
+    editor = (
+        os.getenv("CRYSTALLIZE_EDITOR")
+        or os.getenv("EDITOR")
+        or os.getenv("VISUAL")
+    )
+    if not editor:
+        raise RuntimeError("No editor configured")
+
+    if "code" in editor or "cursor" in editor:
+        cmd = [editor, "-g", f"{path}:{line or 1}"]
+    elif os.path.basename(editor) in {"vim", "nvim", "nano", "helix"}:
+        cmd = [editor, f"+{line or 1}", path]
+    else:
+        cmd = [editor, path]
+
+    with pristine_stdio(), _suspend_tui():
+        subprocess.run(cmd, check=False)
 
 
 def _reload_modules(base_path: Path) -> None:
@@ -319,8 +354,6 @@ class RunScreen(Screen):
             run_btn.label = "Run"
             return
         tabs = self.query_one("#output-tabs", TabbedContent)
-        tabs.active = "logs"
-        tabs.refresh()
         log_widget = self.query_one("#live_log", RichLog)
         log_widget.clear()
         summary_log = self.query_one("#summary_log", RichLog)
@@ -615,6 +648,22 @@ class RunScreen(Screen):
             if self._result is not None:
                 self.render_summary(self._result)
                 tabs = self.query_one("#output-tabs", TabbedContent)
+
+                def activate_summary() -> None:
+                    try:
+                        from textual.widgets._tabbed_content import ContentTabs
+
+                        tabs_widget = tabs.get_child_by_type(ContentTabs)
+                        summary_tab = next(
+                            t for t in tabs_widget.query("Tab") if "summary" in (t.id or "")
+                        )
+                        tabs_widget._activate_tab(summary_tab)  # type: ignore[attr-defined]
+                        tabs.active = "summary"
+                    except Exception:  # pragma: no cover - fallback for older Textual
+                        tabs._active = "summary"  # type: ignore[attr-defined]
+                        tabs.active = "summary"
+
+                self.call_after_refresh(activate_summary)
                 tabs.active = "summary"
                 for exp in self._experiments:
                     self.experiment_states[exp.name] = "completed"
@@ -660,6 +709,7 @@ class RunScreen(Screen):
             self._refresh_node((exp_name, step_name))
 
     def action_edit_selected_node(self) -> None:
+        global _ACTIVE_APP
         tree = self.query_one("#node-tree", Tree)
         node = tree.cursor_node
         if not node or not node.data:
@@ -679,9 +729,12 @@ class RunScreen(Screen):
                 line = inspect.getsourcelines(cls)[1]
 
             try:
-                self._open_in_editor(path, line)
+                _ACTIVE_APP = self.app
+                _open_in_editor(path, line)
             except RuntimeError as exc:
                 self._show_editor_hint(str(exc))
+            finally:
+                _ACTIVE_APP = None
 
         elif kind == "exp":
             exp_name = node.data[1]
@@ -689,9 +742,25 @@ class RunScreen(Screen):
             line = self._find_yaml_line(exp_name)
 
             try:
-                self._open_in_editor(path, line)
+                _ACTIVE_APP = self.app
+                _open_in_editor(path, line)
             except RuntimeError as exc:
                 self._show_editor_hint(str(exc))
+            finally:
+                _ACTIVE_APP = None
+
+    def action_edit_step(self) -> None:
+        """Backward compatible alias for editing the selected node."""
+        self.action_edit_selected_node()
+
+    def _show_editor_hint(self, message: str) -> None:
+        """Display a helpful hint when no editor is configured."""
+        if not self._editor_hint_shown:
+            self._write_error(
+                "Set $EDITOR (e.g. export EDITOR=vim) to enable 'e' to open files."
+            )
+            self._editor_hint_shown = True
+        self._write_error(message)
 
     def _find_yaml_line(self, experiment_name: str) -> int:
         """Find the line number where the experiment is defined in the YAML."""
@@ -708,31 +777,27 @@ class RunScreen(Screen):
         if self._result is not None:
             self.render_summary(self._result)
             tabs = self.query_one("#output-tabs", TabbedContent)
+
+            def activate_summary() -> None:
+                try:
+                    from textual.widgets._tabbed_content import ContentTabs
+
+                    tabs_widget = tabs.get_child_by_type(ContentTabs)
+                    summary_tab = next(
+                        t for t in tabs_widget.query("Tab") if "summary" in (t.id or "")
+                    )
+                    tabs_widget._activate_tab(summary_tab)  # type: ignore[attr-defined]
+                    tabs.active = "summary"
+                except Exception:  # pragma: no cover - fallback for older Textual
+                    tabs._active = "summary"  # type: ignore[attr-defined]
+                    tabs.active = "summary"
+
+            self.call_after_refresh(activate_summary)
             tabs.active = "summary"
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":
             self.action_run_or_cancel()
-
-    def _open_in_editor(self, path: str, line: int | None = None) -> None:
-        editor = (
-            os.getenv("CRYSTALLIZE_EDITOR")
-            or os.getenv("EDITOR")
-            or os.getenv("VISUAL")
-        )
-        if not editor:
-            raise RuntimeError("No editor configured")
-
-        if "code" in editor or "cursor" in editor:
-            cmd = [editor, "-g", f"{path}:{line or 1}"]
-        elif os.path.basename(editor) in {"vim", "nvim", "nano", "helix"}:
-            cmd = [editor, f"+{line or 1}", path]
-        else:
-            cmd = [editor, path]
-
-        # ‼️  This is all you need – Textual handles disable / enable internally.
-        with pristine_stdio(), self.app.suspend():
-            subprocess.run(cmd, check=False)
 
 
 async def _launch_run(app: App, obj: Any, cfg_path: Path, is_graph: bool) -> None:

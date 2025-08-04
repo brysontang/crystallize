@@ -1,11 +1,21 @@
-from crystallize.utils.cache import compute_hash
-from typing import Any
+import pickle
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
-from crystallize.utils.context import FrozenContext
+from typing import Any
+
+import numpy as np
+import pytest
+
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
-import pytest
-import numpy as np
+from crystallize.utils.cache import cache_path, compute_hash
+from crystallize.utils.context import FrozenContext
+
+try:
+    import fcntl
+except Exception:  # pragma: no cover - non-posix
+    fcntl = None
 
 
 class CountingStep(PipelineStep):
@@ -188,6 +198,39 @@ def test_concurrent_cache_writes(tmp_path, monkeypatch):
     pipeline = Pipeline([step, MetricsStep()])
     ctx = FrozenContext({})
     pipeline.run(0, ctx)
+    assert step.calls == 0
+
+
+@pytest.mark.skipif(fcntl is None, reason="fcntl not available")
+def test_cache_respects_lock(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    step = CountingStep()
+    pipeline = Pipeline([step])
+    ctx = FrozenContext({})
+
+    step_hash = step.step_hash
+    input_hash = compute_hash(0)
+    cache_file = cache_path(step_hash, input_hash)
+    lock_file = cache_file.with_suffix(cache_file.suffix + ".lock")
+
+    started = threading.Event()
+
+    def writer() -> None:
+        with lock_file.open("w") as lf:
+            fcntl.flock(lf, fcntl.LOCK_EX)
+            started.set()
+            time.sleep(0.1)
+            with cache_file.open("wb") as f:
+                pickle.dump(1, f)
+
+    t = threading.Thread(target=writer)
+    t.start()
+    started.wait()
+    result = pipeline.run(0, ctx)
+    t.join()
+
+    assert result == 1
     assert step.calls == 0
 
 

@@ -36,6 +36,17 @@ def cache_path(step_hash: str, input_hash: str) -> Path:
 
 def load_cache(step_hash: str, input_hash: str) -> Any:
     path = cache_path(step_hash, input_hash)
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    if fcntl is not None and lock_path.exists():
+        with lock_path.open("r") as lock_f:
+            fcntl.flock(lock_f, fcntl.LOCK_SH)
+            if not path.exists():
+                raise FileNotFoundError
+            try:
+                with path.open("rb") as f:
+                    return pickle.load(f)
+            except Exception as exc:  # pragma: no cover - corrupted cache
+                raise IOError(f"Failed to load cache from {path}") from exc
     if not path.exists():
         raise FileNotFoundError
     try:

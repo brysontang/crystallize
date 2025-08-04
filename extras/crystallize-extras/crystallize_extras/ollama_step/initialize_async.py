@@ -11,7 +11,7 @@ except ImportError:  # pragma: no cover - optional dependency
 
 
 def _create_async_ollama_client(host: str) -> AsyncClient:
-    """Top-level factory function for pickling."""
+    """Top-level factory function for pickling async ollama client."""
     if AsyncClient is None:
         raise ImportError(
             "The 'ollama' package is required. Please install with: pip install --upgrade --pre crystallize-extras[ollama]"

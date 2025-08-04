@@ -78,6 +78,7 @@ print(output)
 - Fluent builders and prod apply mode.
 - Optional parallel execution for heavy experiments.
 - Configurable worker count and executor type ("thread" or "process").
+- Run screen sidebar can toggle treatments (`x`), edit (`e`) and jump to the summary (`s`) with color-coded states.
 
 For heavy parallel workloads, ensure the cache directory supports file locks or
 switch to a thread-safe backend.

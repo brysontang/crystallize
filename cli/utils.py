@@ -9,14 +9,23 @@ from rich.text import Text
 from textual.widgets import RichLog
 
 
-def _build_experiment_table(result: Any) -> Optional[Table]:
+def _build_experiment_table(
+    result: Any,
+    *,
+    highlight: str | None = None,
+    inactive: set[str] | None = None,
+) -> Optional[Table]:
     metrics = result.metrics
     treatments = list(metrics.treatments.keys())
+    if highlight and highlight in treatments:
+        treatments.remove(highlight)
+        treatments.insert(0, highlight)
     table = Table(title="Metrics", border_style="bright_magenta", expand=True)
     table.add_column("Metric", style="cyan")
     table.add_column("Baseline", style="magenta")
     for t in treatments:
-        table.add_column(t, style="green")
+        color = "red" if inactive and t in inactive else "green"
+        table.add_column(t, style=color)
     metric_names = set(metrics.baseline.metrics)
     if not metric_names:
         return None
@@ -74,8 +83,14 @@ def _build_hypothesis_tables(result: Any) -> list[Table]:
     return tables
 
 
-def _write_experiment_summary(log: RichLog, result: Any) -> None:
-    table = _build_experiment_table(result)
+def _write_experiment_summary(
+    log: RichLog,
+    result: Any,
+    *,
+    highlight: str | None = None,
+    inactive: set[str] | None = None,
+) -> None:
+    table = _build_experiment_table(result, highlight=highlight, inactive=inactive)
     if table:
         log.write(table)
         log.write("\n")
@@ -89,19 +104,29 @@ def _write_experiment_summary(log: RichLog, result: Any) -> None:
             log.write(Text(f"{cond}:\n{traceback_str}", style="bold yellow"))
 
 
-def _write_summary(log: RichLog, result: Any) -> None:
+def _write_summary(
+    log: RichLog,
+    result: Any,
+    *,
+    highlight: str | None = None,
+    inactive: set[str] | None = None,
+) -> None:
     if isinstance(result, dict):
         for name, res in result.items():
-            has_table = _build_experiment_table(res) is not None or bool(
+            has_table = _build_experiment_table(
+                res, highlight=highlight, inactive=inactive
+            ) is not None or bool(
                 res.metrics.hypotheses
             )
             has_errors = bool(res.errors)
 
             if has_table or has_errors:
                 log.write(Text(name, style="bold underline"))
-                _write_experiment_summary(log, res)
+                _write_experiment_summary(
+                    log, res, highlight=highlight, inactive=inactive
+                )
     else:
-        _write_experiment_summary(log, result)
+        _write_experiment_summary(log, result, highlight=highlight, inactive=inactive)
 
 
 import json

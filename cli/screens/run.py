@@ -15,6 +15,7 @@ import time
 from collections import deque
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Iterable
+import json
 
 import networkx as nx
 from textual.app import App, ComposeResult
@@ -36,11 +37,13 @@ from textual.widgets import (
     Tree,
 )
 from rich.console import Console
+from rich.text import Text
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
 from crystallize.experiments.result import Result
 from crystallize.experiments.result_structs import ExperimentMetrics, TreatmentMetrics
+from crystallize.experiments.treatment import Treatment
 from crystallize.plugins.plugins import ArtifactPlugin, LoggingPlugin
 from crystallize.plugins import load_metrics
 from crystallize.utils.constants import METADATA_FILENAME
@@ -48,6 +51,7 @@ from ..status_plugin import CLIStatusPlugin, TextualLoggingPlugin
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
 from ..utils import _write_summary, format_seconds
+from ..yaml_edit import ensure_new_treatment_placeholder, find_treatment_line
 from .style.run import CSS
 
 
@@ -177,6 +181,7 @@ class RunScreen(Screen):
         Binding("R", "run_or_cancel", "Run"),
         Binding("escape", "cancel_and_exit", "Close"),
         Binding("e", "edit_selected_node", "Edit"),
+        Binding("x", "toggle_treatment", "Toggle Treatment"),
     ]
 
     plain_text: bool = reactive(False)
@@ -200,6 +205,7 @@ class RunScreen(Screen):
         self._current_step: str | None = None
         self._step_start: float | None = None
         self.worker: Any | None = None
+        self._inactive_treatments: set[str] = set()
         self._reset_state()
         self._editor_hint_shown = False
 
@@ -211,6 +217,7 @@ class RunScreen(Screen):
         self.tree_nodes: Dict[tuple[str, ...], Any] = {}
         self._experiments: list[Experiment] = []
         self._exp_map: Dict[str, Experiment] = {}
+        self._all_treatments: list[Treatment] = []
         self.replicate_progress: tuple[int, int] = (0, 0)
         self.current_treatment: str = ""
         self.current_experiment: str = ""
@@ -285,6 +292,19 @@ class RunScreen(Screen):
                     allow_expand=False,
                 )
                 self.tree_nodes[(exp.name, name)] = node
+        for t in self._all_treatments:
+            color = "green" if t.name not in self._inactive_treatments else "red"
+            t_node = tree.root.add(
+                Text(t.name, style=f"color:{color}"),
+                data=("treatment", t.name, t),
+            )
+            items = getattr(getattr(t, "_apply_fn", None), "items", {})
+            if isinstance(items, dict):
+                for k, v in items.items():
+                    t_node.add(
+                        Text(f"{k}: {v}"), data=("ctx", k, v), allow_expand=False
+                    )
+        tree.root.add("[+ add treatment]", data=("add_treatment",))
         tree.root.expand()
         self._mark_cached_completion(exps)
         tree.focus()
@@ -319,10 +339,25 @@ class RunScreen(Screen):
 
     def _reload_object(self) -> None:
         _reload_modules(self._cfg_path.parent)
+        state_path = self._cfg_path.with_suffix(".state.json")
+        try:
+            data = json.loads(state_path.read_text())
+            self._inactive_treatments = set(data.get("inactive_treatments", []))
+        except Exception:
+            self._inactive_treatments = set()
         if self._is_graph:
             self._obj = ExperimentGraph.from_yaml(self._cfg_path)
+            exps = [self._obj._graph.nodes[n]["experiment"] for n in self._obj._graph]
         else:
             self._obj = Experiment.from_yaml(self._cfg_path)
+            exps = [self._obj]
+        self._all_treatments = []
+        for exp in exps:
+            self._all_treatments.extend(exp.treatments)
+            exp.treatments = [
+                t for t in exp.treatments if t.name not in self._inactive_treatments
+            ]
+        self._experiments = exps
 
     def _write_error(self, text: str) -> None:
         error_log = self.query_one("#error_log", RichLog)
@@ -366,6 +401,11 @@ class RunScreen(Screen):
             self.event_queue.put((event, info))
 
         _inject_status_plugin(self._obj, queue_callback, writer=writer)
+        for exp in self._experiments:
+            for t in exp.treatments:
+                exp.strategy = (
+                    "resume" if t.name not in self._inactive_treatments else "rerun"
+                )
 
         async def progress_callback(status: str, name: str) -> None:
             self.app.call_from_thread(
@@ -582,7 +622,7 @@ class RunScreen(Screen):
                     )
         yield Footer()
 
-    def render_summary(self, result: Any) -> None:
+    def render_summary(self, result: Any, highlight: str | None = None) -> None:
         summary_log = self.query_one("#summary_log", RichLog)
         summary_log.clear()
         experiments = getattr(self, "_experiments", [])
@@ -615,7 +655,25 @@ class RunScreen(Screen):
             exp = experiments[0] if experiments else self._obj
             out_obj = enrich(exp, result)
 
-        _write_summary(summary_log, out_obj)
+        highlight_label: str | None = None
+        if highlight:
+            targets = (
+                out_obj.values() if isinstance(out_obj, dict) else [out_obj]
+            )
+            for res in targets:
+                for key in res.metrics.treatments.keys():
+                    if key.startswith(highlight):
+                        highlight_label = key
+                        break
+                if highlight_label:
+                    break
+
+        _write_summary(
+            summary_log,
+            out_obj,
+            highlight=highlight_label,
+            inactive=self._inactive_treatments,
+        )
 
         console = Console(record=True)
 
@@ -624,7 +682,9 @@ class RunScreen(Screen):
                 console.print(renderable)
 
         writer = _Writer()
-        _write_summary(writer, out_obj)
+        _write_summary(
+            writer, out_obj, highlight=highlight_label, inactive=self._inactive_treatments
+        )
         self.summary_plain_text = console.export_text()
         summary_plain = self.query_one("#summary_plain", TextArea)
         summary_plain.load_text(self.summary_plain_text)
@@ -737,6 +797,23 @@ class RunScreen(Screen):
             step_obj.cacheable = new_val
             self._refresh_node((exp_name, step_name))
 
+    def action_toggle_treatment(self) -> None:
+        tree = self.query_one("#node-tree", Tree)
+        node = tree.cursor_node
+        if not node or not node.data or node.data[0] != "treatment":
+            return
+        name = node.data[1]
+        if name in self._inactive_treatments:
+            self._inactive_treatments.remove(name)
+            node.set_label(Text(name, style="color:green"))
+        else:
+            self._inactive_treatments.add(name)
+            node.set_label(Text(name, style="color:red"))
+        state_path = self._cfg_path.with_suffix(".state.json")
+        state_path.write_text(
+            json.dumps({"inactive_treatments": sorted(self._inactive_treatments)})
+        )
+
     def action_edit_selected_node(self) -> None:
         global _ACTIVE_APP
         tree = self.query_one("#node-tree", Tree)
@@ -778,6 +855,29 @@ class RunScreen(Screen):
             finally:
                 _ACTIVE_APP = None
 
+        elif kind == "treatment":
+            t_name = node.data[1]
+            path = str(self._cfg_path)
+            line = find_treatment_line(self._cfg_path, t_name)
+            try:
+                _ACTIVE_APP = self.app
+                _open_in_editor(path, line)
+            except RuntimeError as exc:
+                self._show_editor_hint(str(exc))
+            finally:
+                _ACTIVE_APP = None
+
+        elif kind == "add_treatment":
+            path = str(self._cfg_path)
+            line = ensure_new_treatment_placeholder(self._cfg_path)
+            try:
+                _ACTIVE_APP = self.app
+                _open_in_editor(path, line)
+            except RuntimeError as exc:
+                self._show_editor_hint(str(exc))
+            finally:
+                _ACTIVE_APP = None
+
     def action_edit_step(self) -> None:
         """Backward compatible alias for editing the selected node."""
         self.action_edit_selected_node()
@@ -803,26 +903,33 @@ class RunScreen(Screen):
         return 1  # fallback to top of file
 
     def action_summary(self) -> None:
+        tree = self.query_one("#node-tree", Tree)
+        node = tree.cursor_node
+        selected = (
+            node.data[1]
+            if node and node.data and node.data[0] == "treatment"
+            else None
+        )
         if self._result is not None:
-            self.render_summary(self._result)
-            tabs = self.query_one("#output-tabs", TabbedContent)
+            self.render_summary(self._result, selected)
+        tabs = self.query_one("#output-tabs", TabbedContent)
 
-            def activate_summary() -> None:
-                try:
-                    from textual.widgets._tabbed_content import ContentTabs
+        def activate_summary() -> None:
+            try:
+                from textual.widgets._tabbed_content import ContentTabs
 
-                    tabs_widget = tabs.get_child_by_type(ContentTabs)
-                    summary_tab = next(
-                        t for t in tabs_widget.query("Tab") if "summary" in (t.id or "")
-                    )
-                    tabs_widget._activate_tab(summary_tab)  # type: ignore[attr-defined]
-                    tabs.active = "summary"
-                except Exception:  # pragma: no cover - fallback for older Textual
-                    tabs._active = "summary"  # type: ignore[attr-defined]
-                    tabs.active = "summary"
+                tabs_widget = tabs.get_child_by_type(ContentTabs)
+                summary_tab = next(
+                    t for t in tabs_widget.query("Tab") if "summary" in (t.id or "")
+                )
+                tabs_widget._activate_tab(summary_tab)  # type: ignore[attr-defined]
+                tabs.active = "summary"
+            except Exception:  # pragma: no cover - fallback for older Textual
+                tabs._active = "summary"  # type: ignore[attr-defined]
+                tabs.active = "summary"
 
-            self.call_after_refresh(activate_summary)
-            tabs.active = "summary"
+        self.call_after_refresh(activate_summary)
+        tabs.active = "summary"
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":

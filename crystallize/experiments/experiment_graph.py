@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Callable, Awaitable
 import json
+import logging
 
 import networkx as nx
 
@@ -296,7 +297,7 @@ class ExperimentGraph:
         self,
         treatments: List[Treatment] | None = None,
         replicates: int | None = None,
-        strategy: str = "rerun",
+        strategy: str | None = None,
     ) -> Dict[str, Result]:
         """Synchronous wrapper for the async arun method."""
         import asyncio
@@ -309,7 +310,7 @@ class ExperimentGraph:
         self,
         treatments: List[Treatment] | None = None,
         replicates: int | None = None,
-        strategy: str = "rerun",
+        strategy: str | None = None,
         progress_callback: Callable[[str, str], Awaitable[None]] | None = None,
     ) -> Dict[str, Result]:
         """Execute all experiments respecting dependency order."""
@@ -322,16 +323,29 @@ class ExperimentGraph:
 
         for name in order:
             exp: Experiment = self._graph.nodes[name]["experiment"]
-            run_strategy = strategy
+            run_strategy = strategy or exp.strategy
 
             final_treatments_for_exp = self._get_treatments_for_experiment(
                 name, treatments
             )
 
-            if strategy == "resume":
+            if run_strategy == "resume":
                 plugin = exp.get_plugin(ArtifactPlugin)
                 if plugin is not None:
-                    base = Path(plugin.root_dir) / (exp.name or exp.id) / "v0"
+                    base_root = Path(plugin.root_dir) / (exp.name or exp.id)
+                    versions = [
+                        int(p.name[1:])
+                        for p in base_root.glob("v*")
+                        if p.name.startswith("v") and p.name[1:].isdigit()
+                    ]
+                    if versions:
+                        base = base_root / f"v{max(versions)}"
+                    else:
+                        logging.getLogger("crystallize").warning(
+                            "No previous run for %s", name
+                        )
+                        base = None
+                        run_strategy = "rerun"
 
                     run_treatments = final_treatments_for_exp
 
@@ -339,11 +353,12 @@ class ExperimentGraph:
                         t.name for t in run_treatments
                     ]
 
-                    all_done = True
-                    for cond in conditions_to_check:
-                        if not (base / cond / ".crystallize_complete").exists():
-                            all_done = False
-                            break
+                    all_done = base is not None
+                    if all_done:
+                        for cond in conditions_to_check:
+                            if not (base / cond / ".crystallize_complete").exists():
+                                all_done = False
+                                break
 
                     if all_done:
                         succ = getattr(self._graph, "_succ", {})

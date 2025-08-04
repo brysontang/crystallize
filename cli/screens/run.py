@@ -8,7 +8,6 @@ import importlib
 import inspect
 import os
 import queue  # Import queue
-import shutil
 import subprocess
 import sys
 import traceback
@@ -40,7 +39,10 @@ from rich.console import Console
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
+from crystallize.experiments.result import Result
+from crystallize.experiments.result_structs import ExperimentMetrics, TreatmentMetrics
 from crystallize.plugins.plugins import ArtifactPlugin, LoggingPlugin
+from crystallize.plugins import load_metrics
 from crystallize.utils.constants import METADATA_FILENAME
 from ..status_plugin import CLIStatusPlugin, TextualLoggingPlugin
 from ..discovery import _run_object
@@ -60,6 +62,11 @@ def _inject_status_plugin(
 
         if exp.get_plugin(CLIStatusPlugin) is None:
             exp.plugins.append(CLIStatusPlugin(wrapped))
+        artifact = exp.get_plugin(ArtifactPlugin)
+        if artifact is None:
+            exp.plugins.append(ArtifactPlugin(versioned=True))
+        else:
+            artifact.versioned = True
 
         exp.plugins = [p for p in exp.plugins if not isinstance(p, LoggingPlugin)]
         exp.plugins.append(TextualLoggingPlugin(writer=writer, verbose=True))
@@ -69,14 +76,6 @@ def _inject_status_plugin(
             ensure(obj._graph.nodes[node]["experiment"])
     else:
         ensure(obj)
-
-
-def delete_artifacts(exp: Experiment) -> None:
-    """Remove existing artifacts for an experiment."""
-    plugin = exp.get_plugin(ArtifactPlugin)
-    if plugin and exp.name:
-        base = Path(plugin.root_dir) / exp.name
-        shutil.rmtree(base, ignore_errors=True)
 
 
 @contextlib.contextmanager
@@ -382,13 +381,13 @@ class RunScreen(Screen):
                     with pristine_stdio():
                         if isinstance(self._obj, ExperimentGraph):
                             return await self._obj.arun(
-                                strategy="resume",
+                                strategy=None,
                                 replicates=self._replicates,
                                 progress_callback=progress_callback,
                             )
                         else:
                             return await _run_object(
-                                self._obj, "resume", self._replicates
+                                self._obj, None, self._replicates
                             )
 
                 result = asyncio.run(run_with_callback())
@@ -542,8 +541,8 @@ class RunScreen(Screen):
             ]
         )
         for exp in experiments:
-            if not self.experiment_cacheable.get(exp.name, True):
-                delete_artifacts(exp)
+            cacheable = self.experiment_cacheable.get(exp.name, True)
+            exp.strategy = "resume" if cacheable else "rerun"
         self._mark_cached_completion(experiments)
 
     def compose(self) -> ComposeResult:  # pragma: no cover - UI layout
@@ -586,7 +585,37 @@ class RunScreen(Screen):
     def render_summary(self, result: Any) -> None:
         summary_log = self.query_one("#summary_log", RichLog)
         summary_log.clear()
-        _write_summary(summary_log, result)
+        experiments = getattr(self, "_experiments", [])
+
+        def enrich(exp: Experiment, res: Result) -> Result:
+            plugin = exp.get_plugin(ArtifactPlugin)
+            if plugin is None:
+                return res
+            exp_dir = Path(plugin.root_dir) / (exp.name or exp.id)
+            version, baseline, treatment_map = load_metrics(exp_dir)
+            if version < 0:
+                return res
+            metrics = ExperimentMetrics(
+                baseline=TreatmentMetrics(baseline),
+                treatments={
+                    f"{n} (v{version})": TreatmentMetrics(m)
+                    for n, m in treatment_map.items()
+                },
+                hypotheses=res.metrics.hypotheses,
+            )
+            return Result(metrics=metrics, errors=res.errors, provenance=res.provenance)
+
+        if isinstance(result, dict):
+            enriched: dict[str, Result] = {}
+            for name, res in result.items():
+                exp = next((e for e in experiments if e.name == name), self._obj)
+                enriched[name] = enrich(exp, res)
+            out_obj: Any = enriched
+        else:
+            exp = experiments[0] if experiments else self._obj
+            out_obj = enrich(exp, result)
+
+        _write_summary(summary_log, out_obj)
 
         console = Console(record=True)
 
@@ -595,7 +624,7 @@ class RunScreen(Screen):
                 console.print(renderable)
 
         writer = _Writer()
-        _write_summary(writer, result)
+        _write_summary(writer, out_obj)
         self.summary_plain_text = console.export_text()
         summary_plain = self.query_one("#summary_plain", TextArea)
         summary_plain.load_text(self.summary_plain_text)

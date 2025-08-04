@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import shutil
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
@@ -185,9 +186,25 @@ class ArtifactPlugin(BasePlugin):
 
     root_dir: str = "./data"
     versioned: bool = False
+    artifact_retention: int = 3
+    big_file_threshold_mb: int = 10
 
     def __post_init__(self) -> None:
         self._manifest: dict[str, str] = {}
+        if self.artifact_retention == 3:
+            val = os.getenv("CRYSTALLIZE_ARTIFACT_RETENTION")
+            if val is not None:
+                try:
+                    self.artifact_retention = int(val)
+                except ValueError:
+                    self.artifact_retention = 3
+        if self.big_file_threshold_mb == 10:
+            val = os.getenv("CRYSTALLIZE_BIG_FILE_THRESHOLD_MB")
+            if val is not None:
+                try:
+                    self.big_file_threshold_mb = int(val)
+                except ValueError:
+                    self.big_file_threshold_mb = 10
 
     def before_run(self, experiment: Experiment) -> None:
         self.experiment_id = experiment.name or experiment.id
@@ -272,3 +289,37 @@ class ArtifactPlugin(BasePlugin):
         with open(base / "_manifest.json", "w") as f:
             json.dump(self._manifest, f)
         self._manifest.clear()
+        if not self.versioned:
+            return
+        base_parent = Path(self.root_dir) / self.experiment_id
+        self._prune_old_versions(base_parent)
+
+    def _prune_old_versions(self, base_parent: Path) -> None:
+        versions = sorted(
+            [
+                int(p.name[1:])
+                for p in base_parent.glob("v*")
+                if p.name.startswith("v") and p.name[1:].isdigit()
+            ]
+        )
+        if not versions:
+            return
+        ret = self.artifact_retention
+        keep = versions if ret <= 0 else versions[-ret:]
+        if not keep:
+            return
+        threshold = self.big_file_threshold_mb * 1024 * 1024
+        for v in keep[:-1]:
+            self._prune_large_files(base_parent / f"v{v}", threshold)
+        for v in versions:
+            if v not in keep:
+                shutil.rmtree(base_parent / f"v{v}", ignore_errors=True)
+
+    def _prune_large_files(self, version_dir: Path, threshold: int) -> None:
+        for f in version_dir.rglob("*"):
+            if not f.is_file():
+                continue
+            if f.name in {"results.json", "_manifest.json", METADATA_FILENAME}:
+                continue
+            if f.stat().st_size > threshold:
+                f.unlink()

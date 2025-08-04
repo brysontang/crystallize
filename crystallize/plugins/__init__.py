@@ -1,5 +1,6 @@
 from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 from .execution import AsyncExecution, ParallelExecution, SerialExecution
+from .artifacts import load_metrics
 
 __all__ = [
     "ArtifactPlugin",
@@ -9,4 +10,5 @@ __all__ = [
     "ParallelExecution",
     "SerialExecution",
     "AsyncExecution",
+    "load_metrics",
 ]

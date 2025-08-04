@@ -2,6 +2,14 @@
 
 - Initial alpha release. Future changes may introduce breaking changes frequently until APIs stabilize.
 
+## [0.25.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.25.0...crystallize-ml@v0.25.1) (2025-08-04)
+
+
+### Bug Fixes
+
+* Minor wording ([6ae4c3a](https://github.com/brysontang/crystallize/commit/6ae4c3abc3042c0c11e5bcd7694294593b4a8b31))
+* Pypi deploy ([6c4b6ec](https://github.com/brysontang/crystallize/commit/6c4b6ec7993215917d7d91fd28208d46cf177dd6))
+
 ## [0.25.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.24.12...crystallize-ml@v0.25.0) (2025-08-04)
 
 

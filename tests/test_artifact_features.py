@@ -10,7 +10,7 @@ from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.datasources.datasource import DataSource
 from crystallize.utils.context import FrozenContext
 from crystallize.plugins.plugins import ArtifactPlugin
-from crystallize.plugins import load_metrics
+from crystallize.plugins import load_metrics, load_all_metrics
 from cli.screens.run import _inject_status_plugin
 
 
@@ -107,4 +107,7 @@ def test_summary_uses_stored_metrics(tmp_path: Path):
     assert set(tmap) == {"A", "B"}
 
     exp.run(treatments=[t_a], strategy="rerun")
+    hist_ver, _, hist_map = load_all_metrics(base)
+    assert hist_ver == 1
+    assert hist_map["A"][0] == 1 and hist_map["B"][0] == 0
     assert not big.exists()

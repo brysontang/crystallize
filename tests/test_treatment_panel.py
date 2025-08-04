@@ -141,7 +141,7 @@ async def test_summary_shows_inactive_metrics(tmp_path: Path) -> None:
         screen._reload_object()
         plugin = screen._obj.get_plugin(ArtifactPlugin)
         plugin.root_dir = str(tmp_path)
-        result = await screen._obj.arun(strategy="resume")
+        result = await screen._obj.arun(strategy="rerun")
         screen._experiments = [screen._obj]
         screen.render_summary(result, highlight="treatment_b")
         text = screen.summary_plain_text
@@ -208,10 +208,27 @@ async def test_color_rendering(tmp_path: Path) -> None:
             n for n in tree.root.children if n.data and n.data[1] == "treatment_b"
         )
         tree.focus()
+        screen._on_treatment_highlighted(Tree.NodeHighlighted(node_a))
+        assert (
+            tree.highlight_style
+            and tree.highlight_style.color
+            and tree.highlight_style.color.name == "green3"
+        )
         tree._cursor_node = node_b
+        screen._on_treatment_highlighted(Tree.NodeHighlighted(node_b))
+        assert (
+            tree.highlight_style
+            and tree.highlight_style.color
+            and tree.highlight_style.color.name == "green3"
+        )
         label_b = screen.action_toggle_treatment()
         assert str(node_a.label.style) == "green"
         assert label_b is not None and str(label_b.style) == "red"
+        assert (
+            tree.highlight_style
+            and tree.highlight_style.color
+            and tree.highlight_style.color.name == "red3"
+        )
 
 
 @pytest.mark.asyncio

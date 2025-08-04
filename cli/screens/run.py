@@ -25,6 +25,7 @@ from textual.css.query import NoMatches
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
+from textual import on
 from textual.widgets import (
     Button,
     Footer,
@@ -38,6 +39,7 @@ from textual.widgets import (
 )
 from rich.console import Console
 from rich.text import Text
+from rich.style import Style
 
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -45,7 +47,7 @@ from crystallize.experiments.result import Result
 from crystallize.experiments.result_structs import ExperimentMetrics, TreatmentMetrics
 from crystallize.experiments.treatment import Treatment
 from crystallize.plugins.plugins import ArtifactPlugin, LoggingPlugin
-from crystallize.plugins import load_metrics
+from crystallize.plugins import load_all_metrics
 from crystallize.utils.constants import METADATA_FILENAME
 from ..status_plugin import CLIStatusPlugin, TextualLoggingPlugin
 from ..discovery import _run_object
@@ -324,6 +326,17 @@ class RunScreen(Screen):
         treat_tree.root.expand()
         self._mark_cached_completion(exps)
         exp_tree.focus()
+
+    @on(Tree.NodeHighlighted, "#treatment-tree")
+    def _on_treatment_highlighted(self, event: Tree.NodeHighlighted) -> None:
+        tree = event.control
+        node = event.node
+        if node.data and node.data[0] == "treatment":
+            name = node.data[1]
+            color = "red3" if name in self._inactive_treatments else "green3"
+            tree.highlight_style = Style(color=color)
+        else:
+            tree.highlight_style = None
 
     def _mark_cached_completion(self, exps: List[Experiment]) -> None:
         for exp in exps:
@@ -667,14 +680,14 @@ class RunScreen(Screen):
             if plugin is None:
                 return res
             exp_dir = Path(plugin.root_dir) / (exp.name or exp.id)
-            version, baseline, treatment_map = load_metrics(exp_dir)
+            version, baseline, treatment_map = load_all_metrics(exp_dir)
             if version < 0:
                 return res
             metrics = ExperimentMetrics(
                 baseline=TreatmentMetrics(baseline),
                 treatments={
-                    f"{n} (v{version})": TreatmentMetrics(m)
-                    for n, m in treatment_map.items()
+                    f"{n} (v{ver})": TreatmentMetrics(m)
+                    for n, (ver, m) in treatment_map.items()
                 },
                 hypotheses=res.metrics.hypotheses,
             )
@@ -845,11 +858,14 @@ class RunScreen(Screen):
         name = node.data[1]
         if name in self._inactive_treatments:
             self._inactive_treatments.remove(name)
-            label = Text(name, style="green")
+            active = True
         else:
             self._inactive_treatments.add(name)
-            label = Text(name, style="red")
+            active = False
+        color = "green" if active else "red"
+        label = Text(name, style=color)
         node.set_label(label)
+        tree.highlight_style = Style(color="green3" if active else "red3")
         state_path = self._cfg_path.with_suffix(".state.json")
         with state_path.open("w") as f:
             json.dump({"inactive_treatments": sorted(self._inactive_treatments)}, f)

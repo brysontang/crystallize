@@ -539,13 +539,15 @@ class Experiment:
 
     # ------------------------------------------------------------------ #
 
+    strategy: str = "rerun"
+
     def run(
         self,
         *,
         treatments: List[Treatment] | None = None,
         hypotheses: List[Hypothesis] | None = None,
         replicates: int | None = None,
-        strategy: str = "rerun",
+        strategy: str | None = None,
     ) -> Result:
         """Synchronous wrapper for the async run method. Convenient for tests and scripts."""
         import asyncio
@@ -565,7 +567,7 @@ class Experiment:
         treatments: List[Treatment] | None = None,
         hypotheses: List[Hypothesis] | None = None,
         replicates: int | None = None,
-        strategy: str = "rerun",
+        strategy: str | None = None,
     ) -> Result:
         """Execute the experiment and return a :class:`Result` instance.
 
@@ -616,14 +618,21 @@ class Experiment:
         if run_hypotheses and not run_treatments:
             raise ValueError("Cannot verify hypotheses without treatments")
 
+        strategy = strategy or self.strategy
         plugin = self.get_plugin(ArtifactPlugin)
 
         loaded_metrics: Dict[str, Dict[str, List[Any]]] = {}
         to_run = []
         base_dir: Optional[Path] = None
         if strategy == "resume" and plugin is not None:
-            base_dir = Path(plugin.root_dir) / (self.name or self.id) / "v0"
-            if base_dir.exists():
+            exp_dir = Path(plugin.root_dir) / (self.name or self.id)
+            versions = [
+                int(p.name[1:])
+                for p in exp_dir.glob("v*")
+                if p.name.startswith("v") and p.name[1:].isdigit()
+            ]
+            if versions:
+                base_dir = exp_dir / f"v{max(versions)}"
                 conditions_to_check = [BASELINE_CONDITION] + [
                     t.name for t in run_treatments
                 ]
@@ -644,6 +653,29 @@ class Experiment:
         run_baseline = BASELINE_CONDITION in to_run
         active_treatments = [t for t in run_treatments if t.name in to_run]
         baseline_treatment = getattr(self, "_baseline_treatment", None)
+
+        if strategy == "resume" and not to_run:
+            baseline_loaded = loaded_metrics.get(BASELINE_CONDITION, {})
+            treatments_loaded = {
+                k: v for k, v in loaded_metrics.items() if k != BASELINE_CONDITION
+            }
+            hypothesis_results = self._verify_hypotheses(
+                baseline_loaded, treatments_loaded, active_treatments=run_treatments
+            )
+            metrics = ExperimentMetrics(
+                baseline=TreatmentMetrics(baseline_loaded),
+                treatments={
+                    n: TreatmentMetrics(m) for n, m in treatments_loaded.items()
+                },
+                hypotheses=hypothesis_results,
+            )
+            return self._build_result(
+                metrics,
+                {},
+                defaultdict(lambda: defaultdict(list)),
+                [],
+                {t.name: [] for t in run_treatments},
+            )
 
         with self._runtime_state(
             run_treatments,

@@ -296,7 +296,7 @@ class ExperimentGraph:
         self,
         treatments: List[Treatment] | None = None,
         replicates: int | None = None,
-        strategy: str = "rerun",
+        strategy: str | None = None,
     ) -> Dict[str, Result]:
         """Synchronous wrapper for the async arun method."""
         import asyncio
@@ -309,7 +309,7 @@ class ExperimentGraph:
         self,
         treatments: List[Treatment] | None = None,
         replicates: int | None = None,
-        strategy: str = "rerun",
+        strategy: str | None = None,
         progress_callback: Callable[[str, str], Awaitable[None]] | None = None,
     ) -> Dict[str, Result]:
         """Execute all experiments respecting dependency order."""
@@ -322,16 +322,24 @@ class ExperimentGraph:
 
         for name in order:
             exp: Experiment = self._graph.nodes[name]["experiment"]
-            run_strategy = strategy
+            run_strategy = strategy or exp.strategy
 
             final_treatments_for_exp = self._get_treatments_for_experiment(
                 name, treatments
             )
 
-            if strategy == "resume":
+            if run_strategy == "resume":
                 plugin = exp.get_plugin(ArtifactPlugin)
                 if plugin is not None:
-                    base = Path(plugin.root_dir) / (exp.name or exp.id) / "v0"
+                    base_root = Path(plugin.root_dir) / (exp.name or exp.id)
+                    versions = [
+                        int(p.name[1:])
+                        for p in base_root.glob("v*")
+                        if p.name.startswith("v") and p.name[1:].isdigit()
+                    ]
+                    base = (
+                        base_root / f"v{max(versions)}" if versions else base_root / "v0"
+                    )
 
                     run_treatments = final_treatments_for_exp
 

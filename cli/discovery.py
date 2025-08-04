@@ -150,7 +150,7 @@ def discover_configs(
     return graphs, experiments, errors
 
 
-async def _run_object(obj: Any, strategy: str, replicates: Optional[int]) -> Any:
+async def _run_object(obj: Any, strategy: str | None, replicates: Optional[int]) -> Any:
     """Run an ``Experiment`` or ``ExperimentGraph`` asynchronously."""
     if isinstance(obj, ExperimentGraph):
         return await obj.arun(strategy=strategy, replicates=replicates)

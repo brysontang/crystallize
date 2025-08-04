@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import shutil
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
@@ -185,9 +186,19 @@ class ArtifactPlugin(BasePlugin):
 
     root_dir: str = "./data"
     versioned: bool = False
+    artifact_retention: int = 3
+    big_file_threshold_mb: int = 10
 
     def __post_init__(self) -> None:
         self._manifest: dict[str, str] = {}
+        if self.artifact_retention == 3:
+            self.artifact_retention = int(
+                os.getenv("CRYSTALLIZE_ARTIFACT_RETENTION", "3")
+            )
+        if self.big_file_threshold_mb == 10:
+            self.big_file_threshold_mb = int(
+                os.getenv("CRYSTALLIZE_BIG_FILE_THRESHOLD_MB", "10")
+            )
 
     def before_run(self, experiment: Experiment) -> None:
         self.experiment_id = experiment.name or experiment.id
@@ -272,3 +283,26 @@ class ArtifactPlugin(BasePlugin):
         with open(base / "_manifest.json", "w") as f:
             json.dump(self._manifest, f)
         self._manifest.clear()
+
+        base_parent = Path(self.root_dir) / self.experiment_id
+        versions = sorted(
+            [
+                int(p.name[1:])
+                for p in base_parent.glob("v*")
+                if p.name.startswith("v") and p.name[1:].isdigit()
+            ]
+        )
+        keep = versions[-self.artifact_retention :]
+        for v in versions:
+            if v not in keep:
+                shutil.rmtree(base_parent / f"v{v}", ignore_errors=True)
+
+        threshold = self.big_file_threshold_mb * 1024 * 1024
+        for v in keep[:-1]:
+            for f in (base_parent / f"v{v}").rglob("*"):
+                if not f.is_file():
+                    continue
+                if f.name in {"results.json", "_manifest.json"}:
+                    continue
+                if f.stat().st_size > threshold:
+                    f.unlink()

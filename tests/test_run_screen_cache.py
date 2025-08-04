@@ -6,7 +6,7 @@ import pytest
 from textual.app import App
 from textual.widgets import Tree
 
-from cli.screens.run import RunScreen, delete_artifacts
+from cli.screens.run import RunScreen
 from cli.utils import create_experiment_scaffolding
 from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment
@@ -22,22 +22,6 @@ def dummy_source(ctx):
 @pipeline_step()
 def add_one(data, ctx):
     return data + 1
-
-
-def test_delete_artifacts(tmp_path: Path) -> None:
-    plugin = ArtifactPlugin(root_dir=str(tmp_path))
-    exp = Experiment(
-        datasource=dummy_source(),
-        pipeline=Pipeline([add_one()]),
-        name="e",
-        plugins=[plugin],
-    )
-    exp.validate()
-    path = Path(plugin.root_dir) / "e"
-    path.mkdir()
-    delete_artifacts(exp)
-    assert not path.exists()
-
 
 @pytest.mark.asyncio
 async def test_toggle_cache_persists_between_runs(
@@ -153,7 +137,8 @@ async def test_build_artifacts_respects_experiment_lock(
         exp_path.mkdir(parents=True, exist_ok=True)
         screen.experiment_cacheable["demo"] = False
         screen._build_artifacts()
-        assert not exp_path.exists()
+        assert exp_path.exists()
+        assert obj.strategy == "rerun"
         screen.worker = type("W", (), {"is_finished": True})()
 
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib
 import json
 import os
-import shutil
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
@@ -313,7 +312,7 @@ class ArtifactPlugin(BasePlugin):
             self._prune_large_files(base_parent / f"v{v}", threshold)
         for v in versions:
             if v not in keep:
-                shutil.rmtree(base_parent / f"v{v}", ignore_errors=True)
+                self._prune_to_metrics(base_parent / f"v{v}")
 
     def _prune_large_files(self, version_dir: Path, threshold: int) -> None:
         for f in version_dir.rglob("*"):
@@ -323,3 +322,14 @@ class ArtifactPlugin(BasePlugin):
                 continue
             if f.stat().st_size > threshold:
                 f.unlink()
+
+    def _prune_to_metrics(self, version_dir: Path) -> None:
+        for f in version_dir.rglob("*"):
+            if f.is_file() and f.name != "results.json":
+                f.unlink()
+        for d in sorted(version_dir.glob("**/*"), reverse=True):
+            if d.is_dir():
+                try:
+                    d.rmdir()
+                except OSError:
+                    pass

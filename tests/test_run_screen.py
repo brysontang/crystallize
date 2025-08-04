@@ -232,8 +232,8 @@ async def test_build_tree_and_toggle_cache(
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
         screen._reload_object()
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#exp-tree", Tree)
         step_node = tree.root.children[0].children[0]
         tree.focus()
         tree._cursor_node = step_node  # type: ignore[attr-defined]
@@ -271,8 +271,8 @@ async def test_build_tree_shows_lock_for_cacheable_step(
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
         screen._reload_object()
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#exp-tree", Tree)
         step_node = tree.root.children[0].children[0]
         assert "🔒" in step_node.label.plain
         screen.worker = type("W", (), {"is_finished": True})()
@@ -292,8 +292,8 @@ async def test_step_nodes_are_leaves(
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
         screen._reload_object()
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#exp-tree", Tree)
         step_node = tree.root.children[0].children[0]
         assert not step_node.allow_expand
         screen.worker = type("W", (), {"is_finished": True})()
@@ -369,8 +369,8 @@ async def test_handle_status_events_updates_state(
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
         screen._reload_object()
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#exp-tree", Tree)
         exp_name = obj.name
         exp_node = tree.root.children[0]
         step_name = obj.pipeline.steps[0].__class__.__name__
@@ -520,7 +520,7 @@ async def test_tree_expanded_shows_step_status_on_experiment(
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
         screen._reload_object()
-        screen._build_tree()
+        screen._build_trees()
         exp_name = obj.name
         step_name = obj.pipeline.steps[0].__class__.__name__
         screen._handle_status_event(
@@ -547,8 +547,8 @@ async def test_tree_collapsed_shows_step_status_on_experiment(
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
         screen._reload_object()
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#exp-tree", Tree)
         exp_name = obj.name
         exp_node = tree.root.children[0]
         step_name = obj.pipeline.steps[0].__class__.__name__
@@ -577,7 +577,7 @@ async def test_step_error_icon_displayed(
         await pilot.app.push_screen(screen)
         screen.worker = type("W", (), {"is_finished": True})()
         screen._reload_object()
-        screen._build_tree()
+        screen._build_trees()
         exp_name = obj.name
         step_name = obj.pipeline.steps[0].__class__.__name__
         screen.step_states[(exp_name, step_name)] = "errored"
@@ -733,10 +733,12 @@ steps:
 
     app = TestApp()
     async with app.run_test():
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#exp-tree", Tree)
         step_node = tree.root.children[0].children[0]
+        tree.focus()
         monkeypatch.setattr(Tree, "cursor_node", property(lambda self: step_node))
+        monkeypatch.setattr(RunScreen, "_focused_tree", lambda self: tree)
         screen.action_edit_step()
 
     assert recorded["path"].endswith(".py")
@@ -781,10 +783,12 @@ steps:
 
     app = TestApp()
     async with app.run_test():
-        screen._build_tree()
-        tree = screen.query_one("#node-tree", Tree)
+        screen._build_trees()
+        tree = screen.query_one("#exp-tree", Tree)
         step_node = tree.root.children[0].children[0]
+        tree.focus()
         monkeypatch.setattr(Tree, "cursor_node", property(lambda self: step_node))
+        monkeypatch.setattr(RunScreen, "_focused_tree", lambda self: tree)
         screen.action_edit_step()
         screen.action_edit_step()
 

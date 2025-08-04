@@ -670,7 +670,13 @@ class RunScreen(Screen):
                     )
         yield Footer()
 
-    def render_summary(self, result: Any, highlight: str | None = None) -> None:
+    def render_summary(
+        self,
+        result: Any,
+        highlight: str | None = None,
+        *,
+        all_treatments: bool = False,
+    ) -> None:
         summary_log = self.query_one("#summary_log", RichLog)
         summary_log.clear()
         experiments = getattr(self, "_experiments", [])
@@ -680,17 +686,28 @@ class RunScreen(Screen):
             if plugin is None:
                 return res
             exp_dir = Path(plugin.root_dir) / (exp.name or exp.id)
-            version, baseline, treatment_map = load_all_metrics(exp_dir)
-            if version < 0:
-                return res
-            metrics = ExperimentMetrics(
-                baseline=TreatmentMetrics(baseline),
-                treatments={
-                    f"{n} (v{ver})": TreatmentMetrics(m)
-                    for n, (ver, m) in treatment_map.items()
-                },
-                hypotheses=res.metrics.hypotheses,
-            )
+            if all_treatments:
+                version, baseline, treatment_map = load_all_metrics(exp_dir)
+                if version < 0:
+                    return res
+                metrics = ExperimentMetrics(
+                    baseline=TreatmentMetrics(baseline),
+                    treatments={
+                        f"{n} (v{ver})": TreatmentMetrics(m)
+                        for n, (ver, m) in treatment_map.items()
+                    },
+                    hypotheses=res.metrics.hypotheses,
+                )
+            else:
+                version = getattr(plugin, "version", 0)
+                metrics = ExperimentMetrics(
+                    baseline=TreatmentMetrics(res.metrics.baseline.metrics),
+                    treatments={
+                        f"{n} (v{version})": TreatmentMetrics(m.metrics)
+                        for n, m in res.metrics.treatments.items()
+                    },
+                    hypotheses=res.metrics.hypotheses,
+                )
             return Result(metrics=metrics, errors=res.errors, provenance=res.provenance)
 
         if isinstance(result, dict):
@@ -982,7 +999,7 @@ class RunScreen(Screen):
             else None
         )
         if self._result is not None:
-            self.render_summary(self._result, selected)
+            self.render_summary(self._result, selected, all_treatments=True)
         tabs = self.query_one("#output-tabs", TabbedContent)
 
         def activate_summary() -> None:

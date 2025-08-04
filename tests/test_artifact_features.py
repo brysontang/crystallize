@@ -56,8 +56,8 @@ def test_retention_prunes_versions_and_big_files(tmp_path: Path):
             f.write(b"0" * 2 * 1024 * 1024)
     base = Path(plugin.root_dir) / "demo"
     versions = sorted(int(p.name[1:]) for p in base.glob("v*"))
-    assert versions == [2, 3, 4]
-    for v in [2, 3]:
+    assert versions == [0, 1, 2, 3, 4]
+    for v in [0, 1, 2, 3]:
         assert not (base / f"v{v}" / "big.bin").exists()
     assert (base / "v4" / "big.bin").exists()
 
@@ -111,3 +111,20 @@ def test_summary_uses_stored_metrics(tmp_path: Path):
     assert hist_ver == 1
     assert hist_map["A"][0] == 1 and hist_map["B"][0] == 0
     assert not big.exists()
+
+
+def test_pruned_versions_keep_metrics(tmp_path: Path):
+    plugin = ArtifactPlugin(
+        root_dir=tmp_path, versioned=True, artifact_retention=1
+    )
+    exp = _make_experiment(tmp_path, plugin)
+    t_a = Treatment("A", {})
+    t_b = Treatment("B", {})
+    exp.run(treatments=[t_a, t_b])
+    exp.run(treatments=[t_a], strategy="rerun")
+    base = Path(plugin.root_dir) / "demo"
+    assert (base / "v0" / "A" / "results.json").exists()
+    assert (base / "v0" / "B" / "results.json").exists()
+    latest, _, tmap = load_all_metrics(base)
+    assert latest == 1
+    assert tmap["B"][0] == 0

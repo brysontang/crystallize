@@ -109,7 +109,7 @@ async def test_toggle_state_persistence(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_summary_shows_inactive_metrics(tmp_path: Path) -> None:
+async def test_summary_shortcut_shows_inactive_metrics(tmp_path: Path) -> None:
     cfg = _write_config(tmp_path)
     exp_first = Experiment.from_yaml(cfg)
     plugin = exp_first.get_plugin(ArtifactPlugin)
@@ -143,11 +143,16 @@ async def test_summary_shows_inactive_metrics(tmp_path: Path) -> None:
         plugin.root_dir = str(tmp_path)
         result = await screen._obj.arun(strategy="rerun")
         screen._experiments = [screen._obj]
-        screen.render_summary(result, highlight="treatment_b")
+        screen._result = result
+        screen.render_summary(result)
         text = screen.summary_plain_text
-        assert "treatment_a" in text and "treatment_b" in text
-        assert text.index("treatment_b") < text.index("treatment_a")
+        assert "treatment_a" in text and "treatment_b" not in text
+        tree._cursor_node = node_b
+        tree.focus()
         screen.action_summary()
+        text_all = screen.summary_plain_text
+        assert "treatment_a" in text_all and "treatment_b" in text_all
+        assert text_all.index("treatment_b") < text_all.index("treatment_a")
         assert screen.query_one("#summary_log").visible
 
 

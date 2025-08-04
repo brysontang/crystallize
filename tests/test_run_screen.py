@@ -8,17 +8,9 @@ from typing import Any
 
 import pytest
 from textual.app import App
-from textual.widgets import Button, Tree
+from textual.widgets import Button, RichLog, TabbedContent, TextArea, Tree
 
-import pytest
-from textual.app import App
-
-from cli.screens.run import (
-    RunScreen,
-    _inject_status_plugin,
-    delete_artifacts,
-    _reload_modules,
-)
+from cli.screens.run import RunScreen, _inject_status_plugin, _reload_modules
 from cli.status_plugin import CLIStatusPlugin
 from cli.utils import create_experiment_scaffolding
 from cli.widgets.writer import WidgetWriter
@@ -100,7 +92,8 @@ async def test_exit_after_finished(tmp_path: Path):
     )
     steps = tmp_path / "steps.py"
     steps.write_text(
-        "from crystallize import pipeline_step\n\n@pipeline_step()\ndef add_one(data, ctx):\n    return data + 1\n"
+        "from crystallize import pipeline_step\nimport time\n\n@pipeline_step()\n"
+        "def add_one(data, ctx):\n    time.sleep(0.1)\n    return data + 1\n"
     )
     cfg = tmp_path / "config.yaml"
     cfg.write_text(
@@ -121,11 +114,10 @@ steps:
 
     app = TestApp()
     async with app.run_test() as pilot:
-        await pilot.press("shift+r")
+        await pilot.press("R")
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
         await pilot.pause()
-        await pilot.press("q")  # close summary
         await pilot.press("q")  # exit run screen
         assert screen not in app.screen_stack
 
@@ -167,17 +159,58 @@ steps:
             data[3].cacheable = False
         screen._refresh_node(step_key)
         assert not screen.step_cacheable[step_key]
-        await pilot.press("shift+r")
+        await pilot.press("R")
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
         await pilot.pause()
-        await pilot.press("q")  # close summary
-        await pilot.press("shift+r")
+        await pilot.press("R")
         assert not screen.step_cacheable[step_key]
         while screen.worker and not screen.worker.is_finished:
             await pilot.pause()
         await pilot.pause()
         await pilot.press("q")
+
+
+@pytest.mark.asyncio
+async def test_summary_tab_and_plain_text(tmp_path: Path):
+    datasources = tmp_path / "datasources.py"
+    datasources.write_text(
+        "from crystallize import data_source\n\n@data_source\ndef source(ctx):\n    return 0\n"
+    )
+    steps = tmp_path / "steps.py"
+    steps.write_text(
+        "from crystallize import pipeline_step\n\n@pipeline_step()\ndef add_one(data, ctx):\n    return data + 1\n"
+    )
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        """
+name: exp
+datasource:
+  x: source
+steps:
+  - add_one
+"""
+    )
+    exp = Experiment.from_yaml(cfg)
+    screen = RunScreen(exp, cfg, False, None)
+
+    class TestApp(App):
+        async def on_mount(self) -> None:  # pragma: no cover - test helper
+            await self.push_screen(screen)
+
+    app = TestApp()
+    async with app.run_test() as pilot:
+        await pilot.press("R")
+        while screen.worker and not screen.worker.is_finished:
+            await pilot.pause()
+        await pilot.pause()
+        tabs = screen.query_one("#output-tabs", TabbedContent)
+        assert tabs.active == "summary"
+        await pilot.press("t")
+        summary_rich = screen.query_one("#summary_log", RichLog)
+        summary_plain = screen.query_one("#summary_plain", TextArea)
+        assert summary_plain.display
+        assert not summary_rich.display
         await pilot.press("q")
 
 
@@ -196,12 +229,19 @@ async def test_build_tree_and_toggle_cache(
         screen._reload_object()
         screen._build_tree()
         tree = screen.query_one("#node-tree", Tree)
-        exp_name = screen._obj.name
-        step_name = screen._obj.pipeline.steps[0].__class__.__name__
         step_node = tree.root.children[0].children[0]
-        assert "🔒" not in step_node.label.plain
-        assert (exp_name,) in screen.tree_nodes
-        assert (exp_name, step_name) in screen.tree_nodes
+        tree.focus()
+        tree._cursor_node = step_node  # type: ignore[attr-defined]
+        tree._cursor_line = step_node.line  # type: ignore[attr-defined]
+        called = False
+
+        def wrapped() -> None:
+            nonlocal called
+            called = True
+
+        screen.action_toggle_cache = wrapped  # type: ignore[assignment]
+        await pilot.press("l")
+        assert called
         screen.worker = type("W", (), {"is_finished": True})()
 
 
@@ -230,6 +270,26 @@ async def test_build_tree_shows_lock_for_cacheable_step(
         tree = screen.query_one("#node-tree", Tree)
         step_node = tree.root.children[0].children[0]
         assert "🔒" in step_node.label.plain
+        screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.asyncio
+async def test_step_nodes_are_leaves(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        screen._reload_object()
+        screen._build_tree()
+        tree = screen.query_one("#node-tree", Tree)
+        step_node = tree.root.children[0].children[0]
+        assert not step_node.allow_expand
         screen.worker = type("W", (), {"is_finished": True})()
 
 
@@ -324,18 +384,32 @@ async def test_handle_status_events_updates_state(
         assert screen.current_treatment == "t"
         assert "Treatment: t" in screen.top_bar
         screen._handle_status_event(
+            "step", {"experiment": "demo", "step": step_name, "percent": 0.0}
+        )
+        step_node = screen.tree_nodes[(exp_name, step_name)]
+        assert "⚙️" in step_node.label.plain
+        screen._handle_status_event(
             "step", {"experiment": "demo", "step": step_name, "percent": 0.5}
         )
         assert screen.progress_percent == 0.5
         assert "50%" in screen.top_bar
-        step_node = screen.tree_nodes[(exp_name, step_name)]
-        assert "⚙️" in step_node.label.plain
         screen._handle_status_event(
             "step_finished", {"experiment": "demo", "step": step_name}
         )
         assert screen.step_states[("demo", step_name)] == "completed"
         step_node = screen.tree_nodes[(exp_name, step_name)]
         assert "✅" in step_node.label.plain
+        exp_node = screen.tree_nodes[(exp_name,)]
+        assert "⚙️" in exp_node.label.plain
+        screen._handle_status_event(
+            "replicate",
+            {"experiment": "demo", "replicate": 2, "total": 2, "condition": "t"},
+        )
+        assert screen.step_states[("demo", step_name)] == "pending"
+        step_node = screen.tree_nodes[(exp_name, step_name)]
+        assert "⏳" in step_node.label.plain
+        screen.render_summary = lambda result: None  # type: ignore[assignment]
+        screen.on_experiment_complete(screen.ExperimentComplete(result=123))
         exp_node = screen.tree_nodes[(exp_name,)]
         assert "✅" in exp_node.label.plain
         screen.worker = type("W", (), {"is_finished": True})()
@@ -360,7 +434,7 @@ async def test_run_or_cancel_behaviour(
             called = True
 
         screen._start_run = fake_start  # type: ignore[assignment]
-        screen.action_run_or_cancel()
+        await pilot.press("R")
         assert called
 
         class DummyWorker:
@@ -372,8 +446,11 @@ async def test_run_or_cancel_behaviour(
 
         worker = DummyWorker()
         screen.worker = worker
-        screen.action_run_or_cancel()
+        run_btn = screen.query_one("#run-btn", Button)
+        await pilot.press("R")
         assert worker.cancelled
+        assert run_btn.label == "Run"
+        assert screen.worker is None
         screen.worker = type("W", (), {"is_finished": True})()
 
 
@@ -391,14 +468,16 @@ async def test_on_experiment_complete_opens_summary(
         screen.worker = type("W", (), {"is_finished": True})()
         opened: list[Any] = []
 
-        def fake_open(res: Any) -> None:
+        def fake_render(res: Any) -> None:
             opened.append(res)
 
-        screen.open_summary_screen = fake_open  # type: ignore[assignment]
+        screen.render_summary = fake_render  # type: ignore[assignment]
         message = screen.ExperimentComplete(result=123)
         screen.on_experiment_complete(message)
         run_btn = screen.query_one("#run-btn", Button)
+        tabs = screen.query_one("#output-tabs", TabbedContent)
         assert opened == [123]
+        assert tabs.active == "summary"
         assert screen.worker is None
         assert run_btn.label == "Run"
         screen.worker = type("W", (), {"is_finished": True})()
@@ -532,7 +611,7 @@ async def test_run_with_changed_treatment_uses_new_value(
 
 
 @pytest.mark.asyncio
-async def test_rerun_after_config_error_shows_message(
+async def test_rerun_after_config_error_shows_error_tab(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
@@ -551,21 +630,35 @@ async def test_rerun_after_config_error_shows_message(
         screen.run_worker = run_worker  # type: ignore[assignment]
         screen.app.call_from_thread = lambda f, *a, **kw: f(*a, **kw)  # type: ignore[assignment]
 
-        messages: list[str] = []
-
-        def fake_print(*args: Any, **kwargs: Any) -> None:
-            messages.append(" ".join(str(a) for a in args))
-
-        monkeypatch.setattr("builtins.print", fake_print)
-
-        async def fail_run_object(*args: Any, **kwargs: Any) -> None:
+        def fake_asyncio_run(*args: Any, **kwargs: Any) -> None:
             raise ValueError("boom")
 
-        monkeypatch.setattr("cli.screens.run._run_object", fail_run_object)
+        monkeypatch.setattr("cli.screens.run.asyncio.run", fake_asyncio_run)
 
-        screen.action_run_or_cancel()
-        assert any("An error occurred in the worker" in m for m in messages)
+        await pilot.press("R")
+        tabs = screen.query_one("#output-tabs", TabbedContent)
+        assert tabs.active == "errors"
+        assert any("boom" in msg for msg in screen.error_history)
 
-        messages.clear()
-        screen.action_run_or_cancel()
-        assert any("An error occurred in the worker" in m for m in messages)
+
+@pytest.mark.asyncio
+async def test_start_run_load_error_shows_error_tab(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+
+        def boom() -> None:
+            raise RuntimeError("loadfail")
+
+        screen._reload_object = boom  # type: ignore[assignment]
+        await pilot.press("R")
+        tabs = screen.query_one("#output-tabs", TabbedContent)
+        assert tabs.active == "errors"
+        assert any("loadfail" in msg for msg in screen.error_history)

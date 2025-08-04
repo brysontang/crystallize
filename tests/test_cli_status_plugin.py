@@ -5,6 +5,7 @@ from crystallize.pipelines.pipeline import Pipeline
 from crystallize.experiments.treatment import Treatment
 from cli.status_plugin import CLIStatusPlugin
 from cli.screens.run import _inject_status_plugin
+from crystallize.utils.context import FrozenContext
 
 
 events: list[tuple[str, dict[str, object]]] = []
@@ -74,3 +75,14 @@ def test_inject_status_plugin_deduplicates_graph():
     exp2 = graph._graph.nodes["e"]["experiment"]
     count = sum(isinstance(p, CLIStatusPlugin) for p in exp2.plugins)
     assert count == 1
+
+
+def test_before_step_emits_initial_progress() -> None:
+    events.clear()
+    plugin = CLIStatusPlugin(record)
+    exp = Experiment(datasource=ds(), pipeline=Pipeline([step_a()]), plugins=[plugin])
+    exp.validate()
+    ctx = FrozenContext({})
+    plugin.before_replicate(exp, ctx)
+    plugin.before_step(exp, exp.pipeline.steps[0])
+    assert ("step", {"step": exp.pipeline.steps[0].__class__.__name__, "percent": 0.0}) in events

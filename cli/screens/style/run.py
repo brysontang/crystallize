@@ -7,6 +7,7 @@ CSS = """
     width: 30%;
     min-width: 30%;
     layout: vertical;
+    padding-top: 1;
 }
 
 #node-tree {
@@ -17,7 +18,7 @@ CSS = """
     width: 100%;
 }
 
-#log-viewer {
+#output-tabs {
     width: 1fr;
 }
 """

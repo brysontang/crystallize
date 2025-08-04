@@ -161,6 +161,7 @@ class CLIStatusPlugin(BasePlugin):
         cache_dir = Path.home() / ".cache" / "crystallize" / "steps"
         cache_dir.mkdir(parents=True, exist_ok=True)
         hist_file = cache_dir / f"{experiment.name}.json"
+        hist_file.parent.mkdir(parents=True, exist_ok=True)
         try:
             history = json.loads(hist_file.read_text())
         except Exception:

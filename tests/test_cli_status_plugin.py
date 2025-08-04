@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from crystallize import data_source, pipeline_step
 from crystallize.experiments.experiment import Experiment
 from crystallize.experiments.experiment_graph import ExperimentGraph
@@ -86,3 +88,18 @@ def test_before_step_emits_initial_progress() -> None:
     plugin.before_replicate(exp, ctx)
     plugin.before_step(exp, exp.pipeline.steps[0])
     assert ("step", {"step": exp.pipeline.steps[0].__class__.__name__, "percent": 0.0}) in events
+
+
+def test_after_run_creates_nested_history(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    plugin = CLIStatusPlugin(lambda e, i: None)
+    exp = Experiment(
+        datasource=ds(),
+        pipeline=Pipeline([step_a()]),
+        plugins=[plugin],
+        name="z/super_cluster",
+    )
+    exp.validate()
+    exp.run()
+    hist = tmp_path / ".cache" / "crystallize" / "steps" / "z" / "super_cluster.json"
+    assert hist.exists()

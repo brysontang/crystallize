@@ -96,6 +96,7 @@ def test_summary_uses_stored_metrics(tmp_path: Path):
     base = Path(plugin.root_dir) / "demo"
     versions = [int(p.name[1:]) for p in base.glob("v*")]
     assert versions == [0]
-    baseline, tmap = load_metrics(base, 0)
+    ver, baseline, tmap = load_metrics(base, 0)
+    assert ver == 0
     assert "metric" in baseline
     assert set(tmap) == {"A", "B"}

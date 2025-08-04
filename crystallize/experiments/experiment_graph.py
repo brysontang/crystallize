@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Callable, Awaitable
 import json
+import logging
 
 import networkx as nx
 
@@ -337,9 +338,14 @@ class ExperimentGraph:
                         for p in base_root.glob("v*")
                         if p.name.startswith("v") and p.name[1:].isdigit()
                     ]
-                    base = (
-                        base_root / f"v{max(versions)}" if versions else base_root / "v0"
-                    )
+                    if versions:
+                        base = base_root / f"v{max(versions)}"
+                    else:
+                        logging.getLogger("crystallize").warning(
+                            "No previous run for %s", name
+                        )
+                        base = None
+                        run_strategy = "rerun"
 
                     run_treatments = final_treatments_for_exp
 
@@ -347,11 +353,12 @@ class ExperimentGraph:
                         t.name for t in run_treatments
                     ]
 
-                    all_done = True
-                    for cond in conditions_to_check:
-                        if not (base / cond / ".crystallize_complete").exists():
-                            all_done = False
-                            break
+                    all_done = base is not None
+                    if all_done:
+                        for cond in conditions_to_check:
+                            if not (base / cond / ".crystallize_complete").exists():
+                                all_done = False
+                                break
 
                     if all_done:
                         succ = getattr(self._graph, "_succ", {})

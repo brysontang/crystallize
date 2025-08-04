@@ -592,18 +592,15 @@ class RunScreen(Screen):
             if plugin is None:
                 return res
             exp_dir = Path(plugin.root_dir) / (exp.name or exp.id)
-            versions = [
-                int(p.name[1:])
-                for p in exp_dir.glob("v*")
-                if p.name.startswith("v") and p.name[1:].isdigit()
-            ]
-            if not versions:
+            version, baseline, treatment_map = load_metrics(exp_dir)
+            if version < 0:
                 return res
-            latest = max(versions)
-            baseline, treatment_map = load_metrics(exp_dir, latest)
             metrics = ExperimentMetrics(
                 baseline=TreatmentMetrics(baseline),
-                treatments={n: TreatmentMetrics(m) for n, m in treatment_map.items()},
+                treatments={
+                    f"{n} (v{version})": TreatmentMetrics(m)
+                    for n, m in treatment_map.items()
+                },
                 hypotheses=res.metrics.hypotheses,
             )
             return Result(metrics=metrics, errors=res.errors, provenance=res.provenance)

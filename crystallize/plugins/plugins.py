@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Mapping
 
@@ -188,17 +188,25 @@ class ArtifactPlugin(BasePlugin):
     versioned: bool = False
     artifact_retention: int = 3
     big_file_threshold_mb: int = 10
+    big_file_threshold_bytes: int = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._manifest: dict[str, str] = {}
         if self.artifact_retention == 3:
-            self.artifact_retention = int(
-                os.getenv("CRYSTALLIZE_ARTIFACT_RETENTION", "3")
-            )
+            val = os.getenv("CRYSTALLIZE_ARTIFACT_RETENTION")
+            if val is not None:
+                try:
+                    self.artifact_retention = int(val)
+                except ValueError:
+                    self.artifact_retention = 3
         if self.big_file_threshold_mb == 10:
-            self.big_file_threshold_mb = int(
-                os.getenv("CRYSTALLIZE_BIG_FILE_THRESHOLD_MB", "10")
-            )
+            val = os.getenv("CRYSTALLIZE_BIG_FILE_THRESHOLD_MB")
+            if val is not None:
+                try:
+                    self.big_file_threshold_mb = int(val)
+                except ValueError:
+                    self.big_file_threshold_mb = 10
+        self.big_file_threshold_bytes = self.big_file_threshold_mb * 1024 * 1024
 
     def before_run(self, experiment: Experiment) -> None:
         self.experiment_id = experiment.name or experiment.id
@@ -283,6 +291,8 @@ class ArtifactPlugin(BasePlugin):
         with open(base / "_manifest.json", "w") as f:
             json.dump(self._manifest, f)
         self._manifest.clear()
+        if not self.versioned:
+            return
 
         base_parent = Path(self.root_dir) / self.experiment_id
         versions = sorted(
@@ -292,17 +302,18 @@ class ArtifactPlugin(BasePlugin):
                 if p.name.startswith("v") and p.name[1:].isdigit()
             ]
         )
-        keep = versions[-self.artifact_retention :]
-        for v in versions:
-            if v not in keep:
-                shutil.rmtree(base_parent / f"v{v}", ignore_errors=True)
+        keep = versions[-self.artifact_retention :] if self.artifact_retention > 0 else versions
 
-        threshold = self.big_file_threshold_mb * 1024 * 1024
+        threshold = self.big_file_threshold_bytes
         for v in keep[:-1]:
             for f in (base_parent / f"v{v}").rglob("*"):
                 if not f.is_file():
                     continue
-                if f.name in {"results.json", "_manifest.json"}:
+                if f.name in {"results.json", "_manifest.json", METADATA_FILENAME}:
                     continue
                 if f.stat().st_size > threshold:
                     f.unlink()
+
+        for v in versions:
+            if v not in keep:
+                shutil.rmtree(base_parent / f"v{v}", ignore_errors=True)

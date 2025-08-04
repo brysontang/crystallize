@@ -166,6 +166,8 @@ class RunScreen(Screen):
         self.step_states: Dict[tuple[str, str], str] = {}
         self.step_cacheable: Dict[tuple[str, str], bool] = {}
         self.tree_nodes: Dict[tuple[str, ...], Any] = {}
+        self._experiments: list[Experiment] = []
+        self._exp_map: Dict[str, Experiment] = {}
         self.replicate_progress: tuple[int, int] = (0, 0)
         self.current_treatment: str = ""
         self.current_experiment: str = ""
@@ -216,6 +218,7 @@ class RunScreen(Screen):
         else:
             exps = [self._obj]
         self._experiments = exps
+        self._exp_map = {exp.name: exp for exp in exps}
         for exp in exps:
             self.experiment_states[exp.name] = "pending"
             self.experiment_cacheable.setdefault(exp.name, True)
@@ -236,6 +239,7 @@ class RunScreen(Screen):
                 node = exp_node.add(
                     self._format_label(name, "pending", cacheable),
                     data=("step", exp.name, name, step),
+                    allow_expand=False,
                 )
                 self.tree_nodes[(exp.name, name)] = node
         tree.root.expand()
@@ -356,6 +360,19 @@ class RunScreen(Screen):
             cond = info.get("condition", "")
             self.replicate_progress = (rep, total)
             self.current_treatment = cond
+            exp = self._exp_map.get(self.current_experiment)
+            if exp:
+                for step in exp.pipeline.steps:
+                    name = step.__class__.__name__
+                    self.step_states[(exp.name, name)] = "pending"
+                    self._refresh_node((exp.name, name))
+                self.experiment_states[exp.name] = "running"
+                self._refresh_node((exp.name,))
+            self.progress_percent = 0.0
+            self._progress_history.clear()
+            self._current_step = None
+            self._step_start = None
+            self.eta_remaining = "--"
         elif event == "step":
             step = info.get("step")
             percent = float(info.get("percent", 0.0))
@@ -386,12 +403,6 @@ class RunScreen(Screen):
             if step:
                 self.step_states[(exp_name, step)] = "completed"
                 self._refresh_node((exp_name, step))
-                exp_steps = [s for (e, s) in self.step_states if e == exp_name]
-                if all(
-                    self.step_states[(exp_name, s)] == "completed" for s in exp_steps
-                ):
-                    self.experiment_states[exp_name] = "completed"
-                    self._refresh_node((exp_name,))
             self._current_step = None
             self._progress_history.clear()
             self._step_start = None
@@ -518,6 +529,9 @@ class RunScreen(Screen):
     def action_run_or_cancel(self) -> None:
         if self.worker and not self.worker.is_finished:
             self.worker.cancel()
+            run_btn = self.query_one("#run-btn", Button)
+            run_btn.label = "Run"
+            self.worker = None
             return
         self._start_run()
 
@@ -543,6 +557,13 @@ class RunScreen(Screen):
                 self.render_summary(self._result)
                 tabs = self.query_one("#output-tabs", TabbedContent)
                 tabs.active = "summary"
+                for exp in self._experiments:
+                    self.experiment_states[exp.name] = "completed"
+                    for step in exp.pipeline.steps:
+                        name = step.__class__.__name__
+                        self.step_states[(exp.name, name)] = "completed"
+                        self._refresh_node((exp.name, name))
+                    self._refresh_node((exp.name,))
         except NoMatches:
             pass
 

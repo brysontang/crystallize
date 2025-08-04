@@ -274,6 +274,26 @@ async def test_build_tree_shows_lock_for_cacheable_step(
 
 
 @pytest.mark.asyncio
+async def test_step_nodes_are_leaves(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    async with App().run_test() as pilot:
+        screen = RunScreen(obj, cfg, False, None)
+        await pilot.app.push_screen(screen)
+        screen.worker = type("W", (), {"is_finished": True})()
+        screen._reload_object()
+        screen._build_tree()
+        tree = screen.query_one("#node-tree", Tree)
+        step_node = tree.root.children[0].children[0]
+        assert not step_node.allow_expand
+        screen.worker = type("W", (), {"is_finished": True})()
+
+
+@pytest.mark.asyncio
 async def test_run_reloads_changed_step_code(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -377,6 +397,17 @@ async def test_handle_status_events_updates_state(
         step_node = screen.tree_nodes[(exp_name, step_name)]
         assert "✅" in step_node.label.plain
         exp_node = screen.tree_nodes[(exp_name,)]
+        assert "⚙️" in exp_node.label.plain
+        screen._handle_status_event(
+            "replicate",
+            {"experiment": "demo", "replicate": 2, "total": 2, "condition": "t"},
+        )
+        assert screen.step_states[("demo", step_name)] == "pending"
+        step_node = screen.tree_nodes[(exp_name, step_name)]
+        assert "⏳" in step_node.label.plain
+        screen.render_summary = lambda result: None  # type: ignore[assignment]
+        screen.on_experiment_complete(screen.ExperimentComplete(result=123))
+        exp_node = screen.tree_nodes[(exp_name,)]
         assert "✅" in exp_node.label.plain
         screen.worker = type("W", (), {"is_finished": True})()
 
@@ -412,8 +443,11 @@ async def test_run_or_cancel_behaviour(
 
         worker = DummyWorker()
         screen.worker = worker
+        run_btn = screen.query_one("#run-btn", Button)
         await pilot.press("R")
         assert worker.cancelled
+        assert run_btn.label == "Run"
+        assert screen.worker is None
         screen.worker = type("W", (), {"is_finished": True})()
 
 

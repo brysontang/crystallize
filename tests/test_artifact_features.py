@@ -87,16 +87,24 @@ def test_cli_injects_versioned_plugin(tmp_path: Path):
 
 
 def test_summary_uses_stored_metrics(tmp_path: Path):
-    plugin = ArtifactPlugin(root_dir=tmp_path, versioned=True)
+    plugin = ArtifactPlugin(root_dir=tmp_path, versioned=True, big_file_threshold_mb=1)
     exp = _make_experiment(tmp_path, plugin)
     t_a = Treatment("A", {})
     t_b = Treatment("B", {})
     exp.run(treatments=[t_a, t_b])
-    exp.run(treatments=[t_a], strategy="resume")
     base = Path(plugin.root_dir) / "demo"
+    big = base / "v0" / "big.bin"
+    big.parent.mkdir(parents=True, exist_ok=True)
+    with open(big, "wb") as f:
+        f.write(b"0" * 2 * 1024 * 1024)
+
+    exp.run(treatments=[t_a], strategy="resume")
     versions = [int(p.name[1:]) for p in base.glob("v*")]
     assert versions == [0]
     ver, baseline, tmap = load_metrics(base, 0)
     assert ver == 0
     assert "metric" in baseline
     assert set(tmap) == {"A", "B"}
+
+    exp.run(treatments=[t_a], strategy="rerun")
+    assert not big.exists()

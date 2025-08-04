@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 from abc import ABC
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Mapping
 
@@ -188,7 +188,6 @@ class ArtifactPlugin(BasePlugin):
     versioned: bool = False
     artifact_retention: int = 3
     big_file_threshold_mb: int = 10
-    big_file_threshold_bytes: int = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._manifest: dict[str, str] = {}
@@ -206,7 +205,6 @@ class ArtifactPlugin(BasePlugin):
                     self.big_file_threshold_mb = int(val)
                 except ValueError:
                     self.big_file_threshold_mb = 10
-        self.big_file_threshold_bytes = self.big_file_threshold_mb * 1024 * 1024
 
     def before_run(self, experiment: Experiment) -> None:
         self.experiment_id = experiment.name or experiment.id
@@ -293,8 +291,10 @@ class ArtifactPlugin(BasePlugin):
         self._manifest.clear()
         if not self.versioned:
             return
-
         base_parent = Path(self.root_dir) / self.experiment_id
+        self._prune_old_versions(base_parent)
+
+    def _prune_old_versions(self, base_parent: Path) -> None:
         versions = sorted(
             [
                 int(p.name[1:])
@@ -302,18 +302,24 @@ class ArtifactPlugin(BasePlugin):
                 if p.name.startswith("v") and p.name[1:].isdigit()
             ]
         )
-        keep = versions[-self.artifact_retention :] if self.artifact_retention > 0 else versions
-
-        threshold = self.big_file_threshold_bytes
+        if not versions:
+            return
+        ret = self.artifact_retention
+        keep = versions if ret <= 0 else versions[-ret:]
+        if not keep:
+            return
+        threshold = self.big_file_threshold_mb * 1024 * 1024
         for v in keep[:-1]:
-            for f in (base_parent / f"v{v}").rglob("*"):
-                if not f.is_file():
-                    continue
-                if f.name in {"results.json", "_manifest.json", METADATA_FILENAME}:
-                    continue
-                if f.stat().st_size > threshold:
-                    f.unlink()
-
+            self._prune_large_files(base_parent / f"v{v}", threshold)
         for v in versions:
             if v not in keep:
                 shutil.rmtree(base_parent / f"v{v}", ignore_errors=True)
+
+    def _prune_large_files(self, version_dir: Path, threshold: int) -> None:
+        for f in version_dir.rglob("*"):
+            if not f.is_file():
+                continue
+            if f.name in {"results.json", "_manifest.json", METADATA_FILENAME}:
+                continue
+            if f.stat().st_size > threshold:
+                f.unlink()

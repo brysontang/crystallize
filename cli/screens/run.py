@@ -93,37 +93,6 @@ def pristine_stdio():
         sys.stdout, sys.stderr = saved_out, saved_err
 
 
-@contextlib.contextmanager
-def _suspend_tui() -> None:
-    """Restore real stdio so an external editor can run cleanly."""
-    app = App.app
-    app.disable_input()
-    try:
-        yield
-    finally:
-        app.enable_input()
-
-
-def _open_in_editor(path: str, line: int | None = None) -> None:
-    editor = (
-        os.getenv("CRYSTALLIZE_EDITOR")
-        or os.getenv("EDITOR")
-        or os.getenv("VISUAL")
-    )
-    if not editor:
-        raise RuntimeError("No editor configured")
-
-    if "code" in editor or "cursor" in editor:
-        cmd = [editor, "-g", f"{path}:{line or 1}"]
-    elif os.path.basename(editor) in {"vim", "nvim", "nano", "helix"}:
-        cmd = [editor, f"+{line or 1}", path]
-    else:
-        cmd = [editor, path]
-
-    with pristine_stdio(), _suspend_tui():
-        subprocess.run(cmd, check=False)
-
-
 def _reload_modules(base_path: Path) -> None:
     """Reload modules located under ``base_path``.
 
@@ -173,7 +142,7 @@ class RunScreen(Screen):
         Binding("l", "toggle_cache", "Toggle Cache"),
         Binding("R", "run_or_cancel", "Run"),
         Binding("escape", "cancel_and_exit", "Close"),
-        Binding("e", "edit_step", "Edit"),
+        Binding("e", "edit_selected_node", "Edit"),
     ]
 
     plain_text: bool = reactive(False)
@@ -284,6 +253,7 @@ class RunScreen(Screen):
                 self.tree_nodes[(exp.name, name)] = node
         tree.root.expand()
         self._mark_cached_completion(exps)
+        tree.focus()
 
     def _mark_cached_completion(self, exps: List[Experiment]) -> None:
         for exp in exps:
@@ -689,24 +659,50 @@ class RunScreen(Screen):
             step_obj.cacheable = new_val
             self._refresh_node((exp_name, step_name))
 
-    def action_edit_step(self) -> None:
+    def action_edit_selected_node(self) -> None:
         tree = self.query_one("#node-tree", Tree)
         node = tree.cursor_node
-        if not node or node.data[0] != "step":
+        if not node or not node.data:
             return
-        step_obj = node.data[3]
-        path = inspect.getsourcefile(step_obj.__class__)
-        line = inspect.getsourcelines(step_obj.__class__)[1]
+
+        kind = node.data[0]
+
+        if kind == "step":
+            # Existing step edit logic
+            step_obj = node.data[3]
+            path = getattr(step_obj, "__orig_source__", None)
+            line = getattr(step_obj, "__orig_lineno__", None)
+
+            if path is None:
+                cls = step_obj.__class__
+                path = inspect.getsourcefile(cls)
+                line = inspect.getsourcelines(cls)[1]
+
+            try:
+                self._open_in_editor(path, line)
+            except RuntimeError as exc:
+                self._show_editor_hint(str(exc))
+
+        elif kind == "exp":
+            exp_name = node.data[1]
+            path = str(self._cfg_path)
+            line = self._find_yaml_line(exp_name)
+
+            try:
+                self._open_in_editor(path, line)
+            except RuntimeError as exc:
+                self._show_editor_hint(str(exc))
+
+    def _find_yaml_line(self, experiment_name: str) -> int:
+        """Find the line number where the experiment is defined in the YAML."""
         try:
-            _open_in_editor(path, line)
-        except RuntimeError as exc:
-            if not self._editor_hint_shown:
-                self._write_error(
-                    "Set $EDITOR (e.g. export EDITOR=vim) to enable 'e' to open files."
-                )
-                self._editor_hint_shown = True
-            else:
-                self._write_error(str(exc))
+            with open(self._cfg_path, "r") as f:
+                for i, line in enumerate(f, start=1):
+                    if line.strip().startswith(f"{experiment_name}:"):
+                        return i
+        except Exception:
+            pass
+        return 1  # fallback to top of file
 
     def action_summary(self) -> None:
         if self._result is not None:
@@ -717,6 +713,26 @@ class RunScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "run-btn":
             self.action_run_or_cancel()
+
+    def _open_in_editor(self, path: str, line: int | None = None) -> None:
+        editor = (
+            os.getenv("CRYSTALLIZE_EDITOR")
+            or os.getenv("EDITOR")
+            or os.getenv("VISUAL")
+        )
+        if not editor:
+            raise RuntimeError("No editor configured")
+
+        if "code" in editor or "cursor" in editor:
+            cmd = [editor, "-g", f"{path}:{line or 1}"]
+        elif os.path.basename(editor) in {"vim", "nvim", "nano", "helix"}:
+            cmd = [editor, f"+{line or 1}", path]
+        else:
+            cmd = [editor, path]
+
+        # ‼️  This is all you need – Textual handles disable / enable internally.
+        with pristine_stdio(), self.app.suspend():
+            subprocess.run(cmd, check=False)
 
 
 async def _launch_run(app: App, obj: Any, cfg_path: Path, is_graph: bool) -> None:

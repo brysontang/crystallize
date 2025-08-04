@@ -4,6 +4,10 @@ import argparse
 import os
 import resource
 import yaml
+import dotenv
+
+dotenv.load_dotenv()
+
 
 from textual.app import App
 

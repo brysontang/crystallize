@@ -277,7 +277,8 @@ async def test_build_tree_shows_lock_for_cacheable_step(
 
 @pytest.mark.asyncio
 async def test_step_nodes_are_leaves(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
@@ -728,7 +729,7 @@ steps:
             await self.push_screen(screen)
 
     app = TestApp()
-    async with app.run_test() as pilot:
+    async with app.run_test():
         screen._build_tree()
         tree = screen.query_one("#node-tree", Tree)
         step_node = tree.root.children[0].children[0]
@@ -765,7 +766,9 @@ steps:
     screen = RunScreen(exp, cfg, False, None)
 
     messages: list[str] = []
-    monkeypatch.setattr(RunScreen, "_write_error", lambda self, text: messages.append(text))
+    monkeypatch.setattr(
+        RunScreen, "_write_error", lambda self, text: messages.append(text)
+    )
     for var in ("CRYSTALLIZE_EDITOR", "EDITOR", "VISUAL"):
         monkeypatch.delenv(var, raising=False)
 
@@ -774,7 +777,7 @@ steps:
             await self.push_screen(screen)
 
     app = TestApp()
-    async with app.run_test() as pilot:
+    async with app.run_test():
         screen._build_tree()
         tree = screen.query_one("#node-tree", Tree)
         step_node = tree.root.children[0].children[0]
@@ -782,5 +785,8 @@ steps:
         screen.action_edit_step()
         screen.action_edit_step()
 
-    assert messages[0] == "Set $EDITOR (e.g. export EDITOR=vim) to enable 'e' to open files."
+    assert (
+        messages[0]
+        == "Set $EDITOR (e.g. export EDITOR=vim) to enable 'e' to open files."
+    )
     assert messages[1] == "No editor configured"

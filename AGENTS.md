@@ -54,6 +54,49 @@ For any change:
 
 ---
 
+## 🤖 Automated Agent Instructions
+
+### 1. Consult ARCHITECTURE.md First
+
+Before making any changes or writing any plans, thoroughly read:
+
+```
+docs/architecture/ARCHITECTURE.md
+```
+
+This provides critical context about module responsibilities, relationships, and overall architecture.
+If unclear, explicitly note your uncertainty before proceeding.
+
+### 2. Document Design Decisions as ADRs
+
+Whenever you make or propose a significant architectural or design decision (choosing between libraries, defining a new interface, altering data flow), **you must create an ADR** to clearly document the decision rationale.
+
+- **Create a short ADR markdown file (`docs/adr/00xx-short-description.md`):**
+
+```markdown
+# ADR 00XX: Short, Clear Decision Title
+
+## Context & Problem
+
+Briefly state the context and problem you’re solving. (1–3 sentences)
+
+## Decision
+
+Clearly state the decision made. (1–2 sentences)
+
+## Alternatives Considered
+
+Briefly list alternatives considered with pros/cons. (concise bullet points)
+
+## Consequences
+
+Clearly outline the positive/negative implications of this decision. (concise bullet points)
+```
+
+- **Include this ADR as part of your PR.**
+
+---
+
 ## 📝 Commit Messages
 
 Use Conventional Commits for semantic versioning (pre-alpha: avoid major bumps).

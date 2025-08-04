@@ -24,7 +24,7 @@ def _build_experiment_table(
     table.add_column("Metric", style="cyan")
     table.add_column("Baseline", style="magenta")
     for t in treatments:
-        base = t.split(" (v")[0]
+        base = t.rsplit(" (v", 1)[0]
         color = "red" if inactive and base in inactive else "green"
         table.add_column(t, style=color)
     metric_names = set(metrics.baseline.metrics)
@@ -105,6 +105,16 @@ def _write_experiment_summary(
             log.write(Text(f"{cond}:\n{traceback_str}", style="bold yellow"))
 
 
+def _has_output(result: Any) -> bool:
+    if _build_experiment_table(result) is not None:
+        return True
+    if _build_hypothesis_tables(result):
+        return True
+    if result.errors:
+        return True
+    return False
+
+
 def _write_summary(
     log: RichLog,
     result: Any,
@@ -114,6 +124,8 @@ def _write_summary(
 ) -> None:
     if isinstance(result, dict):
         for name, res in result.items():
+            if not _has_output(res):
+                continue
             log.write(Text(name, style="bold underline"))
             _write_experiment_summary(
                 log, res, highlight=highlight, inactive=inactive

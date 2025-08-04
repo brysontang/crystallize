@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 import pytest
-from rich.style import Style
 from textual.app import App
 from textual.widgets import Tree
 
@@ -168,9 +167,8 @@ async def test_add_treatment_placeholder(tmp_path: Path, monkeypatch) -> None:
         plugin.root_dir = str(tmp_path)
         screen._build_tree()
         tree = screen.query_one("#node-tree", Tree)
-        node_add = next(
-            n for n in tree.root.children if n.data and n.data[0] == "add_treatment"
-        )
+        assert tree.root.children[-1].data[0] == "add_treatment"
+        node_add = tree.root.children[-1]
         tree._cursor_node = node_add
         monkeypatch.setattr("cli.screens.run._open_in_editor", lambda *a, **k: None)
         screen.action_edit_selected_node()
@@ -206,5 +204,5 @@ async def test_color_rendering(tmp_path: Path) -> None:
         )
         tree._cursor_node = node_b
         label_b = screen.action_toggle_treatment()
-        assert Style.parse(node_a.label.style) == Style.parse("green")
-        assert label_b is not None and Style.parse(label_b.style) == Style.parse("red")
+        assert str(node_a.label.style) == "green"
+        assert label_b is not None and str(label_b.style) == "red"

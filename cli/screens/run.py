@@ -177,7 +177,7 @@ class RunScreen(Screen):
         Binding("ctrl+c", "cancel_and_exit", "Close", show=False),
         Binding("s", "summary", "Summary"),
         Binding("t", "toggle_plain_text", "Toggle Plain Text"),
-        Binding("l", "toggle_cache", "Toggle cache"),
+        Binding("l", "toggle_cache", "Toggle Cache"),
         Binding("R", "run_or_cancel", "Run"),
         Binding("escape", "cancel_and_exit", "Close"),
         Binding("e", "edit_selected_node", "Edit"),
@@ -245,6 +245,11 @@ class RunScreen(Screen):
         node = self.tree_nodes.get(path)
         if not node:
             return
+        if path[0] == "treatment":
+            name = path[1]
+            color = "green" if name not in self._inactive_treatments else "red"
+            node.set_label(Text(name, style=color))
+            return
         if len(path) == 1:
             name = path[0]
             label = self._format_label(
@@ -299,7 +304,7 @@ class RunScreen(Screen):
                 Text(t.name, style=color),
                 data=("treatment", t.name, t),
             )
-            self.tree_nodes[(t.name,)] = t_node
+            self.tree_nodes[("treatment", t.name)] = t_node
             for k, v in t.apply_map.items():
                 t_node.add(
                     Text(f"{k}: {v}"), data=("ctx", k, v), allow_expand=False
@@ -662,15 +667,14 @@ class RunScreen(Screen):
 
         highlight_label: str | None = None
         if highlight:
-            targets = (
-                out_obj.values() if isinstance(out_obj, dict) else [out_obj]
-            )
+            targets = out_obj.values() if isinstance(out_obj, dict) else [out_obj]
             for res in targets:
-                for key in res.metrics.treatments.keys():
-                    if key.startswith(highlight):
-                        highlight_label = key
-                        break
-                if highlight_label:
+                match = next(
+                    (k for k in res.metrics.treatments if k.startswith(highlight)),
+                    None,
+                )
+                if match:
+                    highlight_label = match
                     break
 
         _write_summary(
@@ -820,9 +824,8 @@ class RunScreen(Screen):
             label = Text(name, style="red")
         node.set_label(label)
         state_path = self._cfg_path.with_suffix(".state.json")
-        state_path.write_text(
-            json.dumps({"inactive_treatments": sorted(self._inactive_treatments)})
-        )
+        with state_path.open("w") as f:
+            json.dump({"inactive_treatments": sorted(self._inactive_treatments)}, f)
         return label
 
     def action_edit_selected_node(self) -> None:

@@ -143,7 +143,11 @@ class CLIStatusPlugin(BasePlugin):
         )
 
     def after_run(self, experiment: Experiment, result: Any) -> None:  # type: ignore[override]
-        prov = result.provenance.get("ctx_changes", {}) if hasattr(result, "provenance") else {}
+        prov = (
+            result.provenance.get("ctx_changes", {})
+            if hasattr(result, "provenance")
+            else {}
+        )
         errors = getattr(result, "errors", {})
         skip_runs: set[tuple[str, int]] = set()
         for key in errors:
@@ -161,6 +165,7 @@ class CLIStatusPlugin(BasePlugin):
         cache_dir = Path.home() / ".cache" / "crystallize" / "steps"
         cache_dir.mkdir(parents=True, exist_ok=True)
         hist_file = cache_dir / f"{experiment.name}.json"
+        hist_file.parent.mkdir(parents=True, exist_ok=True)
         try:
             history = json.loads(hist_file.read_text())
         except Exception:

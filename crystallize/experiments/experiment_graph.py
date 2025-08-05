@@ -409,7 +409,34 @@ class ExperimentGraph:
                                     active_treatments=run_treatments,
                                 ),
                             )
-                            self._results[name] = Result(metrics=metrics)
+                            artifacts: Dict[str, Dict[str, str]] = {}
+                            manifest_path = base / "_manifest.json"
+                            if manifest_path.exists():
+                                with open(manifest_path) as f:
+                                    manifest = json.load(f)
+                                rep_dirs = [
+                                    d
+                                    for d in base.glob("replicate_*")
+                                    if d.is_dir()
+                                ]
+                                for art_name, step_name in manifest.items():
+                                    mapping: Dict[str, str] = {}
+                                    for cond in conditions_to_check:
+                                        for rep_dir in rep_dirs:
+                                            cand = (
+                                                rep_dir
+                                                / cond
+                                                / step_name
+                                                / art_name
+                                            )
+                                            if cand.exists():
+                                                mapping[cond] = str(cand)
+                                                break
+                                    if mapping:
+                                        artifacts[art_name] = mapping
+                            self._results[name] = Result(
+                                metrics=metrics, artifacts=artifacts
+                            )
                             if progress_callback:
                                 await progress_callback("completed", name)
                             continue

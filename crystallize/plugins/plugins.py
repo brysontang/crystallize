@@ -190,6 +190,7 @@ class ArtifactPlugin(BasePlugin):
 
     def __post_init__(self) -> None:
         self._manifest: dict[str, str] = {}
+        self._artifact_paths: dict[str, dict[str, Path]] = {}
         if self.artifact_retention == 3:
             val = os.getenv("CRYSTALLIZE_ARTIFACT_RETENTION")
             if val is not None:
@@ -219,6 +220,7 @@ class ArtifactPlugin(BasePlugin):
         else:
             self.version = 0
         self._manifest.clear()
+        self._artifact_paths.clear()
 
     def after_step(
         self,
@@ -244,8 +246,11 @@ class ArtifactPlugin(BasePlugin):
                 / artifact.step_name
             )
             os.makedirs(dest, exist_ok=True)
-            with open(dest / artifact.name, "wb") as f:
+            path = (dest / artifact.name).resolve()
+            with open(path, "wb") as f:
                 f.write(artifact.data)
+            by_artifact = self._artifact_paths.setdefault(artifact.name, {})
+            by_artifact.setdefault(condition, path)
         ctx.artifacts.clear()
 
     def after_run(self, experiment: Experiment, result: Result) -> None:
@@ -287,7 +292,9 @@ class ArtifactPlugin(BasePlugin):
 
         with open(base / "_manifest.json", "w") as f:
             json.dump(self._manifest, f)
+        result.artifacts = {k: v.copy() for k, v in self._artifact_paths.items()}
         self._manifest.clear()
+        self._artifact_paths.clear()
         if not self.versioned:
             return
         base_parent = Path(self.root_dir) / self.experiment_id

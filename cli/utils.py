@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
+from pathlib import Path
 
 from rich.table import Table
 from rich.text import Text
@@ -46,6 +47,33 @@ def _build_experiment_table(
             if len(val) > 50:
                 val = val[:47] + "..."
             row.append(val)
+        table.add_row(*row)
+    return table
+
+
+def _build_artifact_table(result: Any) -> Optional[Table]:
+    artifacts = getattr(result, "artifacts", {})
+    if not artifacts:
+        return None
+    treatments: set[str] = set()
+    for mapping in artifacts.values():
+        treatments.update(mapping.keys())
+    order = ["baseline", *sorted(t for t in treatments if t != "baseline")]
+    table = Table(title="Artifacts", border_style="bright_blue", expand=True)
+    table.add_column("Artifact", style="cyan")
+    for t in order:
+        label = "Baseline" if t == "baseline" else t
+        table.add_column(label, style="magenta" if t == "baseline" else "green")
+    for name in sorted(artifacts):
+        row: list[Any] = [name]
+        mapping = artifacts[name]
+        for t in order:
+            path = mapping.get(t)
+            if path is None:
+                row.append("")
+            else:
+                p = Path(path)
+                row.append(Text(str(p), style=f"link {p.resolve().as_uri()}"))
         table.add_row(*row)
     return table
 
@@ -95,6 +123,10 @@ def _write_experiment_summary(
     if table:
         log.write(table)
         log.write("\n")
+    art_table = _build_artifact_table(result)
+    if art_table:
+        log.write(art_table)
+        log.write("\n")
     for hyp_table in _build_hypothesis_tables(result):
         log.write(hyp_table)
         log.write("\n")
@@ -107,6 +139,8 @@ def _write_experiment_summary(
 
 def _has_output(result: Any) -> bool:
     if _build_experiment_table(result) is not None:
+        return True
+    if _build_artifact_table(result) is not None:
         return True
     if _build_hypothesis_tables(result):
         return True

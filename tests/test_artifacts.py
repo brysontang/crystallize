@@ -92,6 +92,19 @@ def test_artifacts_respect_experiment_name(tmp_path: Path, monkeypatch):
     assert expected.read_text() == "hello"
 
 
+def test_result_contains_artifact_paths(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    pipeline = Pipeline([LogStep()])
+    ds = DummySource()
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp = Experiment(datasource=ds, pipeline=pipeline, plugins=[plugin])
+    exp.validate()
+    res = exp.run()
+    art_map = res.artifacts.get("out.txt")
+    assert art_map is not None and "baseline" in art_map
+    assert Path(art_map["baseline"]).exists()
+
+
 def test_artifact_datasource_before_run(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     pipeline = Pipeline([LogStep()])

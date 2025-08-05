@@ -35,9 +35,10 @@ Let's run our new experiment without any modifications.
 
 ### Step 3: The Summary Tab – Instant Results!
 
-After the run, the view switches to the **Summary** tab. Because we included example code, the summary is already populated with meaningful results. You'll see two main tables:
+After the run, the view switches to the **Summary** tab. Because we included example code, the summary is already populated with meaningful results. You'll see three main tables:
 
 - **Metrics Table:** Shows the raw metrics collected during the run. The example code calculates a `val` metric, and you can see how its value differs between the baseline, `increase_by_one`, and `increase_by_two` treatments.
+- **Artifacts Table:** Lists the artifacts saved during the run. Each cell links to the file produced by the corresponding treatment so you can open it directly.
 - **Hypothesis Table:** Displays the results of the statistical test defined in the example. It compares each treatment to the baseline and reports a `p_value` and whether the result was significant.
 
 Just by scaffolding and running, you've already got a complete experimental result!

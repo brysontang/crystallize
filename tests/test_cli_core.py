@@ -232,6 +232,28 @@ def test_write_experiment_summary_with_hypotheses():
     assert any(isinstance(t, str) and t.startswith("Hypothesis: h") for t in titles)
 
 
+def test_write_experiment_summary_with_artifacts(tmp_path: Path):
+    res = make_result()
+    base = tmp_path / "baseline" / "out.txt"
+    base.parent.mkdir(parents=True, exist_ok=True)
+    base.write_text("a")
+    treat = tmp_path / "t" / "out.txt"
+    treat.parent.mkdir(parents=True, exist_ok=True)
+    treat.write_text("b")
+    res.artifacts = {"out.txt": {"baseline": base, "t": treat}}
+    log = FakeLog()
+    _write_experiment_summary(log, res)
+    tables = [m for m in log.written if hasattr(m, "title")]
+    art = next((t for t in tables if getattr(t, "title", "") == "Artifacts"), None)
+    assert art is not None
+    from rich.console import Console
+
+    console = Console(record=True)
+    console.print(art)
+    out = console.export_text()
+    assert "Artifacts" in out and "out.txt" in out
+
+
 def test_write_summary_single_result():
     res = make_result()
     log = FakeLog()

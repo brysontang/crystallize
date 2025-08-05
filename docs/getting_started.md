@@ -79,6 +79,7 @@ print(output)
 - Optional parallel execution for heavy experiments.
 - Configurable worker count and executor type ("thread" or "process").
 - Run screen sidebar can toggle treatments (`x`), edit (`e`) and jump to the summary (`S`) with color-coded states.
+- Summary tab lists metrics, artifacts and hypotheses with links for quick inspection.
 
 For heavy parallel workloads, ensure the cache directory supports file locks or
 switch to a thread-safe backend.

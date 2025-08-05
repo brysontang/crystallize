@@ -113,4 +113,4 @@ When you run `comfort-index` in the TUI, Crystallize automatically executes its 
 - `humidity-stats` runs once.
 - `comfort-index` runs 30 times, consuming the produced artifacts.
 
-The summary shows metrics and hypothesis results for all experiments, demonstrating how graphs let you orchestrate complex workflows.
+The summary shows metrics, artifacts, and hypothesis results for all experiments, demonstrating how graphs let you orchestrate complex workflows.

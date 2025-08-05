@@ -698,7 +698,12 @@ class RunScreen(Screen):
                     },
                     hypotheses=res.metrics.hypotheses,
                 )
-            return Result(metrics=metrics, errors=res.errors, provenance=res.provenance)
+            return Result(
+                metrics=metrics,
+                artifacts=res.artifacts,
+                errors=res.errors,
+                provenance=res.provenance,
+            )
 
         if isinstance(result, dict):
             enriched: dict[str, Result] = {}

@@ -105,6 +105,22 @@ def test_result_contains_artifact_paths(tmp_path: Path, monkeypatch):
     assert Path(art_map["baseline"]).exists()
 
 
+def test_graph_resume_contains_artifacts(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    pipeline = Pipeline([LogStep()])
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    exp = Experiment(
+        datasource=DummySource(), pipeline=pipeline, plugins=[plugin], name="E"
+    )
+    exp.validate()
+    exp.run()
+    graph = ExperimentGraph.from_experiments([exp])
+    results = graph.run(strategy="resume")
+    art_map = results[exp.name].artifacts.get("out.txt")
+    assert art_map is not None and "baseline" in art_map
+    assert Path(art_map["baseline"]).exists()
+
+
 def test_artifact_datasource_before_run(tmp_path: Path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     pipeline = Pipeline([LogStep()])

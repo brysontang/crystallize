@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections import defaultdict
 from contextlib import contextmanager
 import traceback
-import logging
 import importlib
 import sys
 from pathlib import Path
@@ -828,11 +828,14 @@ class Experiment:
                     plugin.before_replicate(self, ctx)
 
                 if seed is not None:
+                    logging.getLogger("crystallize").info(
+                        "Explicit seed %d overrides auto-seed", seed
+                    )
                     seed_plugin = self.get_plugin(SeedPlugin)
                     if seed_plugin is not None:
                         fn = seed_plugin.seed_fn or default_seed_function
                         fn(seed)
-                        ctx.add(SEED_USED_KEY, seed)
+                    ctx.add(SEED_USED_KEY, seed)
 
                 if data is None:
                     data = self.datasource.fetch(ctx)

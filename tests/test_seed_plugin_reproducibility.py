@@ -1,8 +1,9 @@
 import random
+import json
+import subprocess
+import sys
 
 import numpy as np
-
-import pytest
 
 from crystallize.datasources.datasource import DataSource
 from crystallize.experiments.experiment import Experiment
@@ -43,11 +44,9 @@ def _run(seed_plugin, execution_plugin=None):
     exp = Experiment(datasource=ds, pipeline=pipeline, plugins=plugins)
     exp.validate()
     res = exp.run(replicates=5)
-    return res.metrics.baseline.metrics["rand"]
+    return res.provenance["seeds"]["baseline"]
 
 
-# TODO: Resolve this bug
-@pytest.mark.xfail(reason="Seed plugin does not yet work correctly across executors")
 def test_seed_plugin_reproducibility_across_executors():
     seed_plugin = SeedPlugin(seed=42, seed_fn=_seed_fn)
 
@@ -56,3 +55,35 @@ def test_seed_plugin_reproducibility_across_executors():
     process = _run(seed_plugin, ParallelExecution(executor_type="process"))
 
     assert serial == thread == process
+
+
+def test_seed_plugin_deterministic_across_sessions():
+    script = r"""
+import json
+from crystallize.datasources.datasource import DataSource
+from crystallize.experiments.experiment import Experiment
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.pipelines.pipeline_step import PipelineStep
+from crystallize.plugins.plugins import SeedPlugin
+
+class DS(DataSource):
+    def fetch(self, ctx):
+        return 0
+
+class Step(PipelineStep):
+    def __call__(self, data, ctx):
+        return data
+
+    @property
+    def params(self):
+        return {}
+
+exp = Experiment(datasource=DS(), pipeline=Pipeline([Step()]), plugins=[SeedPlugin(seed=42)])
+exp.validate()
+res = exp.run(replicates=3)
+print(json.dumps(res.provenance["seeds"]["baseline"]))
+"""
+
+    out1 = subprocess.check_output([sys.executable, "-c", script])
+    out2 = subprocess.check_output([sys.executable, "-c", script])
+    assert json.loads(out1) == json.loads(out2)

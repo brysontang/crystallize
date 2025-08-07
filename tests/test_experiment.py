@@ -1,17 +1,23 @@
 import random
 import time
 import threading
+import logging
 from typing import Any, List
 from pathlib import Path
 
 import numpy as np
 import pytest
-from crystallize.plugins.plugins import ArtifactPlugin, BasePlugin
+from crystallize.plugins.plugins import (
+    ArtifactPlugin,
+    BasePlugin,
+    SeedPlugin,
+    LoggingPlugin,
+    _mix_seed,
+)
 from crystallize.experiments.result import Result
 
 import asyncio
 from crystallize.plugins.execution import ParallelExecution
-from crystallize.plugins.plugins import SeedPlugin
 from crystallize.utils.cache import compute_hash
 from crystallize.utils.context import FrozenContext
 from crystallize.datasources.datasource import DataSource
@@ -766,8 +772,6 @@ class RandomStep(PipelineStep):
         return {}
 
 
-# TODO: Resolve this bug
-@pytest.mark.xfail(reason="Seed plugin does not yet work correctly across executors")
 def test_auto_seed_reproducible_serial_vs_parallel():
     pipeline = Pipeline([RandomStep()])
     ds = RandomDataSource()
@@ -797,7 +801,7 @@ def test_auto_seed_reproducible_serial_vs_parallel():
 
     assert res_serial.metrics == res_parallel.metrics
     assert res_serial.provenance["seeds"] == res_parallel.provenance["seeds"]
-    expected = [hash(123 + rep) for rep in range(3)]
+    expected = [_mix_seed(123, rep) for rep in range(3)]
     assert res_serial.provenance["seeds"]["baseline"] == expected
 
 
@@ -816,7 +820,7 @@ def test_custom_seed_function_called():
     )
     exp.validate()
     exp.run(replicates=1)
-    assert called == [hash(7)]
+    assert called == [_mix_seed(7, 0)]
 
 
 def test_apply_seed_function_called():
@@ -835,6 +839,21 @@ def test_apply_seed_function_called():
     exp.validate()
     exp.apply(data=1, seed=5)
     assert called == [5]
+
+
+def test_apply_logs_seed_override(caplog):
+    pipeline = Pipeline([IdentityStep()])
+    ds = DummyDataSource()
+    exp = Experiment(
+        datasource=ds,
+        pipeline=pipeline,
+        plugins=[SeedPlugin(), LoggingPlugin()],
+    )
+    exp.validate()
+    with caplog.at_level(logging.INFO, logger="crystallize"):
+        exp.apply(data=1, seed=5)
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("overrides auto-seed" in m for m in messages)
 
 
 class CountingOptimizer(BaseOptimizer):
@@ -1036,7 +1055,7 @@ def test_apply_seed_plugin_autoseed():
     exp = Experiment(datasource=ds, pipeline=Pipeline([step]), plugins=[plugin])
     exp.validate()
     exp.apply(data=1)
-    assert called == [hash(7)]
+    assert called == [_mix_seed(7, 0)]
 
 
 def test_experiment_resume_skips(tmp_path: Path, monkeypatch):

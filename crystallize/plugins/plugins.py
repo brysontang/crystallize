@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import hashlib
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,6 +30,12 @@ def default_seed_function(seed: int) -> None:
         random_mod.seed(seed)
     except ModuleNotFoundError:  # pragma: no cover - stdlib always there in tests
         pass
+
+
+def _mix_seed(base: int, rep: int) -> int:
+    """Combine base seed and replicate using SHA-256 for stability."""
+    s = f"{base}:{rep}".encode()
+    return int.from_bytes(hashlib.sha256(s).digest()[:8], "big")
 
 
 class BasePlugin(ABC):
@@ -96,7 +103,7 @@ class SeedPlugin(BasePlugin):
     def before_replicate(self, experiment: Experiment, ctx: FrozenContext) -> None:
         if not self.auto_seed:
             return
-        local_seed = hash((self.seed or 0) + ctx.get("replicate", 0))
+        local_seed = _mix_seed(self.seed or 0, ctx.get("replicate", 0))
         seed_fn = self.seed_fn or default_seed_function
         seed_fn(local_seed)
         ctx.add("seed_used", local_seed)
@@ -135,8 +142,14 @@ class LoggingPlugin(BasePlugin):
             len(experiment.hypotheses),
             seed_val,
         )
-        if seed_plugin and seed_plugin.auto_seed and seed_plugin.seed_fn is None:
-            logger.warning("No seed_fn provided—randomness may not be reproducible")
+        if seed_plugin is None:
+            logger.warning(
+                "No SeedPlugin installed—randomness may not be reproducible"
+            )
+        elif seed_plugin.auto_seed and seed_plugin.seed_fn is None:
+            logger.warning(
+                "SeedPlugin has no seed_fn—randomness may not be reproducible"
+            )
         experiment._start_time = time.perf_counter()
 
     def after_step(

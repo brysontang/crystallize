@@ -42,7 +42,7 @@ non-picklable objects like client connections.
 The `SeedPlugin` dataclass controls how randomness is managed:
 
 - `seed`: base seed used for all replicates.
-- `auto_seed`: when `True` (default), each replicate uses `hash(seed + replicate)`.
+- `auto_seed`: when `True` (default), each replicate uses a SHA-256 mix of the base seed and replicate number.
 - `seed_fn`: custom function run with the computed seed.
 
 Example custom seed function:
@@ -75,7 +75,7 @@ After choosing a treatment, you can pass new data through the pipeline:
 result = exp.apply(treatment_name="treatment_a", data=my_data, seed=123)
 ```
 
-`apply()` runs the entire pipeline once, executing plugin hooks and calling step `setup`/`teardown` just like `run`. The optional `seed` is forwarded to the experiment's `seed_fn`; if omitted, the experiment's stored seed is not used. This is handy for debugging or production inference once your treatment is validated.
+`apply()` runs the entire pipeline once, executing plugin hooks and calling step `setup`/`teardown` just like `run`. The optional `seed` overrides auto-seeding (logged at INFO) and is forwarded to the experiment's `seed_fn`; if omitted, the experiment's stored seed is not used. This is handy for debugging or production inference once your treatment is validated.
 
 ## Troubleshooting & FAQs
 

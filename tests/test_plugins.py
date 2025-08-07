@@ -4,7 +4,7 @@ from crystallize.datasources.datasource import DataSource
 from crystallize.experiments.experiment import Experiment
 from crystallize.pipelines.pipeline import Pipeline
 from crystallize.pipelines.pipeline_step import PipelineStep
-from crystallize.plugins.plugins import LoggingPlugin
+from crystallize.plugins.plugins import LoggingPlugin, SeedPlugin
 from crystallize.experiments.result import Result
 from crystallize.experiments.result_structs import (
     ExperimentMetrics,
@@ -71,3 +71,54 @@ def test_logging_plugin_invalid_level():
     assert logger.level == logging.INFO
     logger.handlers.clear()
     logger.setLevel(logging.NOTSET)
+
+
+def test_logging_plugin_warns_when_no_seed_plugin(caplog):
+    plugin = LoggingPlugin()
+    exp = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([DummyStep()]),
+        plugins=[plugin],
+    )
+    # remove the default SeedPlugin installed during initialization
+    exp.plugins = [p for p in exp.plugins if not isinstance(p, SeedPlugin)]
+    exp.validate()
+    with caplog.at_level(logging.WARNING, logger="crystallize"):
+        exp.run(replicates=1)
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("No SeedPlugin installed" in m for m in messages)
+    logging.getLogger("crystallize").handlers.clear()
+
+
+def test_logging_plugin_warns_when_no_seed_fn(caplog):
+    plugin = LoggingPlugin()
+    exp = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([DummyStep()]),
+        plugins=[SeedPlugin(), plugin],  # auto_seed True, seed_fn None
+    )
+    exp.validate()
+    with caplog.at_level(logging.WARNING, logger="crystallize"):
+        exp.run(replicates=1)
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("SeedPlugin has no seed_fn" in m for m in messages)
+    logging.getLogger("crystallize").handlers.clear()
+
+
+def test_logging_plugin_no_warning_when_seed_fn_present(caplog):
+    def dummy_seed(_: int) -> None:
+        pass
+
+    plugin = LoggingPlugin()
+    exp = Experiment(
+        datasource=DummySource(),
+        pipeline=Pipeline([DummyStep()]),
+        plugins=[SeedPlugin(seed_fn=dummy_seed), plugin],
+    )
+    exp.validate()
+    with caplog.at_level(logging.WARNING, logger="crystallize"):
+        exp.run(replicates=1)
+    messages = [r.getMessage() for r in caplog.records]
+    assert not any("SeedPlugin has no seed_fn" in m for m in messages)
+    assert not any("No SeedPlugin installed" in m for m in messages)
+    logging.getLogger("crystallize").handlers.clear()

@@ -5,7 +5,8 @@ import importlib
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, Callable
 
 import pytest
 from textual.app import App
@@ -204,6 +205,8 @@ steps:
     async with app.run_test() as pilot:
         await pilot.press("R")
         while screen.worker and not screen.worker.is_finished:
+            await pilot.pause()
+        while screen.worker is not None:
             await pilot.pause()
         tabs = screen.query_one("#output-tabs", TabbedContent)
         for _ in range(50):
@@ -421,43 +424,103 @@ async def test_handle_status_events_updates_state(
         screen.worker = type("W", (), {"is_finished": True})()
 
 
-@pytest.mark.asyncio
-async def test_run_or_cancel_behaviour(
+def test_run_or_cancel_behaviour(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
     cfg = exp_dir / "config.yaml"
     monkeypatch.chdir(tmp_path)
     obj = Experiment.from_yaml(cfg)
-    async with App().run_test() as pilot:
-        screen = RunScreen(obj, cfg, False, None)
-        await pilot.app.push_screen(screen)
-        screen.worker = type("W", (), {"is_finished": True})()
-        called = False
+    screen = RunScreen(obj, cfg, False, None)
+    run_btn = SimpleNamespace(label="Run")
+    monkeypatch.setattr(screen, "query_one", lambda *a, **kw: run_btn)
+    monkeypatch.setattr(screen, "_write_error", lambda *a, **kw: None)
 
-        def fake_start() -> None:
-            nonlocal called
-            called = True
+    screen.worker = type("W", (), {"is_finished": True})()
+    called = False
 
-        screen._start_run = fake_start  # type: ignore[assignment]
-        await pilot.press("R")
-        assert called
+    def fake_start() -> None:
+        nonlocal called
+        called = True
 
-        class DummyWorker:
-            is_finished = False
-            cancelled = False
+    screen._start_run = fake_start  # type: ignore[assignment]
+    screen.action_run_or_cancel()
+    assert called
 
-            def cancel(self) -> None:
-                self.cancelled = True
+    class DummyLoop:
+        def __init__(self) -> None:
+            self.called = False
 
-        worker = DummyWorker()
-        screen.worker = worker
-        run_btn = screen.query_one("#run-btn", Button)
-        await pilot.press("R")
-        assert worker.cancelled
-        assert run_btn.label == "Run"
-        assert screen.worker is None
-        screen.worker = type("W", (), {"is_finished": True})()
+        def call_soon_threadsafe(self, func: Callable[[], None]) -> None:
+            self.called = True
+            func()
+
+    class DummyTask:
+        def cancel(self) -> None:
+            pass
+
+    class DummyWorker:
+        is_finished = False
+
+    worker = DummyWorker()
+    screen.worker = worker
+    screen._loop = DummyLoop()
+    screen._task = DummyTask()
+    callbacks: list[Callable[[], None]] = []
+
+    def fake_set_interval(interval: float, cb: Callable[[], None]):
+        callbacks.append(cb)
+        return SimpleNamespace(stop=lambda: None)
+
+    monkeypatch.setattr(screen, "set_interval", fake_set_interval)
+    screen.action_run_or_cancel()
+    assert screen._loop.called
+    assert run_btn.label == "Canceling..."
+    worker.is_finished = True
+    callbacks[0]()
+    assert run_btn.label == "Run"
+    assert screen.worker is None
+    screen.worker = type("W", (), {"is_finished": True})()
+
+
+def test_cancel_timeout_sets_force_stop_label(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exp_dir = create_experiment_scaffolding("demo", directory=tmp_path, examples=True)
+    cfg = exp_dir / "config.yaml"
+    monkeypatch.chdir(tmp_path)
+    obj = Experiment.from_yaml(cfg)
+    screen = RunScreen(obj, cfg, False, None)
+    run_btn = SimpleNamespace(label="Run")
+    monkeypatch.setattr(screen, "query_one", lambda *a, **kw: run_btn)
+    monkeypatch.setattr(screen, "_write_error", lambda *a, **kw: None)
+
+    screen.worker = type("W", (), {"is_finished": False})()
+
+    class DummyLoop:
+        def call_soon_threadsafe(self, func: Callable[[], None]) -> None:
+            func()
+
+    screen._loop = DummyLoop()
+    screen._task = type("T", (), {"cancel": lambda self: None})()
+    callbacks: list[Callable[[], None]] = []
+
+    def fake_set_interval(interval: float, cb: Callable[[], None]):
+        callbacks.append(cb)
+        return SimpleNamespace(stop=lambda: None)
+
+    monkeypatch.setattr(screen, "set_interval", fake_set_interval)
+    times = [0.0]
+
+    def fake_perf() -> float:
+        return times[0]
+
+    monkeypatch.setattr(run_module.time, "perf_counter", fake_perf)
+    screen.action_run_or_cancel()
+    # simulate time passing beyond timeout
+    times[0] = 6.0
+    callbacks[0]()
+    assert run_btn.label == "Force Stop (unsafe)"
 
 
 @pytest.mark.asyncio
@@ -630,16 +693,20 @@ async def test_rerun_after_config_error_shows_error_tab(
         screen.worker = type("W", (), {"is_finished": True})()
 
         def run_worker(func, *a, **kw):
-            func()
-            return type("W", (), {"is_finished": True})()
+            import threading
+
+            t = threading.Thread(target=func)
+            t.start()
+            t.join()
+            return SimpleNamespace(is_finished=True)
 
         screen.run_worker = run_worker  # type: ignore[assignment]
         screen.app.call_from_thread = lambda f, *a, **kw: f(*a, **kw)  # type: ignore[assignment]
 
-        def fake_asyncio_run(*args: Any, **kwargs: Any) -> None:
+        def fake_run_object(*args: Any, **kwargs: Any) -> Any:
             raise ValueError("boom")
 
-        monkeypatch.setattr("cli.screens.run.asyncio.run", fake_asyncio_run)
+        monkeypatch.setattr(run_module, "_run_object", fake_run_object)
 
         await pilot.press("R")
         tabs = screen.query_one("#output-tabs", TabbedContent)

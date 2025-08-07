@@ -252,3 +252,17 @@ class TextualLoggingPlugin(LoggingPlugin):
     def before_step(self, experiment: Experiment, step: PipelineStep) -> None:
         exp_var.set(experiment.name)
         step_var.set(step.__class__.__name__)
+
+    def after_run(self, experiment: Experiment, result: Any) -> None:
+        super().after_run(experiment, result)
+
+        logger = logging.getLogger("crystallize")
+        for handler in list(logger.handlers):
+            if isinstance(handler, self.handler_cls):
+                handler.close()
+                logger.removeHandler(handler)
+
+        logger.propagate = False
+
+        if self.writer and hasattr(self.writer, "close"):
+            self.writer.close()

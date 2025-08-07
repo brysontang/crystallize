@@ -119,17 +119,36 @@ def _suspend_tui(app: App | None = None) -> Iterable[None]:
 def _open_in_editor(path: str, line: int | None = None) -> None:
     """Open ``path`` in the user's configured editor."""
     editor = (
-        os.getenv("CRYSTALLIZE_EDITOR") or os.getenv("EDITOR") or os.getenv("VISUAL")
+        os.getenv("CRYSTALLIZE_EDITOR")
+        or os.getenv("EDITOR")
+        or os.getenv("VISUAL")
     )
     if not editor:
         raise RuntimeError("No editor configured")
+    import shlex
 
-    if "code" in editor or "cursor" in editor:
-        cmd = [editor, "-g", f"{path}:{line or 1}"]
-    elif os.path.basename(editor) in {"vim", "nvim", "nano", "helix"}:
-        cmd = [editor, f"+{line or 1}", path]
+    line = 1 if line is None else line
+    parts = shlex.split(editor)
+    prog = parts[0]
+    extra_args = parts[1:]
+    editor_name = os.path.basename(prog).lower()
+    if editor_name.endswith(".exe"):
+        editor_name = editor_name[:-4]
+
+    cmd: list[str]
+    if editor_name in {"code", "code-insiders", "cursor", "cursor-insiders"}:
+        cmd = [prog, "-g", f"{path}:{line}"]
+    elif editor_name == "subl":
+        cmd = [prog, f"{path}:{line}"]
+    elif editor_name.startswith(("pycharm", "charm", "idea", "intellij")):
+        cmd = [prog, "--line", str(line), path]
+    elif editor_name == "emacsclient":
+        cmd = [prog, f"+{line}", path]
+    elif editor_name in {"vim", "nvim", "nano", "helix"}:
+        cmd = [prog, f"+{line}", path]
     else:
-        cmd = [editor, path]
+        cmd = [prog, path]
+    cmd[1:1] = extra_args
 
     with pristine_stdio(), _suspend_tui():
         subprocess.run(cmd, check=False)

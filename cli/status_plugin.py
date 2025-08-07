@@ -223,31 +223,45 @@ class TextualLoggingPlugin(LoggingPlugin):
     handler_cls: type[logging.Handler] = WidgetLogHandler
 
     def before_run(self, experiment):
-        super().before_run(experiment)
-        if not self.writer:
-            return
+      super().before_run(experiment)
+      if not self.writer:
+          return
 
-        logger = logging.getLogger("crystallize")
+      logger = logging.getLogger("crystallize")
 
-        # Ensure exactly one ContextFilter instance
-        logger.filters = [
-            f for f in logger.filters if not isinstance(f, ContextFilter)
-        ]
-        logger.addFilter(ContextFilter())
+      # Ensure exactly one ContextFilter
+      logger.filters = [f for f in logger.filters if not isinstance(f, ContextFilter)]
+      logger.addFilter(ContextFilter())
 
-        # Remove all existing handlers to avoid stale widget bindings
-        logger.handlers = []
+      # Remove all existing handlers to avoid stale widget bindings
+      logger.handlers = []
 
-        # Attach a fresh widget handler
-        handler = self.handler_cls(self.writer)
-        fmt = "%(asctime)s  %(levelname).1s  %(exp)-10s  %(step)-18s | %(message)s"
-        datefmt = "%H:%M:%S"
-        handler.setFormatter(RichFormatter(fmt, datefmt=datefmt))
-        logger.addHandler(handler)
+      # Attach a fresh widget handler
+      handler = self.handler_cls(self.writer)
+      fmt = "%(asctime)s  %(levelname).1s  %(exp)-10s  %(step)-18s | %(message)s"
+      datefmt = "%H:%M:%S"
+      handler.setFormatter(RichFormatter(fmt, datefmt=datefmt))
+      logger.addHandler(handler)
 
-        # Prevent propagation to the root logger
-        logger.propagate = False
-
+      # Prevent propagation to the root logger
+      logger.propagate = False
+    
+    
     def before_step(self, experiment: Experiment, step: PipelineStep) -> None:
         exp_var.set(experiment.name)
         step_var.set(step.__class__.__name__)
+
+    def after_run(self, experiment: Experiment, result: Any) -> None:
+        super().after_run(experiment, result)
+
+        logger = logging.getLogger("crystallize")
+        for h in [h for h in logger.handlers if isinstance(h, self.handler_cls)]:
+            try:
+                h.close()
+            finally:
+                logger.removeHandler(h)
+
+        logger.propagate = False
+
+        if self.writer and hasattr(self.writer, "close"):
+            self.writer.close()

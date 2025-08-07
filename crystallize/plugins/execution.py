@@ -86,9 +86,26 @@ class ParallelExecution(BasePlugin):
                 }
             except Exception as exc:
                 if self.executor_type == "process" and "pickle" in repr(exc).lower():
+                    step_names = [
+                        s.__class__.__name__
+                        for s in getattr(getattr(experiment, "pipeline", None), "steps", [])
+                    ]
+                    exp_name = getattr(experiment, "name", None) or getattr(
+                        experiment, "id", None
+                    ) or "<unnamed>"
+                    step_msg = (
+                        f" Pipeline steps: {', '.join(step_names)}."
+                        " Step factories must be picklable."
+                        if step_names
+                        else ""
+                    )
                     raise RuntimeError(
-                        "Failed to pickle experiment for multiprocessing. "
-                        "Use 'resource_factory' for non-picklable dependencies."
+                        "Failed to pickle experiment "
+                        f"'{exp_name}' for multiprocessing. "
+                        "Non-picklable closures or lambdas in steps, datasources, "
+                        "or verifiers may be the cause. Wrap heavy resources with "
+                        "resource_factory(...)."
+                        + step_msg
                     ) from exc
                 raise
             futures = as_completed(future_map)

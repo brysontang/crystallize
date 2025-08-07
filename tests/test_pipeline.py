@@ -103,6 +103,27 @@ def test_pipeline_tuple_data_not_metrics():
     assert ctx.metrics.as_dict() == {}
 
 
+class TrackStep(PipelineStep):
+    def __call__(self, data: Any, ctx: FrozenContext):
+        _ = ctx["a"]
+        ctx.add("b", 2)
+        return data, {"m": data}
+
+    @property
+    def params(self) -> dict:
+        return {}
+
+
+def test_provenance_records_ctx_and_metrics():
+    pipeline = Pipeline([TrackStep()])
+    ctx = FrozenContext({"a": 1})
+    pipeline.run(5, ctx, verbose=True)
+    prov = pipeline.get_provenance()[0]
+    assert prov["ctx_changes"]["reads"] == {"a": 1}
+    assert prov["ctx_changes"]["wrote"] == {"b": {"before": None, "after": 2}}
+    assert prov["ctx_changes"]["metrics"] == {"m": {"before": (), "after": (5,)}}
+
+
 class AsyncAddStep(PipelineStep):
     def __init__(self, value: int):
         self.value = value

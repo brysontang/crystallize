@@ -192,6 +192,15 @@ class Artifact(DataSource):
         path = base / f"replicate_{rep_to_load}" / cond / step_name / self.name
 
         if not path.exists() and cond != BASELINE_CONDITION:
+            ctx_logger = getattr(ctx, "logger", None)
+            if ctx_logger:
+                ctx_logger.warning(
+                    "Artifact %s for condition '%s' not found at %s; falling back to '%s'.",
+                    self.name,
+                    cond,
+                    str(path),
+                    BASELINE_CONDITION,
+                )
             path = (
                 base
                 / f"replicate_{rep_to_load}"

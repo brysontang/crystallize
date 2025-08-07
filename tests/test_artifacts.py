@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 
 import numpy as np
 import pytest
@@ -174,6 +175,65 @@ def test_artifact_versioning(tmp_path: Path, monkeypatch):
         / "out.txt"
     )
     assert path0.exists() and path1.exists()
+
+
+def test_artifact_fetch_fallback_logs(tmp_path: Path, monkeypatch, caplog):
+    monkeypatch.chdir(tmp_path)
+
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    out = Artifact("out.txt", loader=lambda p: p.read_text())
+    pipeline = Pipeline([LogStep()])
+    exp = Experiment(
+        datasource=DummySource(),
+        pipeline=pipeline,
+        plugins=[plugin],
+        outputs=[out],
+    )
+    exp.validate()
+    exp.run()
+
+    ctx = FrozenContext({"replicate": 0, "condition": "treat"}, logger=logging.getLogger("test"))
+    with caplog.at_level(logging.WARNING, logger="test"):
+        result = out.fetch(ctx)
+    assert result == "hello"
+    warnings = [r for r in caplog.records if "falling back" in r.message]
+    assert len(warnings) == 1
+    exp_id = compute_hash(pipeline.signature())
+    missing = (
+        tmp_path
+        / "arts"
+        / exp_id
+        / "v0"
+        / "replicate_0"
+        / "treat"
+        / "LogStep"
+        / "out.txt"
+    )
+    assert str(missing) in warnings[0].message
+
+
+def test_artifact_fetch_raises_when_baseline_missing(
+    tmp_path: Path, monkeypatch, caplog
+):
+    monkeypatch.chdir(tmp_path)
+
+    plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
+    out = Artifact("never.txt", loader=lambda p: p.read_text())
+
+    pipeline = Pipeline([LogStep()])  # LogStep writes "out.txt", not "never.txt"
+    exp = Experiment(
+        datasource=DummySource(),
+        pipeline=pipeline,
+        plugins=[plugin],
+        outputs=[Artifact("out.txt", loader=lambda p: p.read_text()), out],
+    )
+    exp.validate()
+    exp.run()
+
+    ctx = FrozenContext({"replicate": 0, "condition": "treat"})
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(FileNotFoundError):
+            out.fetch(ctx)
 
 
 def test_metadata_written_and_chained(tmp_path: Path, monkeypatch):

@@ -149,13 +149,11 @@ class Pipeline:
 
         final_provenance = tuple(provenance)
         self._provenance = final_provenance
-
+        total_steps = len(self.steps) or 1
         logger.info(
             "Cache hit rate: %.0f%% (%d/%d steps)",
-            (
-                (hit_count := sum(1 for p in provenance if p["cache_hit"]))
-                / len(self.steps)
-            )
+            (hit_count := sum(1 for p in provenance if p["cache_hit"]))
+            / total_steps
             * 100,
             hit_count,
             len(self.steps),

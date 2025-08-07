@@ -20,12 +20,14 @@ from .result_structs import ExperimentMetrics, TreatmentMetrics
 from .treatment import Treatment
 
 
-def find_experiments_root(start: Path) -> Path:
+def find_experiments_root(start: Path, *, strict: bool = True) -> Path:
     """
     Walk up from *start* until we find a directory that either **is**
     called 'experiments' or **contains** a sub-directory called 'experiments'.
 
-    Raises FileNotFoundError if we reach the filesystem root without success.
+    If not found:
+      - when ``strict=True`` (default), raise FileNotFoundError (explicit failure).
+      - when ``strict=False``, return ``start`` and log a warning.
     """
     start = start.resolve()
     for ancestor in (start,) + tuple(start.parents):
@@ -34,7 +36,12 @@ def find_experiments_root(start: Path) -> Path:
         if (ancestor / "experiments").is_dir():
             return ancestor / "experiments"
 
-    return start.parent.parent
+    if strict:
+        raise FileNotFoundError("Could not locate 'experiments' directory from " + str(start))
+    logging.getLogger(__name__).warning(
+        "Could not locate 'experiments' dir from %s; falling back to start", start
+    )
+    return start
 
 
 class ExperimentGraph:
@@ -138,7 +145,7 @@ class ExperimentGraph:
         if path.is_dir():
             return cls._from_directory(path)
 
-        root = find_experiments_root(path)
+        root = find_experiments_root(path, strict=False)
         loaded: dict[str, Experiment] = {}
 
         def _load(cfg: Path) -> None:

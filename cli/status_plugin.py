@@ -224,29 +224,28 @@ class TextualLoggingPlugin(LoggingPlugin):
 
     def before_run(self, experiment):
         super().before_run(experiment)
+        if not self.writer:
+            return
 
         logger = logging.getLogger("crystallize")
-        if not any(isinstance(h, ContextFilter) for h in logger.filters):
-            logger.addFilter(ContextFilter())
 
-        # ① DROP any previously-installed StreamHandlers
-        logger.handlers = [
-            h
-            for h in logger.handlers
-            if isinstance(h, self.handler_cls)  # keep existing Widget handler
+        # Ensure exactly one ContextFilter instance
+        logger.filters = [
+            f for f in logger.filters if not isinstance(f, ContextFilter)
         ]
+        logger.addFilter(ContextFilter())
 
-        # ② Add / re-add Widget handler if missing
-        if self.writer and not any(
-            isinstance(h, self.handler_cls) for h in logger.handlers
-        ):
-            handler = self.handler_cls(self.writer)
-            fmt = "%(asctime)s  %(levelname).1s  %(exp)-10s  %(step)-18s | %(message)s"
-            datefmt = "%H:%M:%S"  # short, no date
-            handler.setFormatter(RichFormatter(fmt, datefmt=datefmt))
-            logger.addHandler(handler)
+        # Remove all existing handlers to avoid stale widget bindings
+        logger.handlers = []
 
-        # ③ Make sure nothing bubbles up to the root logger
+        # Attach a fresh widget handler
+        handler = self.handler_cls(self.writer)
+        fmt = "%(asctime)s  %(levelname).1s  %(exp)-10s  %(step)-18s | %(message)s"
+        datefmt = "%H:%M:%S"
+        handler.setFormatter(RichFormatter(fmt, datefmt=datefmt))
+        logger.addHandler(handler)
+
+        # Prevent propagation to the root logger
         logger.propagate = False
 
     def before_step(self, experiment: Experiment, step: PipelineStep) -> None:

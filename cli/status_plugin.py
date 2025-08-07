@@ -229,17 +229,13 @@ class TextualLoggingPlugin(LoggingPlugin):
         if not any(isinstance(h, ContextFilter) for h in logger.filters):
             logger.addFilter(ContextFilter())
 
-        # ① DROP any previously-installed StreamHandlers
+        # ① Drop any previously-installed Widget handlers to avoid stale bindings
         logger.handlers = [
-            h
-            for h in logger.handlers
-            if isinstance(h, self.handler_cls)  # keep existing Widget handler
+            h for h in logger.handlers if not isinstance(h, self.handler_cls)
         ]
 
-        # ② Add / re-add Widget handler if missing
-        if self.writer and not any(
-            isinstance(h, self.handler_cls) for h in logger.handlers
-        ):
+        # ② Attach a fresh handler if we have a writer
+        if self.writer:
             handler = self.handler_cls(self.writer)
             fmt = "%(asctime)s  %(levelname).1s  %(exp)-10s  %(step)-18s | %(message)s"
             datefmt = "%H:%M:%S"  # short, no date
@@ -257,10 +253,11 @@ class TextualLoggingPlugin(LoggingPlugin):
         super().after_run(experiment, result)
 
         logger = logging.getLogger("crystallize")
-        for handler in list(logger.handlers):
-            if isinstance(handler, self.handler_cls):
-                handler.close()
-                logger.removeHandler(handler)
+        for h in [h for h in logger.handlers if isinstance(h, self.handler_cls)]:
+            try:
+                h.close()
+            finally:
+                logger.removeHandler(h)
 
         logger.propagate = False
 

@@ -74,5 +74,8 @@ class WidgetWriter:
     def close(self) -> None:
         """Close the cached duplicate FD if it exists."""
         if self._dup_fd is not None:
-            os.close(self._dup_fd)
+            try:
+                os.close(self._dup_fd)
+            except OSError:
+                pass
             self._dup_fd = None

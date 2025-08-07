@@ -77,11 +77,10 @@ class ParallelExecution(BasePlugin):
             arg_list = list(range(experiment.replicates))
 
         worker_count = self.max_workers or min(experiment.replicates, default_workers)
-        results: List[Any] = [None] * experiment.replicates
         with exec_cls(max_workers=worker_count) as executor:
             try:
-                future_map = {
-                    executor.submit(submit_target, arg): rep
+                futures_by_rep = {
+                    rep: executor.submit(submit_target, arg)
                     for rep, arg in enumerate(arg_list)
                 }
             except Exception as exc:
@@ -91,14 +90,18 @@ class ParallelExecution(BasePlugin):
                         "Use 'resource_factory' for non-picklable dependencies."
                     ) from exc
                 raise
-            futures = as_completed(future_map)
+
+            wait_iter = as_completed(futures_by_rep.values())
             if self.progress and experiment.replicates > 1:
                 from tqdm import tqdm  # type: ignore
 
-                futures = tqdm(futures, total=len(future_map), desc="Replicates")
-            for fut in futures:
-                idx = future_map[fut]
-                results[idx] = fut.result()
+                wait_iter = tqdm(wait_iter, total=len(futures_by_rep), desc="Replicates")
+            for fut in wait_iter:
+                fut.result()
+
+            results = [
+                futures_by_rep[rep].result() for rep in range(experiment.replicates)
+            ]
         return results
 
 

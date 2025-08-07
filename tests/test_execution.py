@@ -3,6 +3,10 @@ import asyncio
 
 import pytest
 
+from crystallize.datasources.datasource import DataSource
+from crystallize.experiments.experiment import Experiment
+from crystallize.pipelines.pipeline import Pipeline
+from crystallize.pipelines.pipeline_step import PipelineStep
 from crystallize.plugins.execution import (
     ParallelExecution,
     SerialExecution,
@@ -13,6 +17,23 @@ from crystallize.plugins.execution import (
 class DummyExperiment:
     def __init__(self, reps: int) -> None:
         self.replicates = reps
+
+
+class DummyDS(DataSource):
+    def fetch(self, ctx):
+        return 1
+
+
+class UnpicklableStep(PipelineStep):
+    def __init__(self) -> None:
+        self.fh = open(__file__, "r")
+
+    def __call__(self, data, ctx):
+        return data
+
+    @property
+    def params(self) -> dict:
+        return {}
 
 
 def test_serial_execution_progress(monkeypatch):
@@ -68,6 +89,39 @@ def test_parallel_execution_process(monkeypatch):
     result = exec_plugin.run_experiment_loop(exp, lambda x: x)
     assert sorted(result) == [0, 3, 6]
     assert called == ["Replicates"]
+
+
+def test_parallel_execution_process_pickling_error(monkeypatch):
+    class ExplodingExecutor:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+        def submit(self, fn, arg):
+            import pickle
+
+            pickle.dumps(arg)
+            return None
+
+    monkeypatch.setattr(
+        "crystallize.plugins.execution.ProcessPoolExecutor", ExplodingExecutor
+    )
+    pipeline = Pipeline([UnpicklableStep()])
+    exp = Experiment(datasource=DummyDS(), pipeline=pipeline, name="bad-exp")
+    exec_plugin = ParallelExecution(executor_type="process")
+
+    with pytest.raises(RuntimeError) as excinfo:
+        exec_plugin.run_experiment_loop(exp, lambda i: i)
+
+    msg = str(excinfo.value)
+    assert "bad-exp" in msg
+    assert "resource_factory" in msg
+    assert "UnpicklableStep" in msg
 
 
 def test_parallel_execution_invalid_type():

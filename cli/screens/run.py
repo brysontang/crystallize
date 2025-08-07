@@ -209,6 +209,9 @@ class RunScreen(Screen):
         self._current_step: str | None = None
         self._step_start: float | None = None
         self.worker: Any | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._task: asyncio.Task[Any] | None = None
+        self.cancel_timer: Any | None = None
         self._inactive_treatments: set[str] = set()
         self._reset_state()
         self._editor_hint_shown = False
@@ -453,7 +456,6 @@ class RunScreen(Screen):
             result = None
             error: str | None = None
             try:
-
                 async def run_with_callback():
                     with pristine_stdio():
                         if isinstance(self._obj, ExperimentGraph):
@@ -465,11 +467,22 @@ class RunScreen(Screen):
                         else:
                             return await _run_object(self._obj, None, self._replicates)
 
-                result = asyncio.run(run_with_callback())
+                self._loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(self._loop)
+                self._task = self._loop.create_task(run_with_callback())
+                result = self._loop.run_until_complete(self._task)
+            except asyncio.CancelledError:
+                pass
             except Exception:
                 error = traceback.format_exc()
                 print(f"[bold red]An error occurred in the worker:\n{error}[/bold red]")
             finally:
+                if self._loop is not None:
+                    self._loop.run_until_complete(self._loop.shutdown_asyncgens())
+                    asyncio.set_event_loop(None)
+                    self._loop.close()
+                    self._loop = None
+                    self._task = None
                 self.app.call_from_thread(
                     self.on_experiment_complete,
                     self.ExperimentComplete(result, error),
@@ -761,11 +774,31 @@ class RunScreen(Screen):
             pass
 
     def action_run_or_cancel(self) -> None:
+        run_btn = self.query_one("#run-btn", Button)
         if self.worker and not self.worker.is_finished:
-            self.worker.cancel()
-            run_btn = self.query_one("#run-btn", Button)
-            run_btn.label = "Run"
-            self.worker = None
+            if run_btn.label == "Force Stop (unsafe)":
+                self._write_error("Cancellation is taking too long; force stop is unsafe.")
+                return
+            if self._loop and self._task:
+                self._loop.call_soon_threadsafe(self._task.cancel)
+            run_btn.label = "Canceling..."
+            start = time.perf_counter()
+
+            def check_cancel() -> None:
+                if not self.worker or self.worker.is_finished:
+                    run_btn.label = "Run"
+                    if self.cancel_timer:
+                        self.cancel_timer.stop()
+                    self.worker = None
+                elif time.perf_counter() - start > 5:
+                    run_btn.label = "Force Stop (unsafe)"
+                    self._write_error(
+                        "Cancellation did not complete; stopping forcefully is unsafe."
+                    )
+                    if self.cancel_timer:
+                        self.cancel_timer.stop()
+
+            self.cancel_timer = self.set_interval(0.1, check_cancel)
             return
         self._start_run()
 
@@ -834,6 +867,8 @@ class RunScreen(Screen):
         if hasattr(self, "queue_timer"):
             self.queue_timer.stop()
         if getattr(self, "worker", None) is not None and not self.worker.is_finished:
+            if self._loop and self._task:
+                self._loop.call_soon_threadsafe(self._task.cancel)
             self.worker.cancel()
 
     def action_cancel_and_exit(self) -> None:

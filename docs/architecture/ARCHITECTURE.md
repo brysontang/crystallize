@@ -12,7 +12,7 @@ Crystallize enables reproducible data-science experiments by structuring runs as
   - `datasource.py` – abstract base class for data providers and the `ExperimentInput` aggregator.
   - `__init__.py` – exposes artifact utilities.
 - **Relationships / Dependencies:** Uses `utils.context` for execution context and interacts with `plugins.ArtifactPlugin` for persistence. `ExperimentInput` may depend on outputs from other experiments.
-- **Notes / Edge Cases:** `ExperimentInput` infers replicate counts from the first artifact input and raises if constructed without inputs.
+- **Notes / Edge Cases:** `ExperimentInput` validates replicate counts across artifact inputs and raises on conflicts or missing inputs.
 
 ### experiments
 - **Responsibility:** Define and execute experiments, manage treatments and hypotheses, and aggregate results.

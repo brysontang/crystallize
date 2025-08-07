@@ -62,11 +62,8 @@ __init__(**inputs: crystallize.core.datasource.DataSource) → None
 
 #### <kbd>property</kbd> ExperimentInput.replicates
 
-
-
-
-
-
+Number of replicates inferred from artifact inputs.
+If artifacts provide conflicting counts, construction raises ``ValueError``.
 
 ---
 

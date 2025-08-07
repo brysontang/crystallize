@@ -52,8 +52,21 @@ class ExperimentInput(DataSource):
 
         self._replicates: int | None = None
         if self.required_outputs:
-            first_artifact = self.required_outputs[0]
-            self._replicates = getattr(first_artifact, "replicates", None)
+            replicates_map: dict[str, int] = {
+                name: art.replicates
+                for name, art in inputs.items()
+                if isinstance(art, Artifact) and art.replicates is not None
+            }
+            distinct = set(replicates_map.values())
+            if len(distinct) > 1:
+                mismatches = ", ".join(
+                    f"{n}={r}" for n, r in sorted(replicates_map.items())
+                )
+                raise ValueError(
+                    "Conflicting replicates across artifacts: " + mismatches
+                )
+            if distinct:
+                self._replicates = distinct.pop()
 
     def fetch(self, ctx: "FrozenContext") -> dict[str, Any]:
         """Fetches data from all contained datasources."""
@@ -61,7 +74,7 @@ class ExperimentInput(DataSource):
 
     @property
     def replicates(self) -> int | None:
-        """The number of replicates, inferred from the first Artifact input."""
+        """The number of replicates, inferred from Artifact inputs."""
         return self._replicates
 
 

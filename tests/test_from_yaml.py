@@ -290,12 +290,15 @@ def test_from_yaml_unused_output(tmp_path: Path):
 
 
 def test_graph_from_yaml_recursive(tmp_path: Path):
-    prod_dir = create_exp(tmp_path, name="producer")
+    root = tmp_path / "experiments"
+    root.mkdir()
+
+    prod_dir = create_exp(root, name="producer")
     prod = Experiment.from_yaml(prod_dir / "config.yaml")
     prod.validate()
     prod.run()
 
-    cons = tmp_path / "consumer"
+    cons = root / "consumer"
     cons.mkdir()
     (cons / "datasources.py").write_text(
         "from crystallize import data_source\n"

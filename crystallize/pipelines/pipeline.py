@@ -126,13 +126,6 @@ class Pipeline:
                 for key, value in data.items():
                     ctx.metrics.add(key, value)
 
-            post_metrics_items = ctx.metrics.as_dict()
-            metrics_diff: Dict[str, Dict[str, Tuple[Any, ...]]] = {}
-            for k, vals in post_metrics_items.items():
-                prev = pre_metrics.get(k, ())
-                if vals != prev:
-                    metrics_diff[k] = {"before": prev, "after": vals}
-
             reads = (
                 target_ctx.reads.copy()
                 if verbose and isinstance(target_ctx, LoggingContext)
@@ -157,10 +150,13 @@ class Pipeline:
         final_provenance = tuple(provenance)
         self._provenance = final_provenance
 
-        hit_count = sum(1 for p in provenance if p["cache_hit"])
         logger.info(
             "Cache hit rate: %.0f%% (%d/%d steps)",
-            (hit_count / len(self.steps)) * 100,
+            (
+                (hit_count := sum(1 for p in provenance if p["cache_hit"]))
+                / len(self.steps)
+            )
+            * 100,
             hit_count,
             len(self.steps),
         )

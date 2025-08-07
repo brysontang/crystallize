@@ -20,3 +20,10 @@ Each `PipelineStep` is hashed along with its inputs. When a step is cacheable, C
 ## Declarative Experiments
 
 The `Experiment` class defines data sources, pipelines, treatments, hypotheses, and plugins purely in code. Because the entire configuration lives in a Python module (or YAML file), it can be version controlled and shared. Re-running an experiment with the same code and data reproduces the exact sequence of steps and results.
+
+## Collision-Resistant Identifiers
+
+Experiment IDs normally hash only the pipeline signature. To avoid accidental
+collisions across differing datasources or treatments, set the environment
+variable `CRYSTALLIZE_STRONG_IDS=1` and the ID will also include datasource
+parameters, treatments, and replicates.

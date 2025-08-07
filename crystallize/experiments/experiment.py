@@ -1,3 +1,11 @@
+"""Experiment orchestration and execution utilities.
+
+Setting the environment variable ``CRYSTALLIZE_STRONG_IDS=1`` makes
+``Experiment.id`` incorporate datasource parameters, treatments and replicates
+for stronger collision resistance. By default only the pipeline signature is
+used, preserving compatibility with existing experiment runs.
+"""
+
 from __future__ import annotations
 
 import json
@@ -19,6 +27,7 @@ from typing import (
     Tuple,
 )
 import inspect
+import os
 
 from typing import TYPE_CHECKING
 
@@ -148,6 +157,27 @@ class Experiment:
             raise TypeError(
                 f"replicates must be an integer, but got {type(self.replicates).__name__}"
             )
+
+    def signature_components(self, *, replicates: Optional[int] = None) -> dict[str, Any]:
+        """Return components contributing to the experiment signature."""
+
+        components: dict[str, Any] = {
+            "pipeline_signature": self.pipeline.signature(),
+            "replicates": self.replicates if replicates is None else replicates,
+        }
+        params = getattr(self.datasource, "params", None)
+        if params is not None:
+            components["datasource_params"] = params
+        if self.treatments:
+            comps: list[dict[str, Any]] = []
+            for t in self.treatments:
+                item: dict[str, Any] = {"name": t.name}
+                amap = t.apply_map
+                if amap:
+                    item["apply_map"] = amap
+                comps.append(item)
+            components["treatments"] = comps
+        return components
 
     # ------------------------------------------------------------------ #
 
@@ -279,7 +309,13 @@ class Experiment:
         if self.id is None:
             from crystallize.utils.cache import compute_hash
 
-            self.id = compute_hash(self.pipeline.signature())
+            strong = os.getenv("CRYSTALLIZE_STRONG_IDS") == "1"
+            payload = (
+                self.signature_components()
+                if strong
+                else self.pipeline.signature()
+            )
+            self.id = compute_hash(payload)
 
         exp_dir = self.name or self.id
 
@@ -613,7 +649,13 @@ class Experiment:
 
         from crystallize.utils.cache import compute_hash
 
-        self.id = compute_hash(self.pipeline.signature())
+        strong = os.getenv("CRYSTALLIZE_STRONG_IDS") == "1"
+        payload = (
+            self.signature_components(replicates=replicates)
+            if strong
+            else self.pipeline.signature()
+        )
+        self.id = compute_hash(payload)
 
         if run_hypotheses and not run_treatments:
             raise ValueError("Cannot verify hypotheses without treatments")
@@ -799,12 +841,18 @@ class Experiment:
                 print(f"Experiment validation failed: {exc}")
                 raise
 
-        from crystallize.utils.cache import compute_hash
-
-        self.id = compute_hash(self.pipeline.signature())
-
         datasource_reps = getattr(self.datasource, "replicates", None)
         replicates = datasource_reps or 1
+
+        from crystallize.utils.cache import compute_hash
+
+        strong = os.getenv("CRYSTALLIZE_STRONG_IDS") == "1"
+        payload = (
+            self.signature_components(replicates=replicates)
+            if strong
+            else self.pipeline.signature()
+        )
+        self.id = compute_hash(payload)
 
         ctx = FrozenContext(
             {CONDITION_KEY: treatment.name if treatment else BASELINE_CONDITION}

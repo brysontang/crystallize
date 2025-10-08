@@ -7,7 +7,7 @@ This glossary provides definitions for key terms and acronyms used in the Crysta
 
 ## Caching
 
-A mechanism in Crystallize that stores intermediate results of pipeline steps to ensure reproducibility and efficiency. Cacheable steps (default: `cacheable=True`) compute hashes of inputs and parameters, reusing outputs when hashes match. Non-cacheable steps (e.g., stochastic processes) bypass caching. Cache files are stored in `.cache/` (configurable via `CRYSTALLIZE_CACHE_DIR`).
+A mechanism in Crystallize that stores intermediate results of pipeline steps to ensure reproducibility and efficiency. Steps are opt-in (`@pipeline_step(cacheable=True)`). When enabled, hashes of the step definition, explicit parameters, and input data decide whether to reuse previous outputs. Cache files reside in `.cache/` (configurable via `CRYSTALLIZE_CACHE_DIR`).
 
 ## DataSource
 
@@ -38,10 +38,6 @@ An immutable dictionary-like object for passing parameters during execution. Sup
 
 A verifiable assertion about treatment effects, defined by a verifier function, metrics to compare, and a ranker for ordering treatments. Use `@hypothesis(verifier=..., metrics=...)` decorator on ranker functions.
 
-## Immutable Contexts
-
-See _FrozenContext_.
-
 ## Metrics
 
 Key-value pairs collected during pipeline execution, stored in `FrozenContext.metrics`. Steps call `ctx.metrics.add()` to record values that hypotheses later verify. The last step may return any data type.
@@ -50,7 +46,7 @@ Key-value pairs collected during pipeline execution, stored in `FrozenContext.me
 Optional concurrent execution of replicates using thread or process pools. Configure via the `ParallelExecution` plugin with `max_workers` (default: CPU count) and `executor_type` ("thread" for I/O-bound, "process" for CPU-bound).
 
 ## Pipeline
-A sequence of `PipelineStep` objects for deterministic data transformations. Use `pipeline(*steps)` to build them. Metrics are added to the context during execution; returning them is optional.
+A sequence of `PipelineStep` objects for deterministic data transformations. Create one with `Pipeline([step_a(), step_b()])` or via the `@pipeline` decorator. Steps may add metrics to the context or return `(data, metrics_dict)`.
 
 ## PipelineStep
 
@@ -82,7 +78,7 @@ An object subclassing `BasePlugin` that hooks into the experiment lifecycle. Plu
 
 ## BasePlugin
 
-The abstract base class defining available hooks: `init_hook`, `before_run`, `before_replicate`, `after_step`, and `after_run`.
+The abstract base class defining available hooks: `init_hook`, `before_run`, `before_replicate`, `before_step`, `after_step`, `after_run`, and (optionally) `run_experiment_loop` for custom execution strategies.
 
 ## Hook
 
@@ -97,6 +93,6 @@ A method on a plugin invoked at specific points during experiment execution. Hoo
 ## Next Steps
 
 - For hands-on setup, see [Tutorials: Getting Started](getting_started.md).
-- To customize steps, refer to [How-to Guides: Add a Custom Step](how-to/custom-steps/).
-- For experiment configuration, see [How-to Guides: Customizing Experiments](how-to/customizing-experiments/).
-- Detailed API: [Reference: PipelineStep](reference-pipelinestep.md).
+- To customize steps, refer to [How-to Guides: Add a Custom Step](how-to/custom-steps.md).
+- For experiment configuration, see [How-to Guides: Customizing Experiments](how-to/customizing-experiments.md).
+- Detailed API: [Reference: PipelineStep](../reference/pipeline_step.md).

@@ -2,8 +2,7 @@
 title: Injection
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.injection`
+## <kbd>module</kbd> `crystallize.utils.injection`
 
 
 

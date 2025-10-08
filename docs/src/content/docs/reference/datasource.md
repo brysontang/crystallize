@@ -2,12 +2,14 @@
 title: Datasource
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.datasource`
-
+## <kbd>module</kbd> `crystallize.datasources.datasource`
 
 
 
+
+**Global Variables**
+---------------
+- **TYPE_CHECKING**
 
 
 ---
@@ -23,7 +25,7 @@ Abstract provider of input data for an experiment.
 ### <kbd>method</kbd> `DataSource.fetch`
 
 ```python
-fetch(ctx: crystallize.core.context.FrozenContext) → Any
+fetch(ctx: 'FrozenContext') → Any
 ```
 
 Return raw data for a single pipeline run. 
@@ -45,36 +47,78 @@ Implementations may load data from disk, generate synthetic samples or access re
 ---
 
 ## <kbd>class</kbd> `ExperimentInput`
-Load multiple named artifacts for an experiment.
+Bundles multiple named datasources for an experiment. 
+
+This can include both raw datasources (like functions decorated with @data_source) and Artifacts that link to the output of other experiments. 
 
 ### <kbd>method</kbd> `ExperimentInput.__init__`
 
 ```python
-__init__(**inputs: crystallize.core.datasource.DataSource) → None
+__init__(**inputs: 'DataSource') → None
 ```
 
 
 
-
+**Args:**
+ 
+ - <b>`**inputs`</b>:  A keyword mapping of names to DataSource objects. 
 
 
 ---
 
 #### <kbd>property</kbd> ExperimentInput.replicates
 
-Number of replicates inferred from artifact inputs.
-If artifacts provide conflicting counts, construction raises ``ValueError``.
+The number of replicates, inferred from Artifact inputs. 
+
+
 
 ---
 
 ### <kbd>method</kbd> `ExperimentInput.fetch`
 
 ```python
-fetch(ctx: crystallize.core.context.FrozenContext) → dict[str, Any]
+fetch(ctx: 'FrozenContext') → dict[str, Any]
+```
+
+Fetches data from all contained datasources. 
+
+
+---
+
+## <kbd>class</kbd> `ExperimentInput`
+Bundles multiple named datasources for an experiment. 
+
+This can include both raw datasources (like functions decorated with @data_source) and Artifacts that link to the output of other experiments. 
+
+### <kbd>method</kbd> `ExperimentInput.__init__`
+
+```python
+__init__(**inputs: 'DataSource') → None
 ```
 
 
 
+**Args:**
+ 
+ - <b>`**inputs`</b>:  A keyword mapping of names to DataSource objects. 
 
+
+---
+
+#### <kbd>property</kbd> ExperimentInput.replicates
+
+The number of replicates, inferred from Artifact inputs. 
+
+
+
+---
+
+### <kbd>method</kbd> `ExperimentInput.fetch`
+
+```python
+fetch(ctx: 'FrozenContext') → dict[str, Any]
+```
+
+Fetches data from all contained datasources. 
 
 

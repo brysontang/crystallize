@@ -1,200 +1,99 @@
 ---
 title: Building Your First Experiment
-description: A guide to building your first experiment with Crystallize
+description: Assemble a pipeline, treatments, and hypotheses from scratch.
 ---
 
-In this tutorial, you'll build a basic experiment focusing on the DataSource (for fetching input data) and Pipeline (for processing it). We'll use a small subset of the Titanic dataset (hardcoded for simplicity; in practice, load from CSV via pandas). This hands-on guide assumes you've installed Crystallize and run the intro example from Getting Started.
+This tutorial walks through the same workflow used in `examples/minimal_experiment/main.py`, breaking each piece down so you can adapt it to your own project.
 
-The goal: Fetch Titanic-like passenger data, normalize the 'Age' column (simple transformation), and compute the mean age as a metric. This prepares for treatments/hypotheses in later tutorials.
-
-**Note**: For real workflows, download Titanic CSV (e.g., from https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv) and use `pandas.read_csv` in your DataSource. Here, we hardcode a subset to keep it self-contained.
-
-## Step 1: Set Up Your Script
-
-Create `basic_experiment.py` and import essentials:
+## 1. Datasource
 
 ```python
-from crystallize import (
-    data_source,         # Decorator for data fetchers
-    pipeline_step,       # Decorator for transformation steps
-)
-from crystallize import ParallelExecution, FrozenContext  # Immutable context
-import pandas as pd  # For data handling (assumes pandas installed)
-```
-
-These provide factories for sources and steps. For details, see Reference: DataSource and PipelineStep.
-
-## Step 2: Define the DataSource
-
-The DataSource generates a small Titanic-like DataFrame.
-
-```python
-# Define data source with hardcoded Titanic subset
-@data_source
-def titanic_source(ctx: FrozenContext):
-    """
-    Generate small Titanic-like data (subset for demo).
-    - ctx: Immutable context (unused here).
-    Returns: pandas DataFrame.
-    """
-    data = {
-        'Age': [22.0, 38.0, 26.0, 35.0, 35.0, 54.0, 27.0, 14.0],
-    }
-    # Sample 3 random rows from the data
-    indices = random.sample(range(len(data['Age'])), 3)
-    sampled_data = {'Age': [data['Age'][i] for i in indices]}
-
-    return pd.DataFrame(sampled_data)
-```
-
-- **How it works**: `@data_source` turns this into a factory. Instantiate as `source = titanic_source()`.
-- **Test it**: `source = titanic_source(); print(source.fetch(FrozenContext({})).head())` → Shows DF.
-- **Real-world**: Replace hardcoded data with `pd.read_csv('titanic.csv')` or URL fetch (if internet available).
-
-**Inline Troubleshooting**:
-
-- _Pandas not found?_ Install via `pip install pandas` (optional but useful for data tasks).
-- _Data empty?_ Ensure return is non-empty; add checks like `if df.empty: raise ValueError`.
-- FAQ: Why DataFrame? Crystallize handles any data type (lists, arrays)—DF is common for ML.
-
-For CSV loading examples, see `examples/csv_pipeline_example/datasource.py`.
-
-## Step 3: Build the Pipeline
-
-Pipeline steps transform the DataFrame. Record metrics with `ctx.metrics.add` so hypotheses can verify them later.
-
-```python
-from scipy.stats import skew, kurtosis
-
-# Pipeline step: Simple verifiable transformation (normalize Age)
-@pipeline_step()
-def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
-    mean_age = data['Age'].mean()
-    std_age = data['Age'].std()
-    data['Normalized_Age'] = (data['Age'] - mean_age) / std_age
-    return data
-
-@pipeline_step()
-def compute_metrics(data: pd.DataFrame, ctx: FrozenContext):
-    std_norm_age = data['Normalized_Age'].std()
-    ctx.metrics.add("std_norm_age", std_norm_age)  # expect ≈ 1
-
-    # Optional metrics to explore distribution shape further:
-    # from scipy.stats import skew, kurtosis
-    # age_skewness = skew(data['Normalized_Age'])
-    # age_kurtosis = kurtosis(data['Normalized_Age'])
-    # ctx.metrics.add("age_skewness", age_skewness)
-    # ctx.metrics.add("age_kurtosis", age_kurtosis)
-
-    return data
-```
-
-- **Assembly**: `pipeline_steps = [normalize_age, compute_metrics]`.
-- **Transformation**: Normalizes Age (verifiable: mean should be ~0).
-- **Test a step**: `step = normalize_age(); df = pd.DataFrame({'Age': [20,30]}); print(step(df, FrozenContext({}))['Normalized_Age'].mean())` → 0.0.
-
-**Inline Troubleshooting**:
-
-- _KeyError: Column missing?_ Check prior steps add required columns; use `if 'col' not in data`.
-- _Caching fails?_ Ensure params/input hashable; avoid non-deterministic code unless `cacheable=False`.
-- _Mutation error?_ Don't modify ctx existing keys—use `ctx.add`.
-- FAQ: Where do metrics come from? Steps add values to `ctx.metrics`; hypotheses aggregate them across replicates.
-
-For advanced steps like PCA, see `examples/csv_pipeline_example/steps/pca.py`.
-
-## Step 4: Assemble and Run
-
-Build and execute:
-
-```python
-# Build experiment
-exp = Experiment(
-    datasource=titanic_source(),
-    pipeline=Pipeline([normalize_age(), compute_metrics()]),
-    plugins=[ParallelExecution()],
-)
-exp.validate()  # optional
-
-# Run and inspect
-result = exp.run(replicates=3)
-print("Baseline metrics:", result.metrics.baseline.metrics)
-# e.g., {'mean_norm_age': (0.0, 0.0, 0.0)}  # Mean normalized is always 0
-```
-
-- **Output**: Metrics from replicates (mean ~0, verifiable transformation).
-- **Provenance**: `print(result.provenance)` for reproducibility.
-
-**Inline Troubleshooting**:
-
-- _Validation error?_ Ensure `.validate()` or build succeeds—needs source/pipeline.
-- _Metrics empty?_ Verify `ctx.metrics.add` is called in your steps.
-- FAQ: Replicates with same data? Adds variability if steps random; prepares for stats.
-
-## Full Script
-
-`basic_experiment.py`:
-
-```python
-from crystallize import data_source, pipeline_step
-from crystallize import ParallelExecution, FrozenContext
-import pandas as pd
-import random  # Unused here, but for future noise
-from scipy.stats import skew, kurtosis
+from crystallize import data_source, FrozenContext
 
 @data_source
-def titanic_source(ctx: FrozenContext):
-    data = {
-        'Age': [22.0, 38.0, 26.0, 35.0, 35.0, 54.0, 27.0, 14.0],
-    }
-    # Sample 3 random rows from the data
-    indices = random.sample(range(len(data['Age'])), 3)
-    sampled_data = {'Age': [data['Age'][i] for i in indices]}
+def fetch_numbers(ctx: FrozenContext) -> list[int]:
+    """Return the baseline payload that enters the pipeline."""
+    return [0, 0, 0]
+```
 
-    return pd.DataFrame(sampled_data)
+Datasources can load from disk, call APIs, or synthesise data. They run once per replicate and should be deterministic with respect to the context.
 
-@pipeline_step()
-def normalize_age(data: pd.DataFrame, ctx: FrozenContext):
-    mean_age = data['Age'].mean()
-    std_age = data['Age'].std()
-    data['Normalized_Age'] = (data['Age'] - mean_age) / std_age
-    print(data['Normalized_Age'])
-    return data
+## 2. Pipeline Steps
+
+```python
+from crystallize import pipeline_step
 
 @pipeline_step()
-def compute_metrics(data: pd.DataFrame, ctx: FrozenContext):
-    std_norm_age = data['Normalized_Age'].std()
-    ctx.metrics.add("std_norm_age", std_norm_age)  # expect ≈ 1
+def add_delta(data: list[int], ctx: FrozenContext, *, delta: float = 0.0) -> list[float]:
+    """Inject a configurable delta (supplied by treatments or defaults)."""
+    return [x + delta for x in data]
 
-    # Optional metrics to explore distribution shape further:
-    # from scipy.stats import skew, kurtosis
-    # age_skewness = skew(data['Normalized_Age'])
-    # age_kurtosis = kurtosis(data['Normalized_Age'])
-    # ctx.metrics.add("age_skewness", age_skewness)
-    # ctx.metrics.add("age_kurtosis", age_kurtosis)
+@pipeline_step()
+def summarize(data: list[float], ctx: FrozenContext):
+    """Record the total while preserving the data for downstream steps."""
+    return data, {"total": sum(data)}
+```
 
-    return data
+Notes:
 
-if __name__ == "__main__":
-    exp = Experiment(
-        datasource=titanic_source(),
-        pipeline=Pipeline([normalize_age(), compute_metrics()]),
-        plugins=[ParallelExecution()],
+- Keyword-only parameters (`delta`) are pulled from the context when you instantiate the step without explicitly passing them.
+- Returning `(data, metrics)` adds entries to the metrics collector while forwarding the data to the next step.
+- Set `@pipeline_step(cacheable=True)` to enable step-level caching. Crystallize hashes the step definition, explicit parameters, and input data before writing to `.cache/`.
+
+## 3. Treatments & Hypotheses
+
+```python
+from crystallize import treatment, hypothesis, verifier
+from scipy.stats import ttest_ind
+
+boost_total = treatment("boost_total", {"delta": 10.0})
+
+@verifier
+def welch_t_test(baseline, treatment, alpha: float = 0.05):
+    stat, p_value = ttest_ind(
+        treatment["total"], baseline["total"], equal_var=False
     )
-    exp.validate()  # optional
-    r = exp.run(replicates=3)
+    return {"p_value": p_value, "significant": p_value < alpha}
 
-    print("Baseline metrics:", r.metrics.baseline.metrics)
-
+@hypothesis(verifier=welch_t_test(), metrics="total")
+def order_by_p_value(result: dict[str, float]) -> float:
+    return result.get("p_value", 1.0)
 ```
 
-Run: `python basic_experiment.py`. Verify mean_norm_age is 0.0 (simple transformation check).
+- Treatments merge their payload into the context before each replicate. They never mutate existing keys—immutability is enforced by `FrozenContext`.
+- Hypotheses pair a verifier (statistical test) with a ranker, so you can sort treatments by any metric you care about.
 
-To train linear regression: Add a step using statsmodels (available in code env) to fit OLS on Age~Fare, metric as R-squared.
+## 4. Assemble and Run
 
-## Next Steps
+```python
+from crystallize import Experiment, Pipeline, ParallelExecution
 
-- **Add Variations**: See Tutorials: Adding Treatments and Hypotheses.
-- **ML Models**: Extend pipeline with regression—see How-to: Integrate ML steps.
-- **Reference**: Pipeline, DataSource.
-- **Explanations**: Caching in pipelines—see Explanation: Reproducibility.
-- Download full Titanic CSV and update DataSource for real data. See `examples/csv_pipeline_example` for CSV handling.
+experiment = (
+    Experiment.builder("basic")
+    .datasource(fetch_numbers())
+    .add_step(add_delta())
+    .add_step(summarize())
+    .plugins([ParallelExecution(max_workers=4)])
+    .treatments([boost_total()])
+    .hypotheses([order_by_p_value])
+    .replicates(12)
+    .build()
+)
+
+result = experiment.run()
+```
+
+What you get:
+
+- **Metrics**: `result.metrics.baseline.metrics["total"]` and the treatment equivalent contain per-replicate lists.
+- **Hypothesis summary**: `result.get_hypothesis("order_by_p_value").results` returns the p-value and significance flag.
+- **Artifacts**: If any step called `ctx.artifacts.add("file.txt", b"...")`, the default `ArtifactPlugin` saves them under `data/basic/v0/replicate_*/...`.
+
+Default plugins (`ArtifactPlugin`, `SeedPlugin`, `LoggingPlugin`) are attached automatically. Override them by passing your own list to `.plugins([...])`.
+
+## 5. Variations to Try
+
+- **Caching**: Add `@pipeline_step(cacheable=True)` to expensive steps and watch the CLI highlight cached runs.
+- **Concurrency**: Switch `ParallelExecution` to `ParallelExecution(executor_type="process")` for CPU-bound workloads.
+- **More metrics**: Return additional metrics from steps or call `ctx.metrics.add` directly for richer hypothesis inputs.
+- **Experiment Graphs**: When you need multi-stage workflows, declare outputs (`Artifact`) and load them from downstream experiments via `ExperimentGraph`.

@@ -2,8 +2,7 @@
 title: Execution
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.execution`
+## <kbd>module</kbd> `crystallize.plugins.execution`
 
 
 
@@ -51,7 +50,7 @@ run_experiment_loop(
 ---
 
 ## <kbd>class</kbd> `ParallelExecution`
-Run replicates concurrently using ``ThreadPoolExecutor`` or ``ProcessPoolExecutor``. 
+Run SYNC replicates concurrently using ThreadPoolExecutor or ProcessPoolExecutor. 
 
 ### <kbd>method</kbd> `ParallelExecution.__init__`
 
@@ -73,6 +72,40 @@ __init__(
 ---
 
 ### <kbd>method</kbd> `ParallelExecution.run_experiment_loop`
+
+```python
+run_experiment_loop(
+    experiment: "'Experiment'",
+    replicate_fn: 'Callable[[int], Any]'
+) → List[Any]
+```
+
+
+
+
+
+
+---
+
+## <kbd>class</kbd> `AsyncExecution`
+Run async replicates concurrently using asyncio.gather. 
+
+### <kbd>method</kbd> `AsyncExecution.__init__`
+
+```python
+__init__(progress: 'bool' = False) → None
+```
+
+
+
+
+
+
+
+
+---
+
+### <kbd>method</kbd> `AsyncExecution.run_experiment_loop`
 
 ```python
 run_experiment_loop(

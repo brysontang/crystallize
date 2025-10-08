@@ -1,88 +1,113 @@
 ---
 title: Customizing Experiments
-description: Configure seeds, parallelism, and validation using SeedPlugin, ParallelExecution, and the apply method.
+description: Adjust seeding, parallelism, and reuse experiments for single-shot runs.
 ---
 
-Crystallize's `Experiment` class accepts a list of plugins. Use the built-in `SeedPlugin` and `ParallelExecution` to tweak randomness, parallel execution, and other options. This page shows how to customize these settings and how to reuse an experiment with `.apply()`.
+The `Experiment` constructor accepts plugins and an optional initial context. Use these hooks to control determinism, execution strategy, and shared resources.
 
-Every call to `run()` or `apply()` is stateless—you pass treatments, hypotheses and replicate count each time. The same `Experiment` instance can therefore be reused with different configurations.
+## 1. Default Plugins (and Overrides)
 
-## 1. Build an Experiment
+When you build an experiment (either manually or via `Experiment.builder()`), Crystallize ensures three plugins exist:
 
-Instantiate your components and pass configuration objects:
+- `ArtifactPlugin(root_dir="data")`
+- `SeedPlugin(auto_seed=True)`
+- `LoggingPlugin(verbose=False)`
+
+You can replace them by supplying your own list:
+
 ```python
-from crystallize import SeedPlugin, ParallelExecution, Experiment, Pipeline
-from crystallize import resource_factory
-import random
+from crystallize import Experiment, Pipeline, SeedPlugin, ParallelExecution, LoggingPlugin
 
-exp = Experiment(
+experiment = Experiment(
     datasource=my_source(),
-    pipeline=Pipeline([step1(), step2()]),
+    pipeline=Pipeline([step_one(), step_two()]),
     plugins=[
-        SeedPlugin(seed=42),
-        ParallelExecution(),
+        SeedPlugin(seed=1234, auto_seed=True),
+        ParallelExecution(max_workers=4, executor_type="process"),
+        LoggingPlugin(verbose=True, log_level="DEBUG"),
     ],
-    initial_ctx={"rng": resource_factory(lambda ctx: random.Random(ctx["seed"]))},
 )
-exp.validate()  # optional
+```
 
-exp_static = Experiment(
+## 2. Seeding Strategies
+
+`SeedPlugin` exposes three knobs:
+
+- `seed`: base integer. When provided, replicate `r` gets `hash(seed + r)`.
+- `auto_seed`: disable if you want to manage randomness manually.
+- `seed_fn`: custom callable invoked with the computed seed (ideal for seeding NumPy, PyTorch, etc.).
+
+```python
+import numpy as np
+
+def seed_all(seed: int) -> None:
+    import random
+
+    random.seed(seed)
+    np.random.seed(seed % (2**32 - 1))
+
+seeded = SeedPlugin(seed=123, seed_fn=seed_all)
+```
+
+The selected seed is stored in the context under `"seed_used"` and appears in the provenance tree.
+
+## 3. Shared Resources via `resource_factory`
+
+If the pipeline needs a reusable object (e.g., a database client), add it to `initial_ctx` using `resource_factory`. The factory runs once per worker and caches the resource.
+
+```python
+from crystallize import resource_factory
+from crystallize.utils.context import FrozenContext
+
+def connect(ctx: FrozenContext):
+    import sqlite3
+
+    return sqlite3.connect(":memory:")
+
+experiment = Experiment(
     datasource=my_source(),
-    pipeline=Pipeline([step1(), step2()]),
-    initial_ctx={"static": 42},
+    pipeline=Pipeline([...]),
+    initial_ctx={"db": resource_factory(connect)},
 )
 ```
 
-When using `ParallelExecution` with `executor_type="process"`, factories in
-`initial_ctx` must be picklable. Wrap them with `resource_factory` if they create
-non-picklable objects like client connections.
+Process-based execution requires that factories be picklable; wrapping them with `resource_factory` satisfies that requirement.
 
-## 2. Seeding for Reproducibility
-
-The `SeedPlugin` dataclass controls how randomness is managed:
-
-- `seed`: base seed used for all replicates.
-- `auto_seed`: when `True` (default), each replicate uses `hash(seed + replicate)`.
-- `seed_fn`: custom function run with the computed seed.
-
-Example custom seed function:
-```python
-$(cat /tmp/custom_seed_snippet.txt)
-```
-
-## 3. Parallel Execution
-
-Use `ParallelExecution` to run replicates concurrently. Choose the executor type:
-
-- `executor_type="thread"` (default) for IO-bound steps.
-- `executor_type="process"` for CPU-heavy work that bypasses the GIL.
-- `max_workers` limits the number of threads/processes.
+## 4. Choosing an Execution Strategy
 
 ```python
-$(cat /tmp/parallel_snippet.txt)
+ParallelExecution(max_workers=8, executor_type="process")
+AsyncExecution()
+SerialExecution()
 ```
 
-Parallelism uses Python's `concurrent.futures`; results match serial execution.
+- Use threads for IO-heavy steps, processes for CPU-bound work (objects must be picklable), and `AsyncExecution` when your steps are `async def`.
+- The CLI exposes `l` to toggle caching (per step or experiment) and updates the execution strategy automatically (`"resume"` for cached runs, `"rerun"` when caching is disabled).
 
-## 4. Validation Rules
+## 5. Reusing the Experiment with `apply()`
 
-An experiment must have a data source and pipeline. If hypotheses are defined, at least one treatment is required. Call `validate()` to enforce these conditions.
+After identifying a winning treatment, reuse the same experiment for inference:
 
-## 5. Reusing Pipelines with `.apply()`
-
-After choosing a treatment, you can pass new data through the pipeline:
 ```python
-result = exp.apply(treatment_name="treatment_a", data=my_data, seed=123)
+result = experiment.run(treatments=[best], replicates=40)
+
+single_output = experiment.apply(
+    treatment=best,
+    data={"numbers": [10, 20, 30]},  # optional override for the datasource output
+    seed=999,                        # optional override seed forwarded to SeedPlugin
+)
 ```
 
-`apply()` runs the entire pipeline once, executing plugin hooks and calling step `setup`/`teardown` just like `run`. The optional `seed` is forwarded to the experiment's `seed_fn`; if omitted, the experiment's stored seed is not used. This is handy for debugging or production inference once your treatment is validated.
+- `apply()` runs the pipeline exactly once, triggers plugin hooks, and returns the final data payload.
+- Passing `data` skips the datasource (useful for serving inference). When omitted, `datasource.fetch` runs as usual.
+- `seed` is optional; if provided, it flows through the configured `seed_fn`.
 
-## Troubleshooting & FAQs
+## 6. Validation Helpers
 
-- **`Unknown treatment`** – The name passed to `treatment_name` must match a treatment in the experiment.
-- **Parallelism slower?** – Use `process` executors for CPU-bound work and ensure steps release the GIL for threads.
+`experiment.validate()` checks basic invariants (datasource + pipeline exist). You can call it proactively when building experiments programmatically or rely on the CLI to surface configuration errors while loading `config.yaml`.
 
-## Next Steps
+## 7. Troubleshooting
 
-- Learn to create [custom pipeline steps](custom-steps.md).
-- See the [Tutorials: Parallelism](../tutorials/parallelism.md) for performance tips.
+- **Pickling errors with parallelism** – ensure pipeline steps, datasources, and any objects captured by closures live at module scope. Use `resource_factory` for non-picklable objects.
+- **Randomness still drifting** – verify that all randomness goes through libraries seeded in your custom `seed_fn`. Some libraries (e.g., PyTorch) require extra flags for determinism.
+- **Slow parallel runs** – start with `executor_type="thread"` for IO workloads; processes only help when the work releases the GIL.

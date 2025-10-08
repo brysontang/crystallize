@@ -25,7 +25,7 @@ cd crystallize
 
 3. **Install Dependencies**:
 
-Use `pixi` to install all required dependencies as specified in the `pixi.toml` file. This command creates a virtual environment in the `.pixi` directory and installs everything needed for development and testing.
+Use `pixi` to install all required dependencies defined under `[tool.pixi]` in `pyproject.toml`. This command creates a virtual environment in the `.pixi` directory and installs everything needed for development and testing.
 
 ```bash
 pixi install
@@ -45,6 +45,13 @@ pixi run test
 
 ```bash
 pixi run lint
+```
+
+- **Coverage (required for CI)**:
+
+```bash
+pixi run cov       # generates coverage.xml
+pixi run diff-cov  # checks patch coverage against main
 ```
 
 Please ensure both commands run successfully without errors before submitting a pull request.

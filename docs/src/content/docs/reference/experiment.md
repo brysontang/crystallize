@@ -2,14 +2,14 @@
 title: Experiment
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.experiment`
+## <kbd>module</kbd> `crystallize.experiments.experiment`
 
 
 
 
 **Global Variables**
 ---------------
+- **TYPE_CHECKING**
 - **VALID_EXECUTOR_TYPES**
 - **METADATA_FILENAME**
 - **BASELINE_CONDITION**
@@ -32,8 +32,13 @@ __init__(
     datasource: 'DataSource',
     pipeline: 'Pipeline',
     plugins: 'Optional[List[BasePlugin]]' = None,
+    description: 'str | None' = None,
     name: 'str | None' = None,
-    initial_ctx: 'Dict[str, Any] | None' = None
+    initial_ctx: 'Dict[str, Any] | None' = None,
+    outputs: 'List[Artifact] | None' = None,
+    treatments: 'List[Treatment] | None' = None,
+    hypotheses: 'List[Hypothesis] | None' = None,
+    replicates: 'int' = 1
 ) → None
 ```
 
@@ -46,6 +51,7 @@ Instantiate an experiment configuration.
  - <b>`datasource`</b>:  Object that provides the initial data for each run. 
  - <b>`pipeline`</b>:  Pipeline executed for every replicate. 
  - <b>`plugins`</b>:  Optional list of plugins controlling experiment behaviour. 
+ - <b>`description`</b>:  Optional text describing this experiment. 
  - <b>`name`</b>:  Optional experiment name used for artifact storage. 
 
 
@@ -70,6 +76,22 @@ Instantiate an experiment configuration.
 #### <kbd>property</kbd> Experiment.treatments
 
 
+
+
+
+
+
+---
+
+### <kbd>method</kbd> `Experiment.aoptimize`
+
+```python
+aoptimize(
+    optimizer: "'BaseOptimizer'",
+    num_trials: 'int',
+    replicates_per_trial: 'int' = 1
+) → Treatment
+```
 
 
 
@@ -111,6 +133,47 @@ Parameters
 
 ---
 
+### <kbd>method</kbd> `Experiment.arun`
+
+```python
+arun(
+    treatments: 'List[Treatment] | None' = None,
+    hypotheses: 'List[Hypothesis] | None' = None,
+    replicates: 'int | None' = None,
+    strategy: 'str | None' = None
+) → Result
+```
+
+Execute the experiment and return a :class:`Result` instance. 
+
+The lifecycle proceeds as follows: 
+
+1. ``before_run`` hooks for all plugins are invoked. 2. Each replicate is executed via ``run_experiment_loop``.  The default  implementation runs serially, but plugins may provide parallel or  distributed strategies. 3. After all replicates complete, metrics are aggregated and  hypotheses are verified. 4. ``after_run`` hooks for all plugins are executed. 
+
+The returned :class:`~crystallize.experiments.result.Result` contains aggregated metrics, any captured errors and a provenance record of context mutations for every pipeline step. 
+
+---
+
+### <kbd>classmethod</kbd> `Experiment.builder`
+
+```python
+builder(name: 'str | None' = None) → 'ExperimentBuilder'
+```
+
+Return a fluent builder for constructing an ``Experiment``. 
+
+---
+
+### <kbd>classmethod</kbd> `Experiment.from_yaml`
+
+```python
+from_yaml(config_path: 'str | Path') → 'Experiment'
+```
+
+Instantiate an experiment from a folder-based YAML config. 
+
+---
+
 ### <kbd>method</kbd> `Experiment.get_plugin`
 
 ```python
@@ -131,9 +194,7 @@ optimize(
 ) → Treatment
 ```
 
-
-
-
+Synchronous wrapper for :meth:`aoptimize`. 
 
 ---
 
@@ -143,17 +204,24 @@ optimize(
 run(
     treatments: 'List[Treatment] | None' = None,
     hypotheses: 'List[Hypothesis] | None' = None,
-    replicates: 'int | None' = None
+    replicates: 'int | None' = None,
+    strategy: 'str | None' = None
 ) → Result
 ```
 
-Execute the experiment and return a :class:`Result` instance. 
+Synchronous wrapper for the async run method. Convenient for tests and scripts. 
 
-The lifecycle proceeds as follows: 
+---
 
-1. ``before_run`` hooks for all plugins are invoked. 2. Each replicate is executed via ``run_experiment_loop``.  The default  implementation runs serially, but plugins may provide parallel or  distributed strategies. 3. After all replicates complete, metrics are aggregated and  hypotheses are verified. 4. ``after_run`` hooks for all plugins are executed. 
+### <kbd>method</kbd> `Experiment.set_default_plugins`
 
-The returned :class:`~crystallize.core.result.Result` contains aggregated metrics, any captured errors and a provenance record of context mutations for every pipeline step. 
+```python
+set_default_plugins() → None
+```
+
+
+
+
 
 ---
 

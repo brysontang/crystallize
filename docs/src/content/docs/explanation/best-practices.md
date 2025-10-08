@@ -31,8 +31,7 @@ factory = resource_factory(
 ctx.add("openai_client", factory)
 ```
 
-This example mirrors the plugin initialisation shown in the extras package.【F:extras/crystallize-extras/crystallize_extras/openai_step/initialize.py†L53-L62】
-The factory ensures that the resource is created once per worker process, so parallel runs share memory efficiently and avoid pickling errors.
+This pattern mirrors the initialisation helpers in `crystallize_extras.openai_step`. The factory ensures that the resource is created once per worker process, so parallel runs share memory efficiently and avoid pickling errors.
 
 ## Writing Idempotent and Cacheable Pipeline Steps
 

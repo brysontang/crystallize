@@ -1,116 +1,100 @@
 ---
-title: 'Putting It All Together - Building a Graph Experiment'
-description: A guided walkthrough for constructing a small graph of experiments and consuming their outputs.
+title: 'Putting It All Together – Building a Graph Experiment'
+description: Chain experiments with shared artifacts and run them as a DAG.
 ---
 
-This tutorial walks through creating a three-experiment graph that demonstrates how Crystallize chains experiments together. We'll create two simple "producer" experiments and a "consumer" experiment that uses their outputs.
+Crystallize experiments can depend on one another by publishing artifacts and consuming them downstream. The CLI recognises these relationships and runs the graph in topological order. This tutorial builds a minimal two-stage pipeline: a **producer** writes an artifact, and a **consumer** reads it.
 
-## The Goal: Calculate a Comfort Index
+## 1. Create the Producer
 
-We'll combine temperature and humidity analyses, then test whether a scaling factor significantly changes the temperature average.
+1. Launch `crystallize` and press `n`.
+2. Name the experiment `producer`. Include `datasources.py`, `steps.py`, and `outputs.py`. Enable **Add example code** for quick scaffolding.
+3. In `outputs.py`, add helpers that turn a Python dictionary into JSON bytes and back:
 
-### Step 1: Create the `temperature-stats` Experiment
+   ```python
+   import json
+   from pathlib import Path
 
-1. In the TUI, press <kbd>n</kbd> to create a new experiment named `temperature-stats`.
-2. Ensure `datasources.py`, `steps.py`, `outputs.py`, and `verifiers.py` are included. Don't include the example files, then click `Create`.
-3. In the config editor:
-   - Under **outputs** add an output with alias `avg_temp_out` and file name `temp.json`.
-   - Under **steps** add a step named `average_temp`.
-   - Under **treatments** add a `baseline` treatment with `factor: 1.0` and another treatment `scaled_up` with `factor: 1.5`.
-   - Under **hypotheses** add a hypothesis `check_scaling_effect` that uses the `t_test` verifier and checks the `average_temp` metric.
-   - Set `replicates` to `30`.
-4. Implement the logic in the generated Python files.
+   def dump_json(payload: dict) -> bytes:
+       return json.dumps(payload).encode("utf-8")
 
-`experiments/temperature-stats/datasources.py`
+   def load_json(path: Path) -> dict:
+       return json.loads(path.read_text())
+   ```
 
-```python
-from crystallize import data_source
-import random
+4. Update `config.yaml`:
 
-@data_source
-def temperatures(ctx):
-    # Sample 2 random temperatures to introduce variability.
-    # This is safe because Crystallize's SeedPlugin ensures that the random
-    # seed is the same for the same replicate number across different
-    # treatments, but different for each new replicate.
-    all_temps = [72, 75, 71, 73, 76, 74, 70]
-    return random.sample(all_temps, 2)
-```
+   ```yaml
+   name: producer
+   outputs:
+     summary:
+       file_name: summary.json
+       writer: dump_json
+       loader: load_json
+   steps:
+     - produce_summary
+   treatments:
+     baseline: {}
+   ```
 
-`experiments/temperature-stats/steps.py`
+5. Implement `produce_summary` in `steps.py`:
 
-```python
-from crystallize import pipeline_step, Artifact
-import json
+   ```python
+   from crystallize import pipeline_step, Artifact
 
-@pipeline_step()
-def average_temp(data, *, avg_temp_out: Artifact, factor: float = 1.0):
-    # The `factor` is injected by the treatment
-    avg = (sum(data) / len(data)) * factor
-    avg_temp_out.write(json.dumps({"average": avg}).encode())
-    # Return the data and the metric for the hypothesis
-    return data, {"average_temp": avg}
-```
+   @pipeline_step()
+   def produce_summary(data: dict, *, summary: Artifact):
+       summary.write({"total": sum(data["numbers"])})
+       return data
+   ```
 
-`experiments/temperature-stats/verifiers.py`
+6. Ensure the datasource returns the numbers:
 
-```python
-from crystallize import verifier
-from scipy.stats import ttest_ind
+   ```python
+   from crystallize import data_source, FrozenContext
 
-@verifier
-def t_test(baseline_samples, treatment_samples):
-    stat, p = ttest_ind(
-        treatment_samples["average_temp"],
-        baseline_samples["average_temp"],
-        equal_var=False,
-    )
-    return {"p_value": p, "significant": p < 0.05}
-```
+   @data_source
+   def numbers(ctx: FrozenContext) -> dict[str, list[int]]:
+       return {"numbers": [1, 2, 3]}
+   ```
 
-Update `config.yaml` to use the new datasource function:
+Running `producer` now writes `data/producer/v0/.../summary.json`.
 
-```yaml
-datasource:
-  temps: temperatures
-```
+## 2. Create the Consumer
 
-### Step 2: Create the `humidity-stats` Experiment
+1. Press `n` again and name the experiment `consumer`. Include `datasources.py` and `steps.py`. Tick **Use outputs from other experiments** and select `producer -> summary`.
+2. The generated `config.yaml` includes a datasource reference:
 
-1. Repeat the process for a new experiment named `humidity-stats`.
-2. Include `outputs.py` and create an output `avg_humidity_out` with file name `humidity.json`.
-3. Add a step `average_humidity` and set `replicates` to `1`.
-4. Implement the step logic to compute a simple average using data such as `[0.45, 0.50, 0.55]`.
+   ```yaml
+   datasource:
+     producer_summary: producer#summary
+   steps:
+     - inspect_summary
+   ```
 
-### Step 3: Create the `comfort-index` Experiment
+3. Implement the step to utilise the loaded JSON:
 
-1. Press <kbd>n</kbd> to create a new experiment named `comfort-index` and set `replicates` to `30`.
-2. Check **Use outputs from other experiments** and select `avg_temp_out` from `temperature-stats` and `avg_humidity_out` from `humidity-stats`.
-3. Add a final step named `calculate_comfort_index`.
-4. Implement the step logic:
+   ```python
+   from crystallize import pipeline_step
 
-`experiments/comfort-index/steps.py`
+   @pipeline_step()
+   def inspect_summary(data: dict):
+       summary = data["producer_summary"]           # already a dict thanks to load_json
+       total = summary["total"]
+       return data, {"total_from_producer": total}
+   ```
 
-```python
-from crystallize import pipeline_step
-import json
+Because we defined a loader in the producer, `data["producer_summary"]` is a dictionary instead of raw bytes.
 
-@pipeline_step()
-def calculate_comfort_index(data: dict):
-    with open(data["avg_temp_out"]) as f:
-        temp = json.load(f)["average"]
-    with open(data["avg_humidity_out"]) as f:
-        humidity = json.load(f)["average"]
-    comfort = temp - (humidity * 10)
-    return data, {"comfort_index": comfort}
-```
+## 3. Run the Graph
 
-### Step 4: Run the Graph
+- On the selection screen, the consumer experiment is marked as a graph (its datasource references another experiment).
+- Highlight `consumer` and press `Enter`. The CLI automatically runs `producer` first, then `consumer`, respecting the dependency.
+- The summary tab includes separate sections for the producer and consumer, with artifacts and metrics for each.
 
-When you run `comfort-index` in the TUI, Crystallize automatically executes its dependencies:
+## 4. Tips for Larger Graphs
 
-- `temperature-stats` runs for 30 replicates for both treatments.
-- `humidity-stats` runs once.
-- `comfort-index` runs 30 times, consuming the produced artifacts.
-
-The summary shows metrics, artifacts, and hypothesis results for all experiments, demonstrating how graphs let you orchestrate complex workflows.
+- Graph experiments can reference multiple outputs. Each alias becomes an entry in the datasource payload.
+- The CLI persists treatment state per experiment. If you disable a treatment upstream, the consumer run uses the subset of outputs generated by the active treatments.
+- You can load the entire directory programmatically via `ExperimentGraph.from_yaml("experiments/")` and call `.visualize_from_yaml(...)` to render the DAG.
+- When branching graphs become large, use `cli.priority` and `cli.group` to keep the selection tree navigable.

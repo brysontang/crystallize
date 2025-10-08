@@ -1,192 +1,145 @@
 ---
 title: "How-To: Configure Experiments (config.yaml)"
-description: A detailed reference guide for every section of the experiment config.yaml file.
+description: Understand every field in a folder-based experiment.
 ---
 
-The `config.yaml` file is the heart of any Crystallize experiment managed via the CLI. It's a declarative blueprint that tells the framework how to construct and run your experiment. This guide serves as a reference for each section of the file.
+Crystallize discovers experiments by scanning for `config.yaml`. Each folder typically includes `datasources.py`, `steps.py`, `outputs.py`, and `verifiers.py`. The YAML file stitches them together.
 
-## Anatomy of `config.yaml`
-
-A complete `config.yaml` is composed of several key sections. While not all are required for every experiment, they provide a powerful way to define your entire workflow.
+## 1. Top-Level Fields
 
 ```yaml
-# Top-level settings
-name: my-experiment
-replicates: 10
-
-# CLI display settings
-cli:
-  group: My Experiments
-  priority: 1
-  icon: "🧪"
-
-# Data input definitions
-datasource:
-  # ...
-
-# The processing pipeline
-steps:
-  # ...
-
-# Named file outputs
-outputs:
-  # ...
-
-# Experimental variations
-treatments:
-  # ...
-
-# Statistical tests
-hypotheses:
-  # ...
+name: my-experiment          # optional – defaults to folder name
+replicates: 12               # applies to baseline + each treatment (default: 1)
+description: "Short blurb shown in the CLI details panel"
 ```
 
-### Top-Level Settings
-These define the fundamental properties of your experiment.
-- `name` *(string)*: The unique identifier for the experiment. If not provided, the folder name is used.
-- `replicates` *(integer)*: The number of times to run the pipeline for the baseline and each treatment. Defaults to `1`.
+## 2. CLI Metadata
 
-```yaml
-name: titanic-age-analysis
-replicates: 20
-```
-
-### `cli`
-This section controls how your experiment appears in the interactive TUI.
-- `group` *(string)*: The name of the collapsible group this experiment appears under.
-- `priority` *(integer)*: A number used for sorting experiments within a group (lower numbers appear first).
-- `icon` *(string)*: An emoji or character displayed next to the experiment name.
-- `color` *(string, optional)*: A hex color code (e.g., "#85C1E9") to style the experiment's label.
-- `hidden` *(boolean)*: If `true`, the experiment will not be discovered by the CLI.
+Controls how the experiment appears in the Textual UI.
 
 ```yaml
 cli:
-  group: Data Preprocessing
-  priority: 5
-  icon: "📊"
-  color: "#85C1E9"
+  group: Feature Experiments     # sidebar group
+  priority: 10                   # lower numbers sorted first
+  icon: "🧪"                      # emoji shown next to the label
+  color: "#85C1E9"               # optional hex colour for the label
+  hidden: false                  # skip discovery when true
 ```
 
-### `datasource`
-Defines the input data for your pipeline. The structure depends on whether you are running a standard experiment or a graph that consumes artifacts from another experiment.
+## 3. Datasource
 
-**Standard Experiment**: A dictionary mapping a key to the name of a `@data_source` function in your `datasources.py` file.
+Map aliases to factories defined in `datasources.py` or to outputs from upstream experiments.
+
 ```yaml
-# Fetches data using the `titanic_ages` function in `datasources.py`
 datasource:
-  ages: titanic_ages
+  raw: load_csv                  # loads via @data_source in datasources.py
+  features: feature_experiment#embeddings   # consumes another experiment’s output
 ```
 
-**Graph Experiment**: A dictionary mapping a key to a special `experiment_name#output_name` string. This tells Crystallize to use an artifact from another experiment as input.
-```yaml
-# Uses the 'out' artifact from the 'test' experiment as input
-datasource:
-  in: test#out
-```
+- When referencing another experiment (`experiment_name#output_name`), the loader instantiates an `Artifact`. The downstream pipeline receives the return value of the artifact’s loader function. By default that is `Path.read_bytes()`, so override `outputs.*.loader` to decode bytes into richer objects.
+- If you provide a list of mappings instead of a dict, Crystallize merges them (useful when order matters).
 
-### `steps`
-A list defining the sequence of operations in your pipeline. Each item maps to a `@pipeline_step` function in your `steps.py` file.
+## 4. Steps
+
+Ordered list of pipeline factories defined in `steps.py`.
 
 ```yaml
 steps:
-  - calculate_mean_age
-  - normalize_data
+  - load_dataframe
+  - { clean_columns: { drop_nulls: true } }
+  - train_model
 ```
 
-A step can optionally return a tuple `(data, metrics_dict)` to record metrics. The first element is the data passed to the next step, and the second is a dictionary of metrics that will be available for hypotheses.
+- Strings call the matching factory with no arguments.
+- Dictionaries let you pass keyword arguments (`{factory: {param: value}}`). Parameters flow into the decorated function and still support context injection.
+- A step returning `(data, metrics_dict)` records metrics without mutating the context.
 
-```python
-# In steps.py
-@pipeline_step()
-def calculate_mean_age(data: pd.DataFrame):
-    mean_age = data['Age'].mean()
-    return data, {"mean_age": mean_age}
-```
+## 5. Outputs
 
-### `outputs`
-A dictionary defining named file artifacts that your steps can write to. This is necessary for experiments that produce files to be consumed by other experiments in a graph.
-
-To use an output, a pipeline step's function signature must include a parameter that has the same name as the output's alias and is type-hinted as `Artifact`.
+Declare artifacts produced by the pipeline. Each entry becomes an `Artifact` instance.
 
 ```yaml
 outputs:
-  model_file:
-    file_name: model.pkl
+  model_blob:
+    file_name: model.pkl          # optional – defaults to alias
+    writer: dump_pickle           # function in outputs.py
+    loader: load_pickle           # used when another experiment consumes it
 ```
 
+Pipeline steps accept these artifacts by annotating a parameter with `Artifact`:
+
 ```python
-# In steps.py, the parameter `model_file` matches the alias
 from crystallize import pipeline_step, Artifact
 
 @pipeline_step()
-def train_model(data, *, model_file: Artifact):
-    model = ...  # train your model
-    model_file.write(model)  # Saves the model
+def save_model(data, *, model_blob: Artifact):
+    model_blob.write(data["model_bytes"])
     return data
 ```
 
-#### Consuming Artifacts in Another Experiment
-When another experiment uses this output via the datasource graph syntax, the data passed to its first step will be a dictionary mapping the datasource key to the artifact's file path.
+Artifacts are written under `data/<experiment>/vN/...` by the default `ArtifactPlugin`. Enable `versioned: true` on the plugin to retain multiple runs.
 
-```yaml
-# In consumer-experiment/config.yaml
-name: consumer-experiment
-datasource:
-  trained_model: producer-experiment#model_file
-steps:
-  - evaluate_model
-```
+## 6. Treatments
 
-```python
-# In consumer-experiment/steps.py
-from pathlib import Path
-import pickle
-
-@pipeline_step()
-def evaluate_model(data: dict):
-    model_path = data['trained_model']
-    with open(model_path, 'rb') as f:
-        model = pickle.load(f)
-    return ...
-```
-
-### `treatments`
-Defines the experimental variations to test against the baseline. The values provided here are injected directly as parameters into your pipeline steps.
+Context changes evaluated against the baseline.
 
 ```yaml
 treatments:
-  baseline:
-    delta: 0
-  add_two:
-    delta: 2
+  baseline: {}
+  tuned_lr:
+    learning_rate: 0.05
+  temperature_sweep:
+    temperature: 0.9
 ```
 
-```python
-@pipeline_step()
-def add_delta(data, *, delta: int = 0):
-    return [x + delta for x in data]
-```
+- Keys become treatment names in the CLI and result summaries.
+- Values merge into the context. Use nested dictionaries if you want to group related parameters.
 
-### `hypotheses`
-A list of statistical tests to run on the collected metrics after all replicates are complete.
+## 7. Hypotheses
+
+Hook verifiers defined in `verifiers.py`.
 
 ```yaml
 hypotheses:
-  - name: check_mean_difference
+  - name: significance_check
+    verifier: welch_t_test        # function wrapped with @verifier
+    metrics: total_reward         # string, list, or nested lists
+```
+
+- Metrics refer to keys recorded with `ctx.metrics.add` or returned in `(data, metrics_dict)`.
+- You can include multiple hypotheses; each runs independently after all replicates finish.
+
+## 8. Putting It Together
+
+Minimal example (`examples/yaml_experiment/config.yaml`):
+
+```yaml
+name: yaml-demo
+replicates: 8
+cli:
+  group: Demo
+  priority: 5
+  icon: "🧪"
+datasource:
+  numbers: load_numbers
+steps:
+  - add_delta
+  - record_total
+outputs:
+  total_blob:
+    file_name: total.json
+treatments:
+  baseline: {}
+  plus_one:
+    delta: 1
+hypotheses:
+  - name: better_than_baseline
     verifier: welch_t_test
-    metrics: mean_age
+    metrics: total
 ```
 
-```python
-from crystallize import verifier
-from scipy.stats import ttest_ind
+## 9. Tips
 
-@verifier
-def welch_t_test(baseline_samples, treatment_samples, alpha: float = 0.05):
-    stat, p = ttest_ind(
-        treatment_samples['mean_age'],
-        baseline_samples['mean_age'],
-        equal_var=False
-    )
-    return {"p_value": p, "significant": p < alpha}
-```
+- The CLI writes per-experiment state to `config.state.json` (inactive treatments, cache toggles). Check that file into git if you want to share defaults.
+- Use `!include` or YAML anchors if you need to reuse fragments, but keep in mind the loader runs with standard `yaml.safe_load`.
+- For DAGs, consider adding a `description:` to each node so the selection screen shows helpful detail.

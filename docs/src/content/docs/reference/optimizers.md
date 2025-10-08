@@ -2,8 +2,7 @@
 title: Optimizers
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.optimizers`
+## <kbd>module</kbd> `crystallize.experiments.optimizers`
 
 
 

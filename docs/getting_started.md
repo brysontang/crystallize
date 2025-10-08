@@ -1,88 +1,134 @@
-# Crystallize Framework: Getting Started
+# Getting Started with Crystallize
 
-Crystallize is a Python framework for reproducible experiments with pipelines, treatments, and hypotheses. It supports caching, immutability, and statistical verification.
+Crystallize helps you run reproducible, hypothesis-driven experiments. This guide walks through installation, the two primary ways to use the framework (CLI and Python API), and where to find runnable examples.
 
-## Installation
+## Requirements
+
+- Python 3.10+
+- Optional: [pixi](https://pixi.sh) for reproducible dev environments
+- Optional extras (`crystallize-extras`) when integrating Ray, OpenAI, vLLM, or Ollama
+
+## Install
 
 ```bash
+# Latest alpha build
 pip install --upgrade --pre crystallize-ml
+
+# Extras bundle (optional)
+pip install --upgrade --pre "crystallize-extras[all]"
 ```
 
-## Quick Example
+For development:
+
+```bash
+git clone https://github.com/brysontang/crystallize.git
+cd crystallize
+pip install -e .
+```
+
+If you use pixi, run `pixi install` to create the managed environment and expose helper tasks (`pixi run lint`, `pixi run test`, `pixi run cov`, `pixi run diff-cov`).
+
+## Option 1 – Terminal UI
+
+```bash
+crystallize
+```
+
+- The selection screen discovers every `experiments/**/config.yaml`. Use `n` to scaffold a new experiment, `r` to refresh, `e` to review load errors, and `q` to quit.
+- Press `Enter` on an experiment or graph to open the run screen. There you can toggle caching (`l`), enable/disable treatments (`x`), jump to the summary tab (`S`), or open highlighted code in `$EDITOR` (`e`).
+- The summary tab lists metrics, hypotheses, and artifacts for the latest run, including versioned history if the `ArtifactPlugin` is configured with `versioned=True`.
+- Treatment state is persisted in `config.state.json` so your next run keeps the same toggles.
+
+## Option 2 – Python API
+
+The `crystallize` package re-exports the core abstractions. The snippet below mirrors `examples/minimal_experiment/main.py`:
 
 ```python
 from crystallize import (
-    data_source,
-    hypothesis,
-    pipeline_step,
-    treatment,
-    verifier,
-)
-from crystallize import (
-    SeedPlugin,
-    ParallelExecution,
-    FrozenContext,
     Experiment,
     Pipeline,
+    ParallelExecution,
+    FrozenContext,
+    data_source,
+    pipeline_step,
+    treatment,
+    hypothesis,
+    verifier,
 )
+from scipy.stats import ttest_ind
 
 @data_source
-def dummy_data(ctx: FrozenContext):
-    return ctx.get('value', 0)
+def source(ctx: FrozenContext) -> list[int]:
+    return [0, 0, 0]
 
 @pipeline_step()
-def process(data, ctx: FrozenContext):
-    return data + 1
+def add_delta(data: list[int], ctx: FrozenContext, *, delta: float = 0.0) -> list[float]:
+    return [x + delta for x in data]
 
 @pipeline_step()
-def metrics(data, ctx: FrozenContext):
-    ctx.metrics.add("result", data)
-    return {"result": data}
+def record_metric(data: list[float], ctx: FrozenContext):
+    return data, {"total": sum(data)}
+
+add_ten = treatment("add_ten", {"delta": 10.0})
 
 @verifier
-def t_test(baseline, treatment, *, alpha=0.05):
-    # Implement or use scipy
-    return {"p_value": 0.01, "significant": True}
+def welch_t_test(baseline, treatment, alpha: float = 0.05):
+    stat, p_value = ttest_ind(
+        treatment["total"], baseline["total"], equal_var=False
+    )
+    return {"p_value": p_value, "significant": p_value < alpha}
 
-@hypothesis(verifier=t_test(), metrics="result")
-def ranker(res):
-    return res["p_value"]
+@hypothesis(verifier=welch_t_test(), metrics="total")
+def by_p_value(result: dict[str, float]) -> float:
+    return result.get("p_value", 1.0)
 
-treatment_example = treatment("add_one", {"value": 1})
-
-datasource = dummy_data()
-pipe = Pipeline([process(), metrics()])
-exp = Experiment(
-    datasource=datasource,
-    pipeline=pipe,
-    treatments=[treatment_example()],
-    hypotheses=[ranker],
-    replicates=5,
-    plugins=[SeedPlugin(seed=42), ParallelExecution(max_workers=4)],
+experiment = (
+    Experiment.builder("demo")
+    .datasource(source())
+    .add_step(add_delta())
+    .add_step(record_metric())
+    .plugins([ParallelExecution(max_workers=4)])
+    .treatments([add_ten()])
+    .hypotheses([by_p_value])
+    .replicates(10)
+    .build()
 )
-exp.validate()  # optional
-result = exp.run()
-print(result.metrics)
 
-# Prod apply
-output = exp.apply("add_one", data=10)
-print(output)
+result = experiment.run()
+print(result.get_hypothesis("by_p_value").results)
 ```
 
-## Key Features
+The builder attaches the default `ArtifactPlugin`, `SeedPlugin`, and `LoggingPlugin`. Override them—or change execution strategy entirely—by passing your own plugin list.
 
-- Pipelines with caching.
-- Immutable contexts for safety.
-- Treatments as dicts or callables.
-- Multi-hypothesis verification.
-- Fluent builders and prod apply mode.
-- Optional parallel execution for heavy experiments.
-- Configurable worker count and executor type ("thread" or "process").
-- Run screen sidebar can toggle treatments (`x`), edit (`e`) and jump to the summary (`S`) with color-coded states.
-- Run screen provides a Cancel button to stop experiments mid-execution.
-- Summary tab lists metrics, artifacts and hypotheses with links for quick inspection.
+## YAML Workflows
 
-For heavy parallel workloads, ensure the cache directory supports file locks or
-switch to a thread-safe backend.
+To declaratively configure experiments, create a folder containing `config.yaml` plus supporting modules (`datasources.py`, `steps.py`, `outputs.py`, `verifiers.py`). Load it from code or from the CLI:
 
-For full API, see code/docs. Issues? File at [repo link].
+```python
+from pathlib import Path
+from crystallize import Experiment, ExperimentGraph
+
+exp = Experiment.from_yaml(Path("experiments/my_experiment/config.yaml"))
+graph = ExperimentGraph.from_yaml(Path("experiments"))
+```
+
+- The loader hot-reloads Python files so iterative changes appear on the next run.
+- Artifacts declared under `outputs:` are available as parameters annotated with `Artifact` in your pipeline steps.
+- Referencing `other_experiment#artifact_name` under `datasource:` automatically wires up cross-experiment dependencies in an `ExperimentGraph`.
+
+## Explore the Examples
+
+| Folder                          | Highlights                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| `examples/minimal_experiment`  | End-to-end experiment with treatments, hypothesis, and context metrics.     |
+| `examples/optimization_experiment` | Illustrates the ask/tell optimizer interface.                          |
+| `examples/yaml_experiment`     | Complete folder-driven workflow for the CLI.                                |
+| `examples/folder_experiment`   | Demonstrates `Experiment.from_yaml` and `ExperimentGraph.visualize_from_yaml`. |
+
+Each example ships with a `README` or inline comments describing how to run it.
+
+## Next Steps
+
+- Browse the tutorials and how-to guides under `docs/src/content/docs`.
+- Regenerate the API reference after code changes with `python3.10 generate_docs.py`.
+- When building new capabilities, capture the rationale in an ADR (see `docs/adr/`).

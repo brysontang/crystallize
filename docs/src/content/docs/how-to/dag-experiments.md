@@ -1,53 +1,82 @@
 ---
 title: Chaining Experiments with a DAG
-description: Use ExperimentGraph and ExperimentInput to link multiple experiments together.
+description: Feed artifacts from one experiment into another with ExperimentGraph.
 ---
 
-Crystallize can orchestrate complex workflows by chaining experiments in a directed acyclic graph (DAG). Upstream experiments generate artifacts that downstream ones consume.
+Crystallize represents workflows as a directed acyclic graph. Nodes are regular `Experiment` instances; edges pass artifacts between them.
 
-## 1. Build a Graph
+## 1. Publish Outputs Upstream
 
-Create an ``ExperimentGraph`` with your experiments and it will infer
-dependencies automatically:
+```yaml
+# producer/config.yaml
+outputs:
+  summary:
+    file_name: summary.json
+    writer: dump_json
+    loader: load_json
+steps:
+  - produce_summary
+```
+
+- The loader/writer functions live in `outputs.py`.
+- Pipeline steps accept artifacts by annotating parameters with `Artifact` (see the CLI tutorial for a full example).
+
+## 2. Consume Them Downstream
+
+Reference upstream outputs using `experiment#artifact` inside your downstream `config.yaml`:
+
+```yaml
+# consumer/config.yaml
+datasource:
+  producer_summary: producer#summary
+steps:
+  - inspect_summary
+```
+
+When the consumer runs, the datasource returns a dictionary whose values are the loader outputs (`load_json(...)` in this example).
+
+## 3. Run the Graph Programmatically
 
 ```python
 from crystallize import ExperimentGraph
 
-graph = ExperimentGraph(exp_a, exp_b)
+graph = ExperimentGraph.from_yaml("experiments/consumer/config.yaml")
+result = graph.run()
 ```
 
-Running `graph.run()` executes experiments in topological order.
+`ExperimentGraph.from_yaml` inspects the folder hierarchy, finds dependencies, and executes them in topological order. The returned dictionary maps experiment name to `Result`.
 
-## 2. Consume Multiple Artifacts
+## 4. Using the CLI
 
-Combine outputs from several experiments using `ExperimentInput`:
+- `n` opens **Create New Experiment**. Enable **Use outputs from other experiments** to select artifacts from existing folders. Each selection adds an `experiment#artifact` entry under `datasource:`.
+- Graph experiments display a `📈` icon and show dependencies in the run screen. When you run the downstream node, the CLI executes prerequisites first.
+
+## 5. Combining Multiple Outputs
+
+If you need more control, construct an `ExperimentInput` manually:
 
 ```python
 from crystallize import ExperimentInput
 
 ds = ExperimentInput(
-    first=exp_a.artifact_datasource(step="StepA", name="output.json"),
-    second=exp_b.artifact_datasource(step="StepB", name="output.json"),
+    summary=producer.artifact_datasource(step="Produce_SummaryStep", name="summary.json"),
+    metrics=analytics.artifact_datasource(step="WriteMetricsStep", name="metrics.csv"),
 )
+consumer_experiment.datasource = ds
 ```
 
-The datasource fetches artifact paths for the current replicate and returns them in a dictionary.
+`ExperimentInput` bundles multiple datasources and ensures replicate counts align when artifacts share the same upstream experiment.
 
-## 3. Example
-
-See [`examples/dag_experiment`](../../../../examples/dag_experiment) for a complete script that averages temperature and humidity data before deriving a comfort index.
-
-You can also scaffold a graph-aware experiment using the interactive CLI. Press
-``c`` on the main screen and enable *Use outputs from other experiments*. A
-tree lists available experiments. Expand a node to see its outputs and press
-<kbd>Space</kbd> to select them. The CLI adds your selections to ``config.yaml``
-as ``experiment#output`` strings.
-
-You can load such a workflow directly from the final experiment's YAML file:
+## 6. Visualising
 
 ```python
-from crystallize import ExperimentGraph
-
-graph = ExperimentGraph.from_yaml("experiments/final/config.yaml")
-ExperimentGraph.visualize_from_yaml("experiments/final/config.yaml")
+ExperimentGraph.visualize_from_yaml("experiments/consumer/config.yaml")
 ```
+
+The helper renders a Graphviz diagram (requires Graphviz installed) showing experiment dependencies—handy for large workflows.
+
+## 7. Troubleshooting
+
+- **Missing artifact** – Ensure upstream experiments ran with `ArtifactPlugin` and that the `file_name`/step names match. The CLI error panel lists the missing path.
+- **Replicate mismatch** – If upstream artifacts have different replicate counts, update the producer configuration or homogenise the data before chaining.
+- **Loader returns bytes** – Provide a `loader` function in `outputs.py` to decode bytes into richer objects.

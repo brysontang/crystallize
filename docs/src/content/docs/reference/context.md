@@ -2,18 +2,8 @@
 title: Context
 ---
 
+## <kbd>module</kbd> `crystallize.utils.context`
 
-## <kbd>module</kbd> `crystallize.core.context`
-
-
-
-
-
-
----
-
-## <kbd>class</kbd> `ContextMutationError`
-Raised when attempting to mutate an existing key in FrozenContext. 
 
 
 
@@ -73,17 +63,15 @@ Once a key is set its value cannot be modified. Attempting to do so raises :clas
 
 **Attributes:**
  
- - <b>`metrics`</b>:  :class:`FrozenMetrics` used to accumulate lists of metric  values. 
-- <b>`artifacts`</b>:  :class:`ArtifactLog` collecting binary artifacts to be saved
-- <b>`by `</b>: class:`~crystallize.core.plugins.ArtifactPlugin`.
-- <b>`logger`</b>:  :class:`logging.Logger` used for debug and info messages.
+     - <b>`metrics`</b>:  :class:`FrozenMetrics` used to accumulate lists of metric values. artifacts: :class:`ArtifactLog` collecting binary artifacts to be saved 
+     - <b>`by `</b>: class:`~crystallize.plugins.plugins.ArtifactPlugin`. logger: :class:`logging.Logger` used for debug and info messages. 
 
 ### <kbd>method</kbd> `FrozenContext.__init__`
 
 ```python
 __init__(
     initial: Mapping[str, Any],
-    logger: Optional[logging.Logger] = None,
+    logger: Optional[logging.Logger] = None
 ) → None
 ```
 
@@ -130,15 +118,18 @@ Return the value for ``key`` if present else ``default``.
 ---
 
 ## <kbd>class</kbd> `LoggingContext`
-Proxy around :class:`FrozenContext` that records all key accesses. 
+A FrozenContext proxy that records every key read and emits DEBUG lines. 
+
+Parameters 
+---------- ctx:  The original, immutable context created by the Experiment runner. logger:  The logger to use for DEBUG instrumentation. 
 
 ### <kbd>method</kbd> `LoggingContext.__init__`
 
 ```python
 __init__(
-    ctx: crystallize.core.context.FrozenContext,
-    logger: logging.Logger
-) → None
+    ctx: crystallize.utils.context.FrozenContext,
+    logger: Optional[logging.Logger] = None
+)
 ```
 
 

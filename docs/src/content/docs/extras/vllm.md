@@ -14,14 +14,14 @@ pip install --upgrade --pre crystallize-extras[vllm]
 ## Usage
 
 ```python
-from crystallize_extras.vllm_step.initialize import initialize_llm_engine
+from crystallize_extras.vllm_step import initialize_llm_engine
+
+init_engine = initialize_llm_engine(engine_options={"model": "mistral"})
+pipeline = Pipeline([init_engine, generate_predictions()])
 ```
 
-Add the step to your pipeline:
+- The step runs during pipeline setup, storing a `resource_factory` under the context key (default `llm_engine`).
+- Access the cached engine inside later steps: `engine = ctx.get("llm_engine")(ctx)`.
+- Pass a different `context_key` if you need multiple engines.
 
-```python
-step = initialize_llm_engine(engine_options={"model": "mistral"})
-pipeline = Pipeline([step, ...])
-```
-
-The engine is stored under the key `llm_engine` by default, but you can customize this with the `context_key` parameter.
+If `vllm` is not installed, the step raises an informative error suggesting `pip install crystallize-extras[vllm]`.

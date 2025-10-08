@@ -2,12 +2,21 @@
 title: Hypothesis
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.hypothesis`
-
+## <kbd>module</kbd> `crystallize.experiments.hypothesis`
 
 
 
+
+
+---
+
+## <kbd>function</kbd> `rank_by_p_value`
+
+```python
+rank_by_p_value(result: dict) → float
+```
+
+A simple, picklable ranker function. Lower p-value is better. 
 
 
 ---

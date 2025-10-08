@@ -2,7 +2,6 @@
 title: Pipelines
 ---
 
-
 ## <kbd>module</kbd> `crystallize.pipelines`
 
 

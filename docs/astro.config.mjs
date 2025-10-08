@@ -10,12 +10,12 @@ export default defineConfig({
   base: '/crystallize/',
   integrations: [
     starlight({
-      title: 'My Docs',
+      title: 'Crystallize Documentation',
       social: [
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/withastro/starlight',
+          href: 'https://github.com/brysontang/crystallize',
         },
       ],
       sidebar: [

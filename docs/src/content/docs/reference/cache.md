@@ -2,8 +2,7 @@
 title: Cache
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.cache`
+## <kbd>module</kbd> `crystallize.utils.cache`
 
 
 

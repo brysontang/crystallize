@@ -2,8 +2,7 @@
 title: Constants
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.constants`
+## <kbd>module</kbd> `crystallize.utils.constants`
 Common string constants used across the framework. 
 
 **Global Variables**

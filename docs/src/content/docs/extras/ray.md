@@ -14,14 +14,18 @@ pip install --upgrade --pre crystallize-extras[ray]
 ## Usage
 
 ```python
-from crystallize_extras.ray_plugin.execution import RayExecution
-```
+from crystallize_extras.ray_plugin import RayExecution
 
-Configure the plugin and add it to your experiment:
-
-```python
 plugin = RayExecution(address="auto", num_cpus=1, num_gpus=0)
-experiment = Experiment(datasource, pipeline, plugins=[plugin])
+experiment = Experiment(
+    datasource=my_source(),
+    pipeline=my_pipeline,
+    plugins=[plugin],
+)
 ```
 
-`address` specifies the Ray cluster address, while `num_cpus` and `num_gpus` control the resources allocated to each replicate.
+- `address="auto"` connects to the local Ray runtime. Point it at a cluster URL if needed.
+- `num_cpus` and `num_gpus` describe the resources each replicate reserves.
+- If Ray is not installed, the plugin raises an informative error prompting you to install `crystallize-extras[ray]`.
+
+After the run completes, `RayExecution.after_run` shuts down the Ray runtime if this process initialised it.

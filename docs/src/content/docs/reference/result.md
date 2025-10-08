@@ -2,8 +2,7 @@
 title: Result
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.result`
+## <kbd>module</kbd> `crystallize.experiments.result`
 
 
 
@@ -61,10 +60,16 @@ Return the :class:`HypothesisResult` with ``name`` if present.
 print_tree(fmt: 'str' = 'treatment > replicate > step') → None
 ```
 
-Print a color-coded tree of execution provenance. The ``fmt`` string controls
-the hierarchy and may include ``"treatment"``, ``"replicate"``, ``"step`` and
-``"action"``. When ``"action"`` is present as the final token, each step lists
-the context reads, writes and metric updates. Uses ``rich`` for color if
-installed.
+Print a color-coded tree of execution provenance. 
+
+The ``fmt`` string controls the hierarchy of the output.  Valid tokens are ``"treatment"``, ``"replicate"``, ``"step"`` and ``"action"``.  When ``"action"`` is included as the final element, each step lists the values read, metrics written and context mutations that occurred. 
+
+The function uses :mod:`rich` to render a pretty tree if the package is installed; otherwise a plain-text version is printed. 
+
+Parameters 
+---------- fmt:  Format specification controlling how provenance records are grouped.  The default groups by treatment, replicate and step. 
+
+Raises 
+------ ValueError  If the format specification contains unknown tokens or ``"action"``  is not the final element. 
 
 

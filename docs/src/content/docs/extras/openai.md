@@ -14,15 +14,21 @@ pip install --upgrade --pre crystallize-extras[openai]
 ## Usage
 
 ```python
-from crystallize_extras.openai_step.initialize import initialize_openai_client
+from crystallize_extras.openai_step import (
+    initialize_openai_client,
+    initialize_async_openai_client,
+)
 
+init_client = initialize_openai_client(
+    client_options={"base_url": "https://api.openai.com/v1"}
+)
+
+pipeline = Pipeline([
+    init_client,
+    call_openai(),
+])
 ```
 
-Add the step to your pipeline:
-
-```python
-step = initialize_openai_client(client_options={"base_url": "http://api.openai.com/v1"})
-pipeline = Pipeline([step, ...])
-```
-
-The client is stored under the key `openai_client` by default, but you can customize this with the `context_key` parameter.
+- The wrapper stores a `resource_factory` under `openai_client` (override with `context_key`). Retrieve the client later via `ctx.get("openai_client")(ctx)`.
+- Use the async variant with `AsyncExecution` if your downstream steps are `async def`.
+- The extras package raises an informative ImportError if the official `openai` SDK is not installed.

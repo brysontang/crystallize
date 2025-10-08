@@ -2,8 +2,7 @@
 title: Treatment
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.treatment`
+## <kbd>module</kbd> `crystallize.experiments.treatment`
 
 
 
@@ -29,10 +28,18 @@ Unlike plugins, a treatment does not hook into the execution lifecycle; it simpl
 ```python
 __init__(
     name: str,
-    apply: Union[Callable[[crystallize.core.context.FrozenContext], Any], Mapping[str, Any]]
+    apply: Union[Callable[[crystallize.utils.context.FrozenContext], Any], Mapping[str, Any]]
 )
 ```
 
+
+
+
+
+
+---
+
+#### <kbd>property</kbd> Treatment.apply_map
 
 
 
@@ -45,7 +52,7 @@ __init__(
 ### <kbd>method</kbd> `Treatment.apply`
 
 ```python
-apply(ctx: crystallize.core.context.FrozenContext) → None
+apply(ctx: crystallize.utils.context.FrozenContext) → None
 ```
 
 Apply the treatment to the execution context. 

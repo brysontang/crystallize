@@ -1,130 +1,75 @@
 ---
 title: The Full Workflow
-description: Putting optimization, validation, and application together.
+description: From exploration to production with a single experiment.
 ---
 
-In this capstone tutorial you'll learn how the three stages of discovery fit together in Crystallize:
+This capstone tutorial threads together the pieces covered earlier:
 
-- `optimize()` for automated exploration of parameter space.
-- `run()` for statistical validation of a promising treatment.
-- `apply()` for single-shot inference once a winner is proven.
+1. **Optimise** – search the treatment space programmatically.
+2. **Validate** – run enough replicates to confirm the improvement.
+3. **Apply** – reuse the winning treatment for single-shot inference.
 
-We'll build a minimal experiment, search for the best parameter, verify it, and finally reuse it.
+We reuse the minimal pipeline (`fetch_numbers → add_delta → record_sum`) introduced earlier.
 
-## Step 1: The Machine – Defining the Experiment
-
-First create the core experiment that stays fixed across all stages.
+## 1. Optimise
 
 ```python
-from crystallize import data_source, pipeline_step, resource_factory
-from crystallize import FrozenContext, Pipeline, Experiment
-import random
-
-@data_source
-def numbers(ctx: FrozenContext) -> list[int]:
-    return [0, 0, 0]
-
-@pipeline_step()
-def add_delta(data: list[int], ctx: FrozenContext, *, delta: float = 0.0) -> list[int]:
-    return [x + delta for x in data]
-
-@pipeline_step()
-def add_noise(data: list[int], ctx: FrozenContext) -> list[int]:
-    return [x + random.random() for x in data]
-
-@pipeline_step()
-def record_sum(data: list[int], ctx: FrozenContext) -> list[int]:
-    ctx.metrics.add("total", sum(data))
-    return data
-
-pipeline = Pipeline([add_delta(), add_noise(), record_sum()])
-datasource = numbers()
-exp = Experiment(
-    datasource=datasource,
-    pipeline=pipeline,
-    initial_ctx={"rng": resource_factory(lambda ctx: random.Random(ctx.get("seed", 42)))},
+optimizer = GridSearchOptimizer(
+    deltas=[-1.0, 0.0, 1.0],
+    objective=Objective(metric="sum", direction="minimize"),
 )
-exp.validate()  # optional
 
-# You can also provide plain values:
-exp_static = Experiment(
-    datasource=datasource,
-    pipeline=pipeline,
-    initial_ctx={"static": 42},
+candidate = experiment.optimize(
+    optimizer,
+    num_trials=len(optimizer.deltas),
+    replicates_per_trial=4,
 )
+print("Candidate:", candidate.name, candidate._apply_value)
 ```
 
-This experiment – our *machine* – will be reused for optimization, validation, and application.
+Optimisation provides **candidates**, not proof. The helper averages the named metric across replicates and reports it back to the optimiser.
 
-## Step 2: Exploration – Finding the Best Parameters with `optimize()`
-
-Define a simple grid search optimizer to explore different `delta` values.
+## 2. Validate
 
 ```python
-from crystallize.experiments.optimizers import BaseOptimizer, Objective
-from crystallize import Treatment
+result = experiment.run(
+    treatments=[candidate],
+    hypotheses=[order_by_p_value],
+    replicates=40,
+)
 
-class GridSearchOptimizer(BaseOptimizer):
-    def __init__(self, grid: dict, objective: Objective):
-        super().__init__(objective)
-        self.grid = grid
-        self.index = 0
-        self.results: list[float] = []
-
-    def ask(self) -> list[Treatment]:
-        val = self.grid["delta"][self.index]
-        return [Treatment(name=f"trial_{val}", apply={"delta": val})]
-
-    def tell(self, values: dict[str, float]) -> None:
-        self.results.append(list(values.values())[0])
-        self.index += 1
-
-    def get_best_treatment(self) -> Treatment:
-        best_value = min(self.results)
-        best_index = self.results.index(best_value)
-        delta = self.grid["delta"][best_index]
-        return Treatment(name="best_delta", apply={"delta": delta})
-
-optimizer = GridSearchOptimizer({"delta": [-1, 0, 1]}, Objective("total", "minimize"))
-best_treatment = exp.optimize(optimizer, num_trials=3, replicates_per_trial=5)
+summary = result.get_hypothesis("order_by_p_value")
+print("p-value:", summary.results[candidate.name]["p_value"])
+print("significant:", summary.results[candidate.name]["significant"])
 ```
 
-`optimize()` returns a single `Treatment` object – the most promising candidate from the search. It is **not** statistical proof, merely a good lead.
+- Increase replicates until the inference is stable.
+- Check the CLI summary tab (`S`) to visually inspect metrics, hypothesis outcomes, and artifacts.
 
-## Step 3: Validation – Proving the Result with `run()`
+## 3. Apply
 
-Now validate that the optimized treatment actually beats the baseline.
+Once you trust the treatment, reuse it for single-shot inference:
 
 ```python
-from crystallize import hypothesis, verifier
-from scipy.stats import ttest_ind
-
-@verifier
-def welch_t_test(baseline, treatment, alpha: float = 0.05):
-    stat, p = ttest_ind(treatment["total"], baseline["total"], equal_var=False)
-    return {"p_value": p, "significant": p < alpha}
-
-@hypothesis(verifier=welch_t_test(), metrics="total")
-def rank_by_p_value(result):
-    return result.get("p_value", 1.0)
-
-result = exp.run(treatments=[best_treatment], hypotheses=[rank_by_p_value], replicates=30)
-print(result.get_hypothesis("rank_by_p_value").results)
+payload = experiment.apply(candidate)
+print("Prediction payload:", payload)
 ```
 
-If the p-value is below your threshold, the treatment is statistically significant – you now have a proven winner.
+`apply()` runs the same pipeline (plugins included) exactly once. Use it in production code or serve it behind an API.
 
-## Step 4: Deployment – Using the Winner with `apply()`
+## 4. Persisting Decisions
 
-Finally, reuse the same experiment and treatment for a one-off inference run.
+- Store the treatment parameters (e.g., serialise `candidate` or the config delta) alongside the model release.
+- Update your folder-based experiment (`config.yaml`) to include the new treatment so teammates can reproduce the validation run from the CLI.
+- Consider writing an ADR if the optimisation introduced architectural changes.
 
-```python
-output = exp.apply(treatment=best_treatment)
-```
+## 5. Automating in the CLI
 
-`apply()` runs the pipeline once, executing plugin hooks and step setup/teardown, then returns the final output. This mirrors using your tuned configuration in production.
+The CLI focuses on validation and manual runs. A common pattern:
 
----
+1. Run optimisation from Python to generate a treatment.
+2. Update `config.yaml` with that treatment under `treatments:`.
+3. Use the run screen to verify results, toggle caching, and inspect artifacts.
+4. Record notes directly from the summary tab (copy links to metrics/artifacts).
 
-This sequence – **optimize → run → apply** – is the complete Crystallize workflow for turning ideas into validated results and finally real-world usage.
-
+This workflow keeps exploration scriptable while still benefiting from Crystallize’s live monitoring and provenance capture.

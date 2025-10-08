@@ -1,66 +1,52 @@
 ---
-title: "How-To: Master Advanced DAG Caching and Execution"
-description: An in-depth guide to the resume and rerun strategies and how cache invalidation works in a complex experiment graph.
+title: "How-To: Advanced DAG Caching"
+description: Understand the resume/rerun strategies and when cached artifacts are reused.
 ---
 
-Crystallize executes experiments as a **directed acyclic graph** (DAG). Each experiment stores its artifacts and metrics so future runs can skip work that is already complete. Understanding when the cache is reused and when steps are re-executed is key to running large workflows efficiently.
+Crystallize stores every run under `data/<experiment>/vN/`. The completion marker `.crystallize_complete` and accompanying `metadata.json` allow later runs to skip work. Two strategies control this behaviour.
 
-## Execution Strategies
+## 1. Strategies
 
-### `strategy="resume"`
-This is the *smart* mode. Before executing each experiment, Crystallize looks for completion markers in the artifact directory. If they exist, the experiment's previous results are loaded and all pipeline steps are skipped. Downstream experiments continue to run normally. Use this for iterative development.
+| Strategy | Behaviour |
+| -------- | --------- |
+| `"rerun"` (default) | Always execute the experiment, ignoring cached artifacts. |
+| `"resume"` | If the latest run completed (baseline + all active treatments) and artifacts are still present, load metrics and artifacts instead of re-running. |
 
-### `strategy="rerun"`
-This is the *force* mode. Every experiment is executed from scratch regardless of existing artifacts. Use it when you want completely fresh results or suspect the cache is invalid.
+You can set the strategy per experiment (`experiment.strategy = "resume"`) or pass `strategy="resume"` to `Experiment.run()` / `ExperimentGraph.run()`.
 
-## Understanding Cache Invalidation
+## 2. When Does Resume Re-run?
 
-With `resume`, an experiment is re-run only if it or any upstream dependency changed. Triggers include:
+Even under `resume`, Crystallize re-executes an experiment when:
 
-- Modifying a pipeline step or changing its parameters (its signature changes).
-- Altering the treatments attached to an experiment.
-- Re-running an upstream experiment which then writes new artifacts.
+- The pipeline signature changes (code edits or new parameters).
+- Treatments differ from the cached run (new names or different apply payloads).
+- Upstream dependencies rerun and publish new artifacts.
+- The completion marker or metadata is missing.
 
-The tests in `tests/test_experiment_graph.py` demonstrate this behaviour. The `graph_resume_skips_experiments` test runs an experiment once, then runs it again with `strategy="resume"` and confirms no steps are executed a second time:
+These rules are covered by the test suite (`tests/test_experiment_graph.py`, `tests/test_experiment_graph_resume.py`).
 
-```python
-step_a = CountStep()
-plugin = ArtifactPlugin(root_dir=str(tmp_path / "arts"))
-exp_a = Experiment(
-    datasource=DummySource(),
-    pipeline=Pipeline([step_a]),
-    plugins=[plugin],
-    name="a",
-    outputs=[Artifact("x.txt")],
-)
-...
-res = graph2.run(strategy="resume")
-assert step_a2.calls == 0
-```
-【F:tests/test_experiment_graph.py†L143-L187】
+## 3. Mixed Replicates
 
-## Handling Mixed Replicates
+Artifact metadata stores the replicate count of the producing experiment. When a downstream experiment has more replicates than the upstream producer, `Artifact.fetch` cycles indices so replicate `i` reads `i % upstream_replicates`. This lets you generate expensive artifacts once and reuse them many times.
 
-A single upstream replicate can feed many downstream replicates. In `test_mixed_replicates_resume` the first experiment runs once while the second runs ten times. On the second invocation with `resume`, both experiments are skipped and the downstream experiment reuses the single artifact produced by the upstream experiment:
+## 4. Example: Skipping Work
 
 ```python
-exp_a = Experiment(..., replicates=1)
-exp_b = Experiment(..., replicates=10)
-...
-graph2.run(strategy="resume")
-assert step_a2.calls == 0
-assert step_b2.calls == 0
+graph = ExperimentGraph.from_yaml("experiments/consumer/config.yaml")
+
+# First run produces artifacts
+graph.run(replicates=10)
+
+# Second run loads existing results
+graph.run(strategy="resume")
 ```
-【F:tests/test_experiment_graph_resume.py†L55-L134】
 
-Crystallize's `Artifact.fetch` automatically selects replicate `0` when an upstream experiment has only one replicate. This allows expensive data generation steps to run once while downstream analysis can run with many replicates without extra work.
+Use logging (or the CLI) to confirm that steps are skipped: cached steps show lock icons in the run screen, and plugins such as `LoggingPlugin(verbose=True)` emit messages when resume loads stored metrics.
 
-## Practical Scenarios
+## 5. Manual Cache Controls
 
-| When to use | Recommended strategy |
-| --- | --- |
-| Adding a new experiment, modifying a downstream step, or adding treatments | `resume` |
-| Changing a core upstream experiment or suspecting corrupted cache | `rerun` |
-| Generating a final report with completely fresh results | `rerun` |
+- Delete `data/<experiment>` to force a full rerun.
+- Toggle caching for specific steps in the CLI (`l` on the run screen) to recompute only the parts you care about.
+- Set `ArtifactPlugin(versioned=True, artifact_retention=N)` to keep multiple runs and prune older ones automatically.
 
-By mastering these strategies you can iterate quickly while keeping your artifact storage and compute usage in check.
+Understanding these knobs keeps large DAGs responsive while guaranteeing fresh results when you change code or configuration.

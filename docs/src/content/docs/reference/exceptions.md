@@ -2,8 +2,7 @@
 title: Exceptions
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.exceptions`
+## <kbd>module</kbd> `crystallize.utils.exceptions`
 
 
 
@@ -52,6 +51,24 @@ __init__(step_name: str, original_exception: Exception) → None
 
 
 
+
+
+
+
+
+---
+
+## <kbd>class</kbd> `ContextMutationError`
+Raised when attempting to mutate frozen context. 
+
+
+
+
+
+---
+
+## <kbd>class</kbd> `ValidationError`
+Raised when experiment configuration is invalid. 
 
 
 

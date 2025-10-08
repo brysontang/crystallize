@@ -1,195 +1,73 @@
 ---
 title: Adding Treatments
-description: How to add treatments to an experiment.
+description: Introduce controlled variations to compare against the baseline.
 ---
 
-In this tutorial, you'll extend the basic experiment from the previous guide by adding treatments—experimental variations that modify the context or data processing. Treatments allow controlled comparisons against a baseline (the control run without variations). This hands-on path builds on fetching and normalizing Titanic-like age data, introducing a treatment that scales ages (e.g., to simulate adjusted scaling in ML preprocessing).
+Treatments represent alternative conditions (hyperparameters, prompt tweaks, model variants) that Crystallize evaluates against the implicit baseline. They work by **adding** keys to the immutable execution context before each replicate.
 
-By the end, you'll run an experiment with baseline and treatment results, verifying differences in metrics like standard deviation of normalized ages.
-
-**Terminology Note**: The "baseline" is the default run; "treatments" inject changes via context updates (immutable additions). Use treatments for A/B testing hyperparameters, data augmentations, or model variants.
-
-## Prerequisites
-
-- Completed "Building Your First Experiment" (or familiar with DataSource/Pipeline).
-- Pandas and SciPy installed (`pip install pandas scipy`).
-- Understand immutability: Treatments add new keys to FrozenContext without mutating existing ones.
-
-## Step 1: Review the Base Setup
-
-Start with the script from the previous tutorial (`basic_experiment.py`). It fetches sampled Titanic ages, normalizes them (mean 0, std ~1), and computes std as a metric.
-
-Key parts:
-
-- DataSource: Samples 3 random ages from a hardcoded list.
-- Pipeline: Normalizes 'Age' → Computes 'std_norm_age' (~1 verifiable).
-
-Add imports for treatments:
+## 1. Declaring Treatments
 
 ```python
-from crystallize import treatment  # Factory for variations
+from crystallize import treatment, FrozenContext
+
+boost_total = treatment("boost_total", {"delta": 10.0})
+
+@treatment("dynamic_delta")
+def dynamic_delta(ctx: FrozenContext):
+    ctx.add("delta", ctx.get("delta", 0) + 1.0)
 ```
 
-## Step 2: Define Treatments
+- Passing a dictionary returns a ready-to-use `Treatment` that merges those keys into the context.
+- Using `@treatment(name)` decorates a callable that receives the context and may add keys programmatically (still without overwriting existing ones).
 
-Treatments are named modifiers that update the context. Here, create one that scales ages by a factor (e.g., to test preprocessing variations).
+## 2. Wiring Treatments into the Pipeline
 
-```python
-# Treatment: Scale ages (variation to test against baseline)
-scale_ages = treatment(
-    name="scale_ages_treatment",
-    apply={"scale_factor": 1.5}  # Adds 'scale_factor' to context
-)
-```
-
-- **How it works**: The `apply` dict is added to the context during treatment runs. Baselines run without it.
-- **Callable alternative**: For dynamic logic:
-  ```python
-  @treatment("dynamic_scale")
-  def dynamic_scale_treatment(ctx: FrozenContext):
-      ctx.add("scale_factor", 1.0 + (ctx["replicate"] / 10.0))  # Varies per replicate
-  ```
-- **Test it**: `t = scale_ages; ctx = FrozenContext({}); t.apply(ctx); print(ctx.get("scale_factor"))` → 1.5.
-
-**Inline Troubleshooting**:
-
-- _MutationError?_ If key exists, use a unique name or check context beforehand (but immutability prevents overwrites).
-- _No effect?_ Ensure pipeline uses the new key (next step).
-- FAQ: Why context updates? Allows non-destructive variations—e.g., hyperparams without code changes. See Explanation: Immutability.
-
-## Step 3: Update Pipeline to Use Treatment
-
-Modify `normalize_age` to apply scaling if 'scale_factor' present (treatment-only).
+Treatments only have an effect if pipeline steps consume the injected keys. With the pipeline from the previous tutorial:
 
 ```python
 @pipeline_step()
-def normalize_age(
-    data: pd.DataFrame,
-    ctx: FrozenContext,
-    *,
-    scale_factor: float = 1.0,
-) -> pd.DataFrame:
-    """Scale ``Age`` if treatment active, then normalize."""
-    scale = scale_factor + random.random()  # default 1.0 + noise for tutorial
-    data['Age'] = data['Age'] * scale  # Apply variation
-    mean_age = data['Age'].mean()
-    std_age = data['Age'].std()
-    data['Normalized_Age'] = (data['Age'] - mean_age) / std_age
-    return data
+def add_delta(data: list[int], ctx: FrozenContext, *, delta: float = 0.0) -> list[float]:
+    return [x + delta for x in data]
 ```
 
-- **Baseline**: `scale=1.0`, no change.
-- **Treatment**: Scales ages, affecting normalization std (~1 still, but verifiable shift in raw ages).
-- **Re-test step**: With treatment ctx (`{"scale_factor": 1.5}`), std remains ~1, but means differ indirectly.
+- `delta` defaults to `0.0` for the baseline.
+- When `boost_total()` runs, `delta` is read from the context (`10.0`).
+- Treatments can also add completely new context keys for downstream steps (e.g., `ctx.add("batch_size", 64)`).
 
-**Inline Troubleshooting**:
-
-- _Key unused?_ Ensure steps reference context keys added by treatments.
-- _Inconsistent results?_ Set seed in random sampling: `random.seed(ctx.get("seed", 42))` in DataSource.
-- FAQ: Multiple treatments? Add more to `.treatments([...])`; each runs separately vs. baseline.
-
-## Step 4: Assemble with Treatments
-
-Update the builder to include treatments. Baselines run automatically.
+## 3. Running with Treatments
 
 ```python
-# Build with treatments using the fluent builder
-exp = (
-    Experiment.builder()
-    .datasource(titanic_source())
-    .add_step(normalize_age())
-    .add_step(compute_metrics())
-    .plugins([ParallelExecution()])
-    .treatments([scale_ages()])
-    .replicates(3)
+experiment = (
+    Experiment.builder("with_treatments")
+    .datasource(fetch_numbers())
+    .add_step(add_delta())
+    .add_step(summarize())
+    .treatments([boost_total(), dynamic_delta()])
+    .replicates(12)
     .build()
 )
-exp.validate()
-result = exp.run()
-print("Baseline metrics:", result.metrics.baseline.metrics)  # std ~1
-print("Treatment metrics:", result.metrics.treatments["scale_ages_treatment"].metrics)  # std ~1, but scaled input
+
+result = experiment.run()
+print(result.metrics.baseline.metrics["total"])
+print(result.metrics.treatments["boost_total (v0)"].metrics["total"])
+print(result.metrics.treatments["dynamic_delta (v0)"].metrics["total"])
 ```
 
-- **Output**: Aggregated metrics—baseline std ~1; treatment std ~1 (normalization invariant to scaling).
-- **Verification**: To see effect, add raw mean age metric in `compute_metrics`: `ctx.metrics.add("mean_age", data['Age'].mean())`. Baseline mean ~30-40; treatment ~45-60 (scaled).
+Observations:
 
-**Inline Troubleshooting**:
+- The baseline always runs, even if you do not call `.treatments(...)`.
+- Treatment metrics are grouped by name and include the artifact version suffix (e.g., `(v0)`).
+- Hypotheses receive both baseline and treatment metrics to determine significance.
 
-- _No treatment results?_ Ensure `.treatments` list non-empty; baselines always run.
-- _Metrics mismatch?_ Replicates sample randomly—set seed via context or env for consistency.
-- FAQ: Baselines vs. treatments? Baselines use default context; treatments add keys for variations.
+## 4. Managing Treatments in the CLI
 
-## Full Updated Script
+- In the run screen, the right-hand **Treatments** tree lists every treatment attached to the experiment (or each experiment in a graph).
+- Press `x` to toggle the highlighted treatment. The state is persisted in `config.state.json`, so the next run remembers disabled variants.
+- The summary tab labels disabled treatments and focuses hypothesis output on those that were active.
 
-`adding_treatments.py` (copy from basic, add treatment parts):
+## 5. Best Practices
 
-```python
-from crystallize import data_source, pipeline_step, treatment
-from crystallize import ParallelExecution, FrozenContext
-import pandas as pd
-import random
-from scipy.stats import skew, kurtosis
-
-@data_source
-def titanic_source(ctx: FrozenContext):
-    data = {
-        'Age': [22.0, 38.0, 26.0, 35.0, 35.0, 54.0, 27.0, 14.0],
-    }
-    # Sample 3 random rows (seed for repro)
-    random.seed(ctx.get("seed", 42))  # Use context for seed
-    indices = random.sample(range(len(data['Age'])), 3)
-    sampled_data = {'Age': [data['Age'][i] for i in indices]}
-    return pd.DataFrame(sampled_data)
-
-@pipeline_step()
-def normalize_age(
-    data: pd.DataFrame,
-    ctx: FrozenContext,
-    *,
-    scale_factor: float = 1.0,
-) -> pd.DataFrame:
-    scale = scale_factor + random.random()  # Treatment injects this
-    data['Age'] = data['Age'] * scale
-    mean_age = data['Age'].mean()
-    std_age = data['Age'].std()
-    data['Normalized_Age'] = (data['Age'] - mean_age) / std_age
-    return data
-
-@pipeline_step()
-def compute_metrics(data: pd.DataFrame, ctx: FrozenContext):
-    std_norm_age = data['Normalized_Age'].std()
-    ctx.metrics.add("std_norm_age", std_norm_age)  # ~1
-
-    mean_age = data['Age'].mean()  # To see scaling effect
-    ctx.metrics.add("mean_age", mean_age)
-
-    return {"std_norm_age": std_norm_age, "mean_age": mean_age}
-
-scale_ages = treatment(
-    name="scale_ages_treatment",
-    apply={"scale_factor": 1.5}
-)
-
-if __name__ == "__main__":
-    exp = Experiment(
-        datasource=titanic_source(),
-        pipeline=Pipeline([normalize_age(), compute_metrics()]),
-        plugins=[ParallelExecution()],
-    )
-    exp.validate()
-    result = exp.run(treatments=[scale_ages()], replicates=3)
-    print("Baseline metrics:", result.metrics.baseline.metrics)
-    print("Treatment metrics:", result.metrics.treatments["scale_ages_treatment"].metrics)
-```
-
-Run: `python adding_treatments.py`. Compare baseline/treatment `mean_age` (scaled higher in treatment) while `std_norm_age` remains ~1.
-
-To add ML: In pipeline, fit `from sklearn.linear_model import LinearRegression` on 'Age'~other features, metric as R². Treatment could alter features.
-
-## Next Steps
-
-- **Test Hypotheses**: See Tutorials: Verifying Assertions with Hypotheses.
-- **Custom Variations**: How-to Guides: How to add a custom treatment.
-- **Reference**: Treatment, Experiment (for baselines).
-- **Explanations**: Why baselines? See Explanation: Controlled experiments.
-- Experiment with multiple treatments or real Titanic CSV. Link to `examples/folder_experiment` for config-based runs.
+- Keep treatments focused—change a single concept so the comparison is easy to interpret.
+- Use descriptive names; the name doubles as the directory/metric key.
+- If multiple treatments affect the same parameter, consider combining them with `ExperimentGraph` so each experiment stays simple.
+- When a treatment needs extra resources (e.g., a model handle), pair it with a `resource_factory` in the pipeline to avoid re-creating the resource every replicate.

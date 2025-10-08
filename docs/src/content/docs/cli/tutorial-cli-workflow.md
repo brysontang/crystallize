@@ -1,61 +1,65 @@
 ---
 title: 'Tutorial: Your First CLI Experiment'
-description: A complete, story-driven walkthrough of creating, configuring, and running an experiment from the command line.
+description: Launch, scaffold, run, and inspect an experiment with the Textual UI.
 ---
 
-Welcome! This tutorial is your first step into the world of Crystallize. We'll follow a common story: you have an idea for an experiment and want to see it working as quickly as possible. This guide will show you how to go from zero to a fully functional, running experiment in just a few commands, all from the interactive Command Line Interface (CLI).
+This tutorial guides you through the end-to-end CLI experience—scaffolding code, running it, and reading the results—all without leaving the terminal.
 
-## The Goal: A Zero-to-Hero Experiment
+## 1. Launch the CLI
 
-We're going to use Crystallize's scaffolding power to create a pre-built experiment, run it, and see real results immediately.
+```bash
+crystallize
+```
 
-### Step 1: Scaffold a New Experiment with Examples
+You’ll land on the **selection screen**:
 
-Instead of starting with empty files, we'll tell Crystallize to include example code for us.
+- Left pane: ASCII banner + tree of discovered experiments/graphs (grouped by `cli.group` in `config.yaml`).
+- Right pane: Live `config.yaml` editor and metadata panel.
+- Footer: Key bindings (`n` new, `r` refresh, `e` errors, `q` quit, `Enter` run).
 
-1. From your terminal, launch the interactive TUI:
-   ```bash
-   crystallize
-   ```
-2. Press the <kbd>n</kbd> key to open the **Create New Experiment** screen.
-3. Enter a name for your experiment, like `hello-crystallize`.
-4. In the **Files to include** list, ensure the defaults (`steps.py`, `datasources.py`) are checked, and also check `verifiers.py`.
-5. Crucially, check the **Add example code** box. This will populate our new files with runnable code.
-6. Click **Create**.
+## 2. Scaffold an Experiment
 
-Crystallize has just built a complete, working experiment in `experiments/hello-crystallize/`.
+Press `n` to open **Create New Experiment**.
 
-### Step 2: The First Run
+- Provide a lowercase name (`hello-crystallize`).
+- Leave `steps.py`, `datasources.py`, `verifiers.py` selected; add `outputs.py` if you plan to declare artifacts.
+- Toggle **Add example code** to populate the files with a runnable starter.
+- Optionally enable **Use outputs from other experiments** to create a DAG node referencing upstream artifacts.
+- Press **Create**. A new folder appears under `experiments/hello-crystallize/`.
 
-Let's run our new experiment without any modifications.
+## 3. Run It
 
-1. Back on the main screen, your `hello-crystallize` experiment is highlighted. Press <kbd>Enter</kbd>.
-2. The **Prepare Run** screen appears. Make sure only **datasource** and **steps** are enabled and select `rerun` to execute everything from scratch.
-3. Press **Run** to start. The view switches to a live log, showing the pipeline for both the baseline and two example treatments. If something goes wrong while loading or running, the interface opens an **Errors** tab with the traceback so you can diagnose the issue. You can highlight any step in the tree and press <kbd>e</kbd> to open its source in your editor (set `$EDITOR`).
+Back on the selection screen:
 
-### Step 3: The Summary Tab – Instant Results!
+1. Highlight the experiment (arrow keys).
+2. The right panel shows a Markdown summary, estimated runtime (based on historic timings), and an editable config tree. Press `e` on a node to edit values in place.
+3. Press `Enter` or click **Run**.
 
-After the run, the view switches to the **Summary** tab. Because we included example code, the summary is already populated with meaningful results. You'll see three main tables:
+The **run screen** contains:
 
-- **Metrics Table:** Shows the raw metrics collected during the run. The example code calculates a `val` metric, and you can see how its value differs between the baseline, `increase_by_one`, and `increase_by_two` treatments.
-- **Artifacts Table:** Lists the artifacts saved during the run. Each cell links to the file produced by the corresponding treatment so you can open it directly.
-- **Hypothesis Table:** Displays the results of the statistical test defined in the example. It compares each treatment to the baseline and reports a `p_value` and whether the result was significant.
+- Left sidebar – experiment tree and treatment tree. Use `l` to toggle caching for highlighted nodes and `x` to enable/disable treatments (state persists to `config.state.json`).
+- Tabs – `Logs`, `Summary`, `Errors`. `t` flips between rich and plain-text output, `S` focuses the summary tab.
+- `R` toggles **Run** ↔ **Cancel**. `e` opens the highlighted node in `$CRYSTALLIZE_EDITOR`, `$EDITOR`, or `$VISUAL`.
+- The top bar shows active experiment, treatment, replicate progress, and ETA (computed via an exponential moving average).
 
-Just by scaffolding and running, you've already got a complete experimental result!
+## 4. Inspect the Summary
 
-### Step 4: Scaling Up with Replicates
+After the run completes, the summary tab lists:
 
-A single run is great, but for statistical confidence we need more replicates.
+- **Metrics** – baseline plus each treatment, including artifact version suffixes (`(v0)`).
+- **Hypotheses** – verifier outputs (p-values, guardrail flags). The best treatment is highlighted according to the ranker.
+- **Artifacts** – links to files saved by `ArtifactPlugin` (configured per experiment). Selecting a row and pressing `e` opens the artifact in your editor.
 
-1. Press <kbd>Esc</kbd> or <kbd>q</kbd> to exit the run screen and return to the main screen.
-2. With `hello-crystallize` highlighted, look at the configuration tree on the right. This is a live editor for your `config.yaml`.
-3. Use the arrow keys to navigate to `replicates`. Press <kbd>e</kbd> to edit, change the value from `1` to `10`, and press <kbd>Enter</kbd> to save.
+When caching is enabled, rerunning shows lock icons on cached steps and highlights “resume” mode in the header.
 
-### Step 5: The Second Run – More Power!
+## 5. Iterate Quickly
 
-1. Press <kbd>Enter</kbd> on your experiment again.
-2. Choose `rerun`.
-3. The live runner now shows progress for all 10 replicates.
-4. When the run completes, the **Summary** tab shows metrics from all 10 runs, giving you a much more robust statistical result for your hypotheses.
+- Edit `config.yaml` directly from the tree, or open `datasources.py`/`steps.py` in your editor; the CLI reloads modules before each run.
+- Use `r` on the selection screen to pick up new experiments or changes to configs (useful when switching Git branches).
+- Press `e` on the selection screen to view load errors; the modal includes the traceback so you can fix syntax errors without leaving the UI.
 
-Congratulations! You've just seen the full power of the CLI workflow: scaffolding a working experiment, running it, and scaling it up for statistical significance, all in just a few minutes.
+## 6. Next Steps
+
+- Declare `outputs` and build DAGs; use `ExperimentGraph.from_yaml` to execute them programmatically or select the graph node in the CLI.
+- Toggle treatments on and off to focus on promising variants. The persisted state file keeps your choices between runs.
+- Enable artifact versioning (`ArtifactPlugin(versioned=True)`) to compare historical runs in the summary tab.

@@ -1,114 +1,93 @@
 ---
 title: Parameter Optimization
-description: Explore the optimize -> run -> apply workflow with a simple grid search optimizer.
+description: Use the ask/tell loop to search over treatments programmatically.
 ---
 
-Crystallize experiments can go beyond fixed A/B tests. The `optimize()` method allows you to iterate over many treatments and search for the best configuration.
+Crystallize ships with a simple optimisation hook that lets you drive experiments from an external strategy (grid search, Bayesian optimisation, evolutionary algorithms, …). The pattern mirrors [ask/tell](https://en.wikipedia.org/wiki/Sequential_model-based_optimization): the optimiser proposes a treatment, Crystallize evaluates it, and the optimiser consumes the aggregated metric.
 
-## Step 1: Understand the `BaseOptimizer`
+## 1. Implement a `BaseOptimizer`
 
 ```python
-from dataclasses import dataclass
 from crystallize.experiments.optimizers import BaseOptimizer, Objective
 from crystallize import Treatment
 
-@dataclass
-class Objective:
-    metric: str
-    direction: str  # "minimize" or "maximize"
-
-class BaseOptimizer(ABC):
-    def __init__(self, objective: Objective):
-        self.objective = objective
-
-    def ask(self) -> list[Treatment]:
-        raise NotImplementedError
-
-    def tell(self, objective_values: dict[str, float]) -> None:
-        raise NotImplementedError
-
-    def get_best_treatment(self) -> Treatment:
-        raise NotImplementedError
-```
-
-Every optimizer implements `ask`, `tell`, and `get_best_treatment` to drive the trial loop.
-
-## Step 2: Implement `GridSearchOptimizer`
-
-```python
 class GridSearchOptimizer(BaseOptimizer):
-    def __init__(self, param_grid: dict, objective: Objective):
+    def __init__(self, deltas: list[float], objective: Objective):
         super().__init__(objective)
-        self.param_grid = param_grid
-        self.trial_index = 0
-        self.results: list[float] = []
+        self.deltas = deltas
+        self._index = 0
+        self._scores: list[float] = []
 
     def ask(self) -> list[Treatment]:
-        delta = self.param_grid["delta"][self.trial_index]
-        return [Treatment(name=f"trial_{self.trial_index}", apply={"delta": delta})]
+        delta = self.deltas[self._index]
+        return [Treatment(name=f"grid_{delta}", apply={"delta": delta})]
 
     def tell(self, objective_values: dict[str, float]) -> None:
-        self.results.append(list(objective_values.values())[0])
-        self.trial_index += 1
+        self._scores.append(next(iter(objective_values.values())))
+        self._index += 1
 
     def get_best_treatment(self) -> Treatment:
-        best_idx = self.results.index(min(self.results))
-        return Treatment(name="best", apply={"delta": self.param_grid["delta"][best_idx]})
+        best_idx = min(range(len(self._scores)), key=self._scores.__getitem__)
+        return Treatment(name="grid_best", apply={"delta": self.deltas[best_idx]})
 ```
 
-The optimizer cycles through the provided grid and records the metric returned from each trial.
+Key points:
 
-## Step 3: Run Optimization
+- `Objective.metric` names the metric to optimise (must exist in `ctx.metrics`). The current helper averages the metric across replicates.
+- `ask()` returns a list of treatments. The built-in extraction assumes exactly one treatment per trial.
+- `tell()` receives a `{metric_name: aggregated_value}` mapping.
+
+## 2. Configure the Experiment
 
 ```python
-from crystallize import data_source, pipeline_step
-from crystallize import Experiment
-from crystallize.pipelines.pipeline import Pipeline
-
 @data_source
-def initial_data(ctx):
+def initial_data(ctx: FrozenContext) -> list[int]:
     return [1, 2, 3]
 
 @pipeline_step()
-def add_delta(data: list, ctx, *, delta: int = 0) -> list:
+def add_delta(data: list[int], ctx: FrozenContext, *, delta: float = 0.0) -> list[int]:
     return [x + delta for x in data]
 
 @pipeline_step()
-def record_sum(data, ctx):
-    ctx.metrics.add("total", sum(data))
+def record_sum(data: list[int], ctx: FrozenContext):
+    ctx.metrics.add("sum", sum(data))
     return data
 
-exp = Experiment(datasource=initial_data(), pipeline=Pipeline([add_delta(), record_sum()]))
-optimizer = GridSearchOptimizer({"delta": [0, 1, 2]}, Objective("total", "minimize"))
+experiment = Experiment(
+    datasource=initial_data(),
+    pipeline=Pipeline([add_delta(), record_sum()]),
+)
 
-best = exp.optimize(optimizer, num_trials=3)
+optimizer = GridSearchOptimizer(
+    deltas=[0.0, 1.0, 2.0],
+    objective=Objective(metric="sum", direction="minimize"),
+)
 ```
 
-`best` is the `Treatment` with the lowest recorded sum.
-
-## Step 4: Validate the Winner
-
-After finding the best parameters you can verify they beat the baseline:
+## 3. Run the Loop
 
 ```python
-from crystallize import Hypothesis
-
-def always_better(baseline, treatment):
-    return {"p_value": 0.01, "accepted": True, "significant": True}
-
-hyp = Hypothesis(verifier=always_better, metrics="total", ranker=lambda r: r["p_value"])
-
-result = exp.run(treatments=[best], hypotheses=[hyp], replicates=3)
-print(result.metrics)
+best_treatment = experiment.optimize(
+    optimizer,
+    num_trials=len(optimizer.deltas),
+    replicates_per_trial=1,
+)
+print(best_treatment.name, best_treatment._apply_value)  # internal representation
 ```
 
-## Step 5: Apply the Winning Treatment
+`Experiment.optimize` (synchronous) calls the async helper under the hood:
 
-Use `apply()` to run the pipeline once with the optimized parameters:
+1. Call `ask()` to obtain a treatment.
+2. Run the experiment with that treatment (respecting `replicates_per_trial`).
+3. Average the specified metric across replicates and hand it to `tell()`.
+4. Repeat for `num_trials`.
+5. Return `get_best_treatment()`.
 
-```python
-output = exp.apply(treatment=best)
-```
+You can also call `await experiment.aoptimize(...)` inside your own async code.
 
-This final step mirrors the real-world rollout of the chosen configuration. `apply()` triggers plugin hooks and step setup/teardown so the run behaves like a single replicate of `run()`.
+## 4. Tips
 
+- Use `direction` to indicate how you interpret the metric (currently informational; implement minimisation/maximisation logic in `tell()`).
+- You can access full metrics inside `tell()` by running the experiment manually and extracting whatever you need before calling `tell()`. The built-in helper only passes the average of the named metric.
+- To evaluate multiple treatments per trial, extend `_extract_objective_from_result` or run the experiment yourself and call `optimizer.tell(...)` with whatever aggregation makes sense.
+- Optimisation is orthogonal to the CLI. Run the optimisation loop in Python and then apply the returned treatment in production via `experiment.apply(best_treatment)`.

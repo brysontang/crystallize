@@ -1,9 +1,8 @@
 ---
-title: Pipeline_step
+title: Pipeline Step
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.pipeline_step`
+## <kbd>module</kbd> `crystallize.pipelines.pipeline_step`
 
 
 
@@ -34,7 +33,7 @@ Parameters of this step for hashing and caching.
 
 #### <kbd>property</kbd> PipelineStep.step_hash
 
-Unique hash identifying this step based on its parameters. 
+Unique hash identifying this step based on its parameters and code. 
 
 
 
@@ -43,7 +42,7 @@ Unique hash identifying this step based on its parameters.
 ### <kbd>method</kbd> `PipelineStep.setup`
 
 ```python
-setup(ctx: crystallize.core.context.FrozenContext) → None
+setup(ctx: crystallize.utils.context.FrozenContext) → None
 ```
 
 Optional hook called once before any replicates run. 
@@ -53,7 +52,7 @@ Optional hook called once before any replicates run.
 ### <kbd>method</kbd> `PipelineStep.teardown`
 
 ```python
-teardown(ctx: crystallize.core.context.FrozenContext) → None
+teardown(ctx: crystallize.utils.context.FrozenContext) → None
 ```
 
 Optional hook called once after all replicates finish. 

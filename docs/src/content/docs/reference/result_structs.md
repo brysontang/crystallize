@@ -1,13 +1,15 @@
 ---
-title: Result_structs
+title: Result Structs
 ---
 
-
-## <kbd>module</kbd> `crystallize.core.result_structs`
-
+## <kbd>module</kbd> `crystallize.experiments.result_structs`
 
 
 
+
+**Global Variables**
+---------------
+- **pd**
 
 
 ---

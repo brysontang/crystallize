@@ -53,6 +53,7 @@ SAFE_BUILTINS: Dict[str, Any] = {
     "int": int,
     "str": str,
     "bool": bool,
+    "print": print,
     "Exception": Exception,
     "ValueError": ValueError,
 }
@@ -479,14 +480,17 @@ def _compare_metric(
         if isinstance(base_val, (int, float)) and isinstance(treatment_val, (int, float)):
             return abs(float(base_val) - float(treatment_val)) <= tolerance
         return base_val == treatment_val
-    for key, base_val in base.items():
-        treatment_val = treatment.get(key)
-        if isinstance(base_val, (int, float)) and isinstance(treatment_val, (int, float)):
-            if abs(float(base_val) - float(treatment_val)) > tolerance:
-                return False
-        else:
-            if base_val != treatment_val:
-                return False
+    numeric_keys = [
+        key
+        for key, base_val in base.items()
+        if isinstance(base_val, (int, float))
+        and isinstance(treatment.get(key), (int, float))
+    ]
+    for key in numeric_keys:
+        base_val = float(base[key])
+        treatment_val = float(treatment[key])
+        if abs(base_val - treatment_val) > tolerance:
+            return False
     return True
 
 

@@ -203,6 +203,38 @@ def fit_and_eval(data):
     assert meta_metadata["first_pass"] is False
 
 
+def test_run_metamorphic_tests_numeric_fallback(frozen_ctx: FrozenContext) -> None:
+    payload = {"values": [1, 2, 3], "message": "base"}
+    claim_step = specify_claim(claim={"id": "c7a", "text": "meta", "acceptance": {}})
+    claim_data, _ = claim_step(payload, frozen_ctx)
+    spec = Spec(
+        allowed_imports=[],
+        properties=[{"name": "message", "transform": "identity", "tolerance": 0.0}],
+    )
+    spec_data, _ = generate_spec(spec=spec)(claim_data, frozen_ctx)
+    synth_step = bounded_synthesis(
+        code="""
+def fit_and_eval(data):
+    total = sum(data["values"])
+    return {"total": total, "message": data["message"]}
+"""
+    )
+    exec_input, _ = synth_step(spec_data, frozen_ctx)
+    exec_step = execute_capsule()
+    execute_output, _ = exec_step(exec_input, frozen_ctx)
+
+    def _override_identity(data):
+        clone = {**data}
+        clone["message"] = "transformed"
+        return clone
+
+    meta_step = run_metamorphic_tests(transforms={"identity": _override_identity})
+    (_, _, _), meta_metadata = meta_step(execute_output, frozen_ctx)
+    assert meta_metadata["message_pass"] is True
+    stored = frozen_ctx.get("metamorphic_message_result")
+    assert stored["metrics"]["message"] == "transformed"
+
+
 def test_run_metamorphic_aligned_transform(frozen_ctx: FrozenContext) -> None:
     dataset = ([1, 2, 3], [4, 5, 6])
     claim_step = specify_claim(claim={"id": "c8", "text": "meta", "acceptance": {}})

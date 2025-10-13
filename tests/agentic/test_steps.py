@@ -203,6 +203,32 @@ def fit_and_eval(data):
     assert meta_metadata["first_pass"] is False
 
 
+def test_run_metamorphic_aligned_transform(frozen_ctx: FrozenContext) -> None:
+    dataset = ([1, 2, 3], [4, 5, 6])
+    claim_step = specify_claim(claim={"id": "c8", "text": "meta", "acceptance": {}})
+    claim_data, _ = claim_step(dataset, frozen_ctx)
+    spec = Spec(
+        allowed_imports=[],
+        properties=[{"name": "aligned", "metamorphic": "permute_rows_aligned", "metric": "first"}],
+    )
+    spec_data, _ = generate_spec(spec=spec)(claim_data, frozen_ctx)
+    synth_step = bounded_synthesis(
+        code="""
+def fit_and_eval(data):
+    x, y = data
+    return {"first": (x[0], y[0])}
+"""
+    )
+    exec_input, _ = synth_step(spec_data, frozen_ctx)
+    exec_step = execute_capsule()
+    execute_output, _ = exec_step(exec_input, frozen_ctx)
+    meta_step = run_metamorphic_tests()
+    (_, _, _), meta_metadata = meta_step(execute_output, frozen_ctx)
+    assert meta_metadata["aligned_pass"] is False
+    stored = frozen_ctx.get("metamorphic_aligned_result")
+    assert stored["metrics"]["first"] == (3, 6)
+
+
 @pytest.mark.parametrize("prompt_keys", [["llm_call_custom"], ["llm_call_a", "llm_call_b"]])
 def test_prompt_provenance_collects_calls(frozen_ctx: FrozenContext, tmp_path: Path, prompt_keys: list[str]) -> None:
     plugin = PromptProvenancePlugin()

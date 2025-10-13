@@ -20,3 +20,12 @@ Add a dedicated `agentic` package that supplies schema dataclasses, pipeline ste
 - Artifact directories now include prompt traces and evidence bundles when the new plugins are enabled, improving reproducibility at the cost of additional disk usage.
 - The bounded execution capsule enforces AST allow-listing, runtime module diffing, and resource limits; Windows hosts fall back to wall-clock termination because `resource`-based limits are unavailable.
 - Metamorphic checks execute inside the same sandbox to compare transformed inputs against baseline metrics, surfacing invariant regressions without halting the main replicate unless the sandbox itself fails.
+
+### Property Specification Schema
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `str` | Identifier that produces the `{name}_pass` metric recorded by `run_metamorphic_tests`. |
+| `transform` / `metamorphic` | `str` | Key that selects a registered transform (for example `permute_rows`, `permute_rows_aligned`, or a custom entry). |
+| `metric` | `Optional[str]` | Single metric to compare between baseline and transformed executions; defaults to comparing all metrics when omitted. |
+| `tolerance` | `float` | Absolute tolerance applied when comparing numeric metrics. Defaults to `1e-6`. |

@@ -18,6 +18,19 @@ from crystallize import FrozenContext, pipeline_step
 
 from .schema import Claim, Spec
 
+# Normalises import lists into deterministic tuples so repeated guards don't
+# rebuild set/tuple structures on every invocation.
+def _normalise_allowed_imports(allowed_imports: Iterable[str]) -> Tuple[str, ...]:
+    """Normalise an iterable of modules into a stable tuple."""
+
+    normalised = {
+        module.strip(): None
+        for module in allowed_imports
+        if isinstance(module, str) and module.strip()
+    }
+    return tuple(sorted(normalised))
+
+
 SAFE_BUILTINS: Dict[str, Any] = {
     "len": len,
     "range": range,
@@ -95,7 +108,7 @@ def _parse_llm_response(
 
 
 def _build_import_guard(allowed_imports: Iterable[str]) -> Callable[..., Any]:
-    allowed = tuple(set(allowed_imports))
+    allowed = _normalise_allowed_imports(allowed_imports)
     original_import = py_builtins.__import__
 
     def guarded_import(name: str, globals=None, locals=None, fromlist=(), level: int = 0):
@@ -158,15 +171,14 @@ class BoundedExecutionError(RuntimeError):
 
 
 def _module_allowed(name: str, allowed: Iterable[str]) -> bool:
-    allowed_set = tuple(set(allowed))
-    for mod in allowed_set:
+    for mod in allowed:
         if name == mod or name.startswith(f"{mod}."):
             return True
     return False
 
 
 def _ast_allowlisted(tree: ast.AST, allowed_imports: Iterable[str]) -> None:
-    allowed = set(allowed_imports)
+    allowed = _normalise_allowed_imports(allowed_imports)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
@@ -198,7 +210,7 @@ def _capsule_worker(
     memory_limit: int,
     allowed_imports: Iterable[str],
 ) -> None:
-    allowed_modules = tuple(set(allowed_imports))
+    allowed_modules = _normalise_allowed_imports(allowed_imports)
     try:
         try:
             import resource
@@ -236,14 +248,17 @@ def _capsule_worker(
         result = func(payload)
         mods_after = set(sys.modules.keys())
         new_modules = mods_after - mods_before
-        allowed_modules_set = set(allowed_modules)
+        builtin_roots = set(sys.builtin_module_names)
+        runtime_allowed = set(allowed_modules) | builtin_roots | {"encodings"}
 
         def _module_is_allowed(name: str) -> bool:
-            if _module_allowed(name, allowed_modules_set):
+            if _module_allowed(name, runtime_allowed):
                 return True
             root = name.split(".", 1)[0]
+            if root in runtime_allowed:
+                return True
             return name == root and any(
-                mod.startswith(f"{root}.") or mod == root for mod in allowed_modules_set
+                mod.startswith(f"{root}.") or mod == root for mod in runtime_allowed
             )
 
         suspicious = [
@@ -284,11 +299,17 @@ def _run_in_capsule(
             payload,
             time_limit,
             memory_limit,
-            list(allowed_imports),
+            _normalise_allowed_imports(allowed_imports),
         ),
     )
     process.daemon = True
-    process.start()
+    try:
+        process.start()
+    except Exception:
+        child_conn.close()
+        parent_conn.close()
+        raise
+    child_conn.close()
     process.join(time_limit + 2)
     if process.is_alive():
         process.terminate()
@@ -394,8 +415,42 @@ def _permute_rows(payload: Any) -> Any:
         return payload
 
 
+def _permute_rows_aligned(payload: Any) -> Any:
+    if isinstance(payload, tuple) and payload:
+        try:
+            length = len(payload[0])
+        except Exception:
+            return _permute_rows(payload)
+        if length == 0:
+            return payload
+        indices = list(range(length))[::-1]
+        permuted_items = []
+        for item in payload:
+            try:
+                import numpy as np  # type: ignore  # pragma: no cover - optional
+
+                if isinstance(item, np.ndarray):
+                    permuted_items.append(item[indices])
+                    continue
+            except Exception:  # pragma: no cover - numpy optional
+                pass
+            try:
+                permuted_items.append(type(item)(item[idx] for idx in indices))
+                continue
+            except Exception:
+                pass
+            try:
+                permuted_items.append([item[idx] for idx in indices])
+                continue
+            except Exception:
+                permuted_items.append(item)
+        return tuple(permuted_items)
+    return _permute_rows(payload)
+
+
 DEFAULT_TRANSFORMS: Dict[str, Callable[[Any], Any]] = {
     "permute_rows": _permute_rows,
+    "permute_rows_aligned": _permute_rows_aligned,
     "identity": lambda payload: payload,
 }
 

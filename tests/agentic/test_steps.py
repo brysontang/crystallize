@@ -13,6 +13,7 @@ from crystallize.agentic.steps import (
     bounded_synthesis,
     execute_capsule,
     generate_spec,
+    run_metamorphic_tests,
     specify_claim,
 )
 from crystallize.plugins.provenance import EvidenceBundlePlugin, PromptProvenancePlugin
@@ -36,6 +37,7 @@ def test_specify_claim_adds_claim_to_context(frozen_ctx: FrozenContext) -> None:
     assert frozen_ctx.get("claim").id == "c1"
     assert metadata["claim_id"] == "c1"
     assert data == "dataset"
+    assert frozen_ctx.get("raw_data") == "dataset"
 
 
 def test_generate_spec_uses_static_spec(frozen_ctx: FrozenContext) -> None:
@@ -78,10 +80,43 @@ def fit_and_eval(data):
         bad_step(spec_data, frozen_ctx)
 
 
+def test_bounded_synthesis_allows_from_imports(frozen_ctx: FrozenContext) -> None:
+    claim_step = specify_claim(claim={"id": "c3a", "text": "bounded", "acceptance": {}})
+    claim_data, _ = claim_step({}, frozen_ctx)
+    spec_step = generate_spec(spec=Spec(allowed_imports=["sklearn.metrics"]))
+    spec_data, _ = spec_step(claim_data, frozen_ctx)
+    synth_step = bounded_synthesis(
+        code="""
+from sklearn.metrics import mean_squared_error
+
+def fit_and_eval(data):
+    return {"rmse": float(mean_squared_error([0], [0]))}
+"""
+    )
+    synth_step(spec_data, frozen_ctx)
+
+
+def test_bounded_synthesis_blocks_dunder_escalation(frozen_ctx: FrozenContext) -> None:
+    claim_step = specify_claim(claim={"id": "c3b", "text": "bounded", "acceptance": {}})
+    claim_data, _ = claim_step([], frozen_ctx)
+    spec_step = generate_spec(spec=Spec(allowed_imports=[]))
+    spec_data, _ = spec_step(claim_data, frozen_ctx)
+    synth_step = bounded_synthesis(
+        code="""
+def fit_and_eval(data):
+    return {"value": (1).__class__.__mro__}
+"""
+    )
+    with pytest.raises(BoundedExecutionError):
+        synth_step(spec_data, frozen_ctx)
+
+
 def test_execute_capsule_runs_code(frozen_ctx: FrozenContext) -> None:
     claim_step = specify_claim(claim={"id": "c4", "text": "capsule", "acceptance": {}})
     claim_data, _ = claim_step(3, frozen_ctx)
-    spec_step = generate_spec(spec=Spec(allowed_imports=["math"], resources={"time_s": 2, "mem_mb": 64}))
+    spec_step = generate_spec(
+        spec=Spec(allowed_imports=["math"], resources={"time_s": 2})
+    )
     spec_data, _ = spec_step(claim_data, frozen_ctx)
     synth_step = bounded_synthesis(
         code="""
@@ -96,6 +131,76 @@ def fit_and_eval(data):
     (claim_obj, spec_obj, result), metadata = exec_step(exec_input, frozen_ctx)
     assert result["rmse"] == pytest.approx(math.sqrt(3), rel=1e-6)
     assert metadata["rmse"] == result["rmse"]
+
+
+def test_execute_capsule_detects_runtime_imports(frozen_ctx: FrozenContext) -> None:
+    claim_step = specify_claim(claim={"id": "c4a", "text": "capsule", "acceptance": {}})
+    claim_data, _ = claim_step(None, frozen_ctx)
+    spec = Spec(allowed_imports=["importlib"], resources={"time_s": 2})
+    spec_step = generate_spec(spec=spec)
+    spec_data, _ = spec_step(claim_data, frozen_ctx)
+    synth_step = bounded_synthesis(
+        code="""
+import importlib
+
+def fit_and_eval(data):
+    importlib.import_module("os")
+    return {"rmse": 1.0}
+"""
+    )
+    exec_input, _ = synth_step(spec_data, frozen_ctx)
+    exec_step = execute_capsule()
+    with pytest.raises(BoundedExecutionError):
+        exec_step(exec_input, frozen_ctx)
+
+
+def test_run_metamorphic_tests_records_results(frozen_ctx: FrozenContext) -> None:
+    claim_step = specify_claim(claim={"id": "c6", "text": "meta", "acceptance": {}})
+    claim_data, _ = claim_step([1, 2, 3], frozen_ctx)
+    spec = Spec(
+        allowed_imports=[],
+        properties=[{"name": "perm", "metamorphic": "permute_rows", "metric": "total"}],
+    )
+    spec_data, _ = generate_spec(spec=spec)(claim_data, frozen_ctx)
+    synth_step = bounded_synthesis(
+        code="""
+def fit_and_eval(data):
+    return {"total": sum(data)}
+"""
+    )
+    exec_input, _ = synth_step(spec_data, frozen_ctx)
+    exec_step = execute_capsule()
+    execute_output, exec_metadata = exec_step(exec_input, frozen_ctx)
+    assert exec_metadata["total"] == 6
+    meta_step = run_metamorphic_tests()
+    (_, _, metrics), meta_metadata = meta_step(execute_output, frozen_ctx)
+    assert metrics["total"] == 6
+    assert meta_metadata["perm_pass"] is True
+    stored = frozen_ctx.get("metamorphic_perm_result")
+    assert stored["transform"] == "permute_rows"
+    assert stored["passed"] is True
+
+
+def test_run_metamorphic_tests_flags_failures(frozen_ctx: FrozenContext) -> None:
+    claim_step = specify_claim(claim={"id": "c7", "text": "meta", "acceptance": {}})
+    claim_data, _ = claim_step([1, 2, 3], frozen_ctx)
+    spec = Spec(
+        allowed_imports=[],
+        properties=[{"name": "first", "metamorphic": "permute_rows", "metric": "first"}],
+    )
+    spec_data, _ = generate_spec(spec=spec)(claim_data, frozen_ctx)
+    synth_step = bounded_synthesis(
+        code="""
+def fit_and_eval(data):
+    return {"first": data[0]}
+"""
+    )
+    exec_input, _ = synth_step(spec_data, frozen_ctx)
+    exec_step = execute_capsule()
+    execute_output, _ = exec_step(exec_input, frozen_ctx)
+    meta_step = run_metamorphic_tests()
+    (_, _, _), meta_metadata = meta_step(execute_output, frozen_ctx)
+    assert meta_metadata["first_pass"] is False
 
 
 @pytest.mark.parametrize("prompt_keys", [["llm_call_custom"], ["llm_call_a", "llm_call_b"]])

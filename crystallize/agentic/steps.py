@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import builtins as py_builtins
+import copy
 import hashlib
 import json
 import multiprocessing as mp
@@ -44,6 +45,20 @@ SAFE_BUILTINS: Dict[str, Any] = {
 }
 
 LLMCallable = Callable[[Claim, Any, FrozenContext], Any]
+
+FORBIDDEN_DUNDER_NAMES = {
+    "__class__",
+    "__mro__",
+    "__subclasses__",
+    "__getattribute__",
+    "__getattr__",
+    "__dict__",
+    "__bases__",
+    "__base__",
+    "__globals__",
+    "__reduce__",
+    "__reduce_ex__",
+}
 
 
 def record_llm_call(
@@ -103,6 +118,7 @@ def specify_claim(
 ) -> Tuple[Tuple[Claim, Any], Dict[str, Any]]:
     claim_obj = _coerce_claim(claim)
     ctx.add("claim", claim_obj)
+    ctx.add("raw_data", data)
     return (claim_obj, data), {"claim_id": claim_obj.id}
 
 
@@ -141,21 +157,36 @@ class BoundedExecutionError(RuntimeError):
     """Raised when bounded synthesis or execution fails validation."""
 
 
+def _module_allowed(name: str, allowed: Iterable[str]) -> bool:
+    allowed_set = tuple(set(allowed))
+    for mod in allowed_set:
+        if name == mod or name.startswith(f"{mod}."):
+            return True
+    return False
+
+
 def _ast_allowlisted(tree: ast.AST, allowed_imports: Iterable[str]) -> None:
     allowed = set(allowed_imports)
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Import, ast.ImportFrom)):
-            module_names = {alias.name for alias in node.names}
-            if isinstance(node, ast.ImportFrom) and node.module:
-                module_names.add(node.module)
-            for name in module_names:
-                if not any(name == mod or name.startswith(f"{mod}.") for mod in allowed):
-                    raise BoundedExecutionError(f"Import not allowed: {name}")
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if not _module_allowed(alias.name, allowed):
+                    raise BoundedExecutionError(f"Import not allowed: {alias.name}")
+        elif isinstance(node, ast.ImportFrom):
+            if node.level and node.level != 0:
+                raise BoundedExecutionError("Relative imports are not supported")
+            module_name = node.module or ""
+            if module_name and not _module_allowed(module_name, allowed):
+                raise BoundedExecutionError(f"Import not allowed: {module_name}")
         if isinstance(node, (ast.Global, ast.Nonlocal, ast.With, ast.Try, ast.AsyncWith, ast.AsyncFor)):
             raise BoundedExecutionError(f"Forbidden syntax: {type(node).__name__}")
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
             if node.func.id in {"eval", "exec", "__import__", "open"}:
                 raise BoundedExecutionError(f"Forbidden call: {node.func.id}")
+        if isinstance(node, ast.Attribute) and node.attr in FORBIDDEN_DUNDER_NAMES:
+            raise BoundedExecutionError(f"Forbidden attribute: {node.attr}")
+        if isinstance(node, ast.Name) and node.id in FORBIDDEN_DUNDER_NAMES:
+            raise BoundedExecutionError(f"Forbidden name: {node.id}")
 
 
 def _capsule_worker(
@@ -167,6 +198,7 @@ def _capsule_worker(
     memory_limit: int,
     allowed_imports: Iterable[str],
 ) -> None:
+    allowed_modules = tuple(set(allowed_imports))
     try:
         try:
             import resource
@@ -174,11 +206,27 @@ def _capsule_worker(
             soft = hard = memory_limit * 1024 * 1024
             resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
             resource.setrlimit(resource.RLIMIT_CPU, (time_limit, time_limit))
+            if hasattr(resource, "RLIMIT_FSIZE"):
+                fsize = 2 * 1024 * 1024
+                resource.setrlimit(resource.RLIMIT_FSIZE, (fsize, fsize))
         except Exception:
             pass
         safe_builtins = SAFE_BUILTINS.copy()
-        safe_builtins["__import__"] = _build_import_guard(allowed_imports)
+        safe_builtins["__import__"] = _build_import_guard(allowed_modules)
         namespace: Dict[str, Any] = {"__builtins__": safe_builtins}
+        import sys
+        import importlib
+
+        original_import_module = importlib.import_module
+
+        def guarded_import_module(name: str, package: Optional[str] = None):
+            if not _module_allowed(name, allowed_modules):
+                raise BoundedExecutionError(f"Import not allowed: {name}")
+            return original_import_module(name, package)
+
+        importlib.import_module = guarded_import_module  # type: ignore[assignment]
+
+        mods_before = set(sys.modules.keys())
         exec(code_str, namespace)
         func = namespace.get(func_name)
         if not callable(func):
@@ -186,6 +234,29 @@ def _capsule_worker(
                 f"Entrypoint '{func_name}' missing or not callable"
             )
         result = func(payload)
+        mods_after = set(sys.modules.keys())
+        new_modules = mods_after - mods_before
+        allowed_modules_set = set(allowed_modules)
+
+        def _module_is_allowed(name: str) -> bool:
+            if _module_allowed(name, allowed_modules_set):
+                return True
+            root = name.split(".", 1)[0]
+            return name == root and any(
+                mod.startswith(f"{root}.") or mod == root for mod in allowed_modules_set
+            )
+
+        suspicious = [
+            name
+            for name in new_modules
+            if name
+            and not _module_is_allowed(name)
+            and not name.startswith("multiprocessing")
+        ]
+        if suspicious:
+            raise BoundedExecutionError(
+                f"Loaded disallowed modules: {sorted(suspicious)}"
+            )
         conn.send(("ok", result))
     except BaseException as exc:  # pragma: no cover - defensive
         conn.send(("err", {"type": type(exc).__name__, "message": str(exc)}))
@@ -201,7 +272,7 @@ def _run_in_capsule(
     time_limit: int,
     memory_limit: int,
     allowed_imports: Iterable[str],
-) -> Dict[str, Any]:
+    ) -> Dict[str, Any]:
     ctx = mp.get_context("spawn")
     parent_conn, child_conn = ctx.Pipe(duplex=False)
     process = ctx.Process(
@@ -216,6 +287,7 @@ def _run_in_capsule(
             list(allowed_imports),
         ),
     )
+    process.daemon = True
     process.start()
     process.join(time_limit + 2)
     if process.is_alive():
@@ -302,3 +374,141 @@ def execute_capsule(
     ctx.add("capsule_output", dict(capsule_output))
     metadata = {k: v for k, v in capsule_output.items() if isinstance(v, (int, float))}
     return (claim_obj, spec_obj, dict(capsule_output)), metadata
+
+
+def _permute_rows(payload: Any) -> Any:
+    if isinstance(payload, tuple):
+        return tuple(_permute_rows(item) for item in payload)
+    if isinstance(payload, list):
+        return list(reversed(payload))
+    try:
+        import numpy as np  # type: ignore
+
+        if isinstance(payload, np.ndarray):  # pragma: no cover - optional
+            return payload[::-1]
+    except Exception:  # pragma: no cover - optional import
+        pass
+    try:
+        return payload[::-1]
+    except Exception:
+        return payload
+
+
+DEFAULT_TRANSFORMS: Dict[str, Callable[[Any], Any]] = {
+    "permute_rows": _permute_rows,
+    "identity": lambda payload: payload,
+}
+
+
+def _extract_transform_name(property_spec: Mapping[str, Any]) -> Optional[str]:
+    transform = property_spec.get("transform")
+    if isinstance(transform, str) and transform.strip():
+        return transform.strip()
+    metamorphic = property_spec.get("metamorphic")
+    if isinstance(metamorphic, str) and metamorphic.strip():
+        token = metamorphic.strip().split("(", 1)[0]
+        return token.strip()
+    return None
+
+
+def _compare_metric(
+    base: Mapping[str, Any],
+    treatment: Mapping[str, Any],
+    *,
+    metric: Optional[str],
+    tolerance: float,
+) -> bool:
+    if metric is not None:
+        base_val = base.get(metric)
+        treatment_val = treatment.get(metric)
+        if isinstance(base_val, (int, float)) and isinstance(treatment_val, (int, float)):
+            return abs(float(base_val) - float(treatment_val)) <= tolerance
+        return base_val == treatment_val
+    for key, base_val in base.items():
+        treatment_val = treatment.get(key)
+        if isinstance(base_val, (int, float)) and isinstance(treatment_val, (int, float)):
+            if abs(float(base_val) - float(treatment_val)) > tolerance:
+                return False
+        else:
+            if base_val != treatment_val:
+                return False
+    return True
+
+
+@pipeline_step()
+def run_metamorphic_tests(
+    data: Tuple[Claim, Spec, Dict[str, Any]],
+    ctx: FrozenContext,
+    *,
+    entrypoint: str = "fit_and_eval",
+    transforms: Optional[Mapping[str, Callable[[Any], Any]]] = None,
+    tolerance: float = 1e-6,
+) -> Tuple[Tuple[Claim, Spec, Dict[str, Any]], Dict[str, Any]]:
+    claim_obj, spec_obj, base_metrics = data
+    if not spec_obj.properties:
+        return data, {}
+    code_str = ctx.get("generated_code")
+    raw_payload = ctx.get("raw_data")
+    if code_str is None or raw_payload is None:
+        raise BoundedExecutionError(
+            "Metamorphic tests require generated code and raw data in context"
+        )
+    metadata: Dict[str, Any] = {}
+    for property_spec in spec_obj.properties:
+        if not isinstance(property_spec, Mapping):
+            continue
+        name = property_spec.get("name")
+        transform_name = _extract_transform_name(property_spec)
+        if not name or not transform_name:
+            continue
+        custom_transforms = transforms or {}
+        transform_fn = custom_transforms.get(transform_name) or DEFAULT_TRANSFORMS.get(
+            transform_name
+        )
+        if transform_fn is None:
+            raise BoundedExecutionError(
+                f"Unknown metamorphic transform '{transform_name}'"
+            )
+        try:
+            payload_copy = copy.deepcopy(raw_payload)
+        except Exception:
+            payload_copy = raw_payload
+        transformed_payload = transform_fn(payload_copy)
+        limits = spec_obj.resources or {}
+        result = _run_in_capsule(
+            code_str,
+            entrypoint,
+            transformed_payload,
+            time_limit=limits.get("time_s", 10),
+            memory_limit=limits.get("mem_mb", 1024),
+            allowed_imports=spec_obj.allowed_imports,
+        )
+        if result.get("status") != "ok":
+            raise BoundedExecutionError(
+                f"Metamorphic transform '{transform_name}' failed: {result}"
+            )
+        transformed_metrics = result["value"]
+        if not isinstance(transformed_metrics, Mapping):
+            raise BoundedExecutionError(
+                "Metamorphic execution must return a mapping of metrics"
+            )
+        metric_key = property_spec.get("metric")
+        if metric_key is not None and not isinstance(metric_key, str):
+            metric_key = None
+        prop_tolerance = float(property_spec.get("tolerance", tolerance))
+        passed = _compare_metric(
+            base_metrics,
+            transformed_metrics,
+            metric=metric_key,
+            tolerance=prop_tolerance,
+        )
+        metadata[f"{name}_pass"] = bool(passed)
+        ctx.add(
+            f"metamorphic_{name}_result",
+            {
+                "transform": transform_name,
+                "passed": bool(passed),
+                "metrics": dict(transformed_metrics),
+            },
+        )
+    return (claim_obj, spec_obj, base_metrics), metadata

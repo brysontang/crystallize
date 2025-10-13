@@ -48,6 +48,16 @@ Crystallize enables reproducible data-science experiments by structuring runs as
 - **Relationships / Dependencies:** Plugins hook into `experiments.Experiment` and may interact with `pipelines` (e.g., artifact writes). `ArtifactPlugin` reads constants from `utils.constants`.
 - **Notes / Edge Cases:** `ParallelExecution` requires picklable experiments; non-picklable resources should be created via `resource_factory`.
 
+### agentic
+- **Responsibility:** Provide a thin, agent-oriented harness built on top of the public pipeline APIs.
+- **Key Files:**
+  - `agentic/schema.py` – immutable `Claim` and `Spec` dataclasses that flow through steps.
+  - `agentic/steps.py` – pipeline steps for claim injection, spec generation, bounded synthesis, and sandboxed execution.
+  - `agentic/verifiers.py` – verifier factories for metamorphic properties and acceptance checks.
+  - `plugins/provenance.py` – plugins to persist LLM prompt metadata and structured evidence bundles.
+- **Relationships / Dependencies:** Uses core decorators (`pipeline_step`, `verifier`), immutable contexts, and artifact plugins for persistence. Designed to compose without modifying the existing experiment runner.
+- **Notes / Edge Cases:** The bounded execution capsule whitelists imports and sets CPU/memory guardrails; attempts to run disallowed code raise `BoundedExecutionError` before execution.
+
 ### utils
 - **Responsibility:** Provide shared infrastructure such as immutable contexts, caching, decorators, dependency injection, and custom exceptions.
 - **Key Files:**

@@ -1,6 +1,7 @@
 from .plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
 from .execution import AsyncExecution, ParallelExecution, SerialExecution
 from .artifacts import load_metrics, load_all_metrics
+from .provenance import EvidenceBundlePlugin, PromptProvenancePlugin
 
 __all__ = [
     "ArtifactPlugin",
@@ -12,4 +13,6 @@ __all__ = [
     "AsyncExecution",
     "load_metrics",
     "load_all_metrics",
+    "PromptProvenancePlugin",
+    "EvidenceBundlePlugin",
 ]

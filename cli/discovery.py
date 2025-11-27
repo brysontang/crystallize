@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import inspect
 import sys
@@ -49,6 +50,36 @@ def _import_module(
             return importlib.import_module(module_name), None
     except BaseException as exc:  # noqa: BLE001
         return None, exc
+
+
+def _ensure_extras_step_available(step_name: str) -> None:
+    """Ensure crystallize-extras is installed when a step references it."""
+    message = (
+        f"You are trying to use {step_name} but 'crystallize-extras' is not installed. "
+        "Please run pip install crystallize-extras."
+    )
+    try:
+        importlib.import_module(step_name)
+    except ImportError as exc:
+        module_path, _, _ = step_name.rpartition(".")
+        if module_path:
+            try:
+                importlib.import_module(module_path)
+                return
+            except ImportError as nested_exc:  # pragma: no cover - defensive fallback
+                raise RuntimeError(message) from nested_exc
+        raise RuntimeError(message) from exc
+
+
+def _iter_step_names(steps_cfg: list[Any]) -> list[str]:
+    """Normalize step definitions to a list of step names."""
+    names: list[str] = []
+    for step in steps_cfg:
+        if isinstance(step, str):
+            names.append(step)
+        elif isinstance(step, dict):
+            names.extend(step.keys())
+    return names
 
 
 def discover_objects(
@@ -111,6 +142,11 @@ def discover_configs(
             desc = data.get("description", "")
             repl = data.get("replicates", 1)
             cli_cfg = data.get("cli", {}) or {}
+            steps_cfg = data.get("steps", []) or []
+
+            for step_name in _iter_step_names(steps_cfg):
+                if step_name.startswith("crystallize_extras"):
+                    _ensure_extras_step_available(step_name)
 
             is_graph = _has_ref(data.get("datasource"))
 

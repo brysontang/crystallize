@@ -69,3 +69,29 @@ def test_update_replicates(tmp_path: Path) -> None:
         data = yaml.safe_load(f)
 
     assert data["replicates"] == 7
+
+
+def test_yaml_discovery_requires_extras(monkeypatch, tmp_path: Path) -> None:
+    exp_dir = tmp_path / "exp"
+    exp_dir.mkdir()
+    cfg = {
+        "name": "exp",
+        "datasource": {"n": "numbers"},
+        "steps": ["crystallize_extras.fake_step"],
+    }
+    (exp_dir / "config.yaml").write_text(yaml.safe_dump(cfg))
+
+    import cli.discovery as discovery
+
+    def fake_import(name):
+        if name.startswith("crystallize_extras"):
+            raise ModuleNotFoundError("No module named 'crystallize_extras'")
+        return None
+
+    monkeypatch.setattr(discovery.importlib, "import_module", fake_import)
+
+    graphs, experiments, errors = discover_configs(tmp_path)
+
+    assert not graphs and not experiments
+    err = errors[str(exp_dir / "config.yaml")]
+    assert "crystallize-extras" in str(err)

@@ -141,7 +141,7 @@ export default defineConfig({
         {
           label: 'Extras',
           items: [
-            { label: 'Extras & Integrations', slug: 'extras/index' },
+            { label: 'Extras & Integrations', slug: 'extras' },
             { label: 'RayExecution', slug: 'extras/ray' },
             { label: 'vLLM Engine', slug: 'extras/vllm' },
             { label: 'Ollama Client', slug: 'extras/ollama' },

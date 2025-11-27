@@ -28,12 +28,8 @@ from crystallize.plugins.execution import (
     ParallelExecution,
     SerialExecution,
 )
-from crystallize.plugins.plugins import (
-    ArtifactPlugin,
-    BasePlugin,
-    LoggingPlugin,
-    SeedPlugin,
-)
+from crystallize.plugins.plugins import ArtifactPlugin, BasePlugin, LoggingPlugin, SeedPlugin
+from crystallize.plugins.provenance import EvidenceBundlePlugin, PromptProvenancePlugin
 
 __all__ = [
     "pipeline_step",
@@ -58,6 +54,8 @@ __all__ = [
     "SeedPlugin",
     "LoggingPlugin",
     "ArtifactPlugin",
+    "PromptProvenancePlugin",
+    "EvidenceBundlePlugin",
     "ExperimentGraph",
     "Artifact",
     "ExperimentInput",

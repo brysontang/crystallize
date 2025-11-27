@@ -122,6 +122,21 @@ def test_experiment_run_baseline_only():
     assert result.metrics.hypotheses == []
 
 
+def test_experiment_run_rejects_running_loop(monkeypatch):
+    experiment = Experiment(
+        datasource=DummyDataSource(),
+        pipeline=Pipeline([PassStep()]),
+    )
+
+    class DummyLoop:
+        def is_running(self) -> bool:
+            return True
+
+    monkeypatch.setattr(asyncio, "get_running_loop", lambda: DummyLoop())
+    with pytest.raises(RuntimeError, match="already running"):
+        experiment.run()
+
+
 def test_experiment_run_treatments_no_hypotheses():
     pipeline = Pipeline([PassStep()])
     datasource = DummyDataSource()

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 from rich.table import Table
 from rich.text import Text
@@ -411,3 +411,95 @@ def add_placeholder(base: Path, kind: str, name: str) -> None:
     lines.append(template.format(name=name).rstrip())
 
     file_path.write_text("\n".join(lines) + "\n")
+
+
+def _escape(text: Any) -> str:
+    """Escape text for inclusion in XML output (attributes + text)."""
+    return (
+        str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
+
+
+def _result_to_xml_lines(result: Any, indent: int = 0) -> list[str]:
+    """Convert a Result object into an XML string list."""
+    lines: list[str] = []
+    prefix = "  " * indent
+
+    metrics = result.metrics
+    lines.append(f"{prefix}<Metrics>")
+
+    all_metrics = set(metrics.baseline.metrics.keys())
+    for treatment_metrics in metrics.treatments.values():
+        all_metrics.update(treatment_metrics.metrics.keys())
+
+    for metric in sorted(all_metrics):
+        lines.append(f"{prefix}  <Metric name=\"{_escape(metric)}\">")
+
+        base_val = metrics.baseline.metrics.get(metric)
+        if base_val is not None:
+            lines.append(
+                f"{prefix}    <Value condition=\"baseline\">{_escape(base_val)}</Value>"
+            )
+
+        for treatment_name, treatment_data in metrics.treatments.items():
+            val = treatment_data.metrics.get(metric)
+            if val is not None:
+                lines.append(
+                    f"{prefix}    <Value condition=\"{_escape(treatment_name)}\">{_escape(val)}</Value>"
+                )
+
+        lines.append(f"{prefix}  </Metric>")
+    lines.append(f"{prefix}</Metrics>")
+
+    if metrics.hypotheses:
+        lines.append(f"{prefix}<Hypotheses>")
+        for hypothesis in metrics.hypotheses:
+            lines.append(f"{prefix}  <Hypothesis name=\"{_escape(hypothesis.name)}\">")
+            if hypothesis.ranking:
+                ranking = ", ".join(
+                    f"{name}: {score}" for name, score in hypothesis.ranking.items()
+                )
+                lines.append(f"{prefix}    <Ranking>{_escape(ranking)}</Ranking>")
+
+            for treatment_name, hypothesis_result in hypothesis.results.items():
+                lines.append(
+                    f"{prefix}    <Result treatment=\"{_escape(treatment_name)}\">"
+                )
+                for key, value in hypothesis_result.items():
+                    lines.append(f"{prefix}      <{key}>{_escape(value)}</{key}>")
+                lines.append(f"{prefix}    </Result>")
+            lines.append(f"{prefix}  </Hypothesis>")
+        lines.append(f"{prefix}</Hypotheses>")
+
+    artifacts = getattr(result, "artifacts", {})
+    if artifacts:
+        lines.append(f"{prefix}<Artifacts>")
+        for name, mapping in artifacts.items():
+            lines.append(f"{prefix}  <Artifact name=\"{_escape(name)}\">")
+            for condition, path in mapping.items():
+                lines.append(
+                    f"{prefix}    <Path condition=\"{_escape(condition)}\">{_escape(path)}</Path>"
+                )
+            lines.append(f"{prefix}  </Artifact>")
+        lines.append(f"{prefix}</Artifacts>")
+
+    return lines
+
+
+def generate_xml_summary(result: Any) -> str:
+    """Generate an XML summary suitable for LLM consumption."""
+    lines = ["<CrystallizeSummary>"]
+    if isinstance(result, dict):
+        for name, res in result.items():
+            lines.append(f"  <Experiment name=\"{_escape(name)}\">")
+            lines.extend(_result_to_xml_lines(res, indent=2))
+            lines.append("  </Experiment>")
+    else:
+        lines.extend(_result_to_xml_lines(result, indent=1))
+    lines.append("</CrystallizeSummary>")
+    return "\n".join(lines)

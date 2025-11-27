@@ -358,6 +358,28 @@ class Experiment:
         )
         return dict(run_ctx.metrics.as_dict()), local_seed, prov
 
+    async def _run_baseline_safely(
+        self,
+        rep: int,
+        base_ctx: FrozenContext,
+        baseline_treatment: Optional[Treatment],
+    ) -> Tuple[
+        Optional[Mapping[str, Any]],
+        Optional[int],
+        Optional[List[Mapping[str, Any]]],
+        Optional[Exception],
+    ]:
+        """Run the baseline condition and capture errors for reporting."""
+        try:
+            metrics, seed, prov = await self._run_condition(base_ctx, baseline_treatment)
+            return metrics, seed, prov, None
+        except Exception as exc:
+            tb_str = traceback.format_exc()
+            setattr(exc, "traceback_str", tb_str)
+            setattr(exc, "replicate", rep)
+            setattr(exc, "condition", BASELINE_CONDITION)
+            return None, None, None, exc
+
     async def _execute_replicate(
         self,
         rep: int,
@@ -381,17 +403,14 @@ class Experiment:
             }
         )
         if run_baseline:
-            try:
-                baseline_result, baseline_seed, base_prov = await self._run_condition(
-                    base_ctx,
-                    baseline_treatment,
-                )
-                provenance[BASELINE_CONDITION] = base_prov
-            except Exception as exc:
-                tb_str = traceback.format_exc()
-                setattr(exc, "traceback_str", tb_str)
-                rep_errors[f"baseline_rep_{rep}"] = exc
-
+            (
+                baseline_result,
+                baseline_seed,
+                base_prov,
+                base_err,
+            ) = await self._run_baseline_safely(rep, base_ctx, baseline_treatment)
+            if base_err:
+                rep_errors[f"baseline_rep_{rep}"] = base_err
                 return ReplicateResult(
                     baseline_metrics=baseline_result,
                     baseline_seed=baseline_seed,
@@ -400,6 +419,8 @@ class Experiment:
                     errors=rep_errors,
                     provenance=provenance,
                 )
+            if base_prov is not None:
+                provenance[BASELINE_CONDITION] = base_prov
 
         for t in treatments:
             ctx = FrozenContext(
@@ -551,6 +572,17 @@ class Experiment:
     ) -> Result:
         """Synchronous wrapper for the async run method. Convenient for tests and scripts."""
         import asyncio
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            raise RuntimeError(
+                "An asyncio event loop is already running (likely Jupyter). "
+                "Please use 'await experiment.arun(...)' instead of 'experiment.run(...)'."
+            )
 
         return asyncio.run(
             self.arun(

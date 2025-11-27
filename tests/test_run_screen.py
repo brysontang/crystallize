@@ -214,6 +214,8 @@ steps:
                 break
             await pilot.pause()
         assert tabs.active == "summary"
+        llm_xml = screen.query_one("#llm_xml_output", TextArea)
+        assert "<CrystallizeSummary>" in llm_xml.text
         await pilot.press("t")
         summary_rich = screen.query_one("#summary_log", RichLog)
         summary_plain = screen.query_one("#summary_plain", TextArea)

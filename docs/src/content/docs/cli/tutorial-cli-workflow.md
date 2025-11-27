@@ -38,7 +38,7 @@ Back on the selection screen:
 The **run screen** contains:
 
 - Left sidebar – experiment tree and treatment tree. Use `l` to toggle caching for highlighted nodes and `x` to enable/disable treatments (state persists to `config.state.json`).
-- Tabs – `Logs`, `Summary`, `Errors`. `t` flips between rich and plain-text output, `S` focuses the summary tab.
+- Tabs – `Logs`, `Summary`, `LLM Data` (escaped XML for prompts/agents), `Errors`. `t` flips between rich and plain-text output, `S` focuses the summary tab.
 - `R` toggles **Run** ↔ **Cancel**. `e` opens the highlighted node in `$CRYSTALLIZE_EDITOR`, `$EDITOR`, or `$VISUAL`.
 - The top bar shows active experiment, treatment, replicate progress, and ETA (computed via an exponential moving average).
 
@@ -49,6 +49,7 @@ After the run completes, the summary tab lists:
 - **Metrics** – baseline plus each treatment, including artifact version suffixes (`(v0)`).
 - **Hypotheses** – verifier outputs (p-values, guardrail flags). The best treatment is highlighted according to the ranker.
 - **Artifacts** – links to files saved by `ArtifactPlugin` (configured per experiment). Selecting a row and pressing `e` opens the artifact in your editor.
+- **LLM Data** – copyable XML reflecting the same metrics/hypotheses/artifact links, suitable for structured prompts.
 
 When caching is enabled, rerunning shows lock icons on cached steps and highlights “resume” mode in the header.
 

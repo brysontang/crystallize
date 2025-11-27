@@ -33,6 +33,15 @@ def test_inject_missing_ctx():
         fn(1)
 
 
+def test_inject_missing_required_value():
+    @inject_from_ctx
+    def fn(data: int, ctx: FrozenContext, *, required: int) -> int:
+        return data + required
+
+    with pytest.raises(TypeError):
+        fn(1, FrozenContext({}))
+
+
 def test_inject_bad_ctx_type():
     @inject_from_ctx
     def fn(data: int, ctx: FrozenContext, *, val: int = 0) -> int:

@@ -52,7 +52,7 @@ from crystallize.utils.constants import METADATA_FILENAME
 from ..status_plugin import CLIStatusPlugin, TextualLoggingPlugin
 from ..discovery import _run_object
 from ..widgets.writer import WidgetWriter
-from ..utils import _write_summary, format_seconds
+from ..utils import _write_summary, format_seconds, generate_xml_summary
 from ..yaml_edit import (
     ensure_new_treatment_placeholder,
     find_treatment_line,
@@ -604,6 +604,7 @@ class RunScreen(Screen):
             summary_plain = self.query_one("#summary_plain", TextArea)
             error_widget = self.query_one("#error_log", RichLog)
             error_plain = self.query_one("#error_plain", TextArea)
+            llm_widget = self.query_one("#llm_xml_output", TextArea)
             tabs = self.query_one("#output-tabs", TabbedContent)
         except NoMatches:
             return
@@ -623,6 +624,8 @@ class RunScreen(Screen):
                 summary_plain.focus()
             elif tabs.active == "logs":
                 text_widget.focus()
+            elif tabs.active == "llm_data":
+                llm_widget.focus()
             else:
                 error_plain.focus()
         else:
@@ -636,6 +639,8 @@ class RunScreen(Screen):
                 summary_widget.focus()
             elif tabs.active == "logs":
                 log_widget.focus()
+            elif tabs.active == "llm_data":
+                llm_widget.focus()
             else:
                 error_widget.focus()
 
@@ -680,6 +685,13 @@ class RunScreen(Screen):
                         show_line_numbers=False,
                         id="summary_plain",
                         classes="hidden",
+                    )
+                with TabPane("LLM Data", id="llm_data"):
+                    yield TextArea(
+                        "",
+                        read_only=True,
+                        show_line_numbers=False,
+                        id="llm_xml_output",
                     )
                 with TabPane("Errors", id="errors"):
                     yield RichLog(highlight=True, markup=True, id="error_log")
@@ -779,6 +791,8 @@ class RunScreen(Screen):
             highlight=highlight_label,
             inactive=self._inactive_treatments,
         )
+        xml_output = generate_xml_summary(out_obj)
+        self.query_one("#llm_xml_output", TextArea).load_text(xml_output)
         self.summary_plain_text = console.export_text()
         summary_plain = self.query_one("#summary_plain", TextArea)
         summary_plain.load_text(self.summary_plain_text)

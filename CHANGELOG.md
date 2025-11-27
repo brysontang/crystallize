@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. The project is currently in alpha; expect frequent updates until the API stabilises.
 
+## [0.26.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.26.0...crystallize-ml@v0.26.1) (2025-11-27)
+
+
+### Bug Fixes
+
+* Ensure deterministic seeding in parallel execution ([79483fd](https://github.com/brysontang/crystallize/commit/79483fd8dc42b4268c80f3728559d000bf9ebac8))
+* Update docs ([fc4e726](https://github.com/brysontang/crystallize/commit/fc4e726d98c666128070458898bc6bb6869ff47a))
+
+
+### Documentation
+
+* Align documentation with v0.25.2 architecture and features ([3a7f8ae](https://github.com/brysontang/crystallize/commit/3a7f8ae6e3e1469271091111339fcd9fdffd236f))
+* Fix build ([9325272](https://github.com/brysontang/crystallize/commit/93252723cc97062127e676455e04c53e23163aa0))
+
 ## [0.26.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.25.0...crystallize-ml@v0.26.0) (2025-11-27)
 
 

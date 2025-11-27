@@ -11,7 +11,21 @@ from crystallize.plugins.plugins import ArtifactPlugin, BasePlugin
 from crystallize.utils.constants import BASELINE_CONDITION, CONDITION_KEY
 
 
+def _coerce_numpy(value: Any) -> Any:
+    try:
+        import numpy as np  # type: ignore
+    except Exception:  # pragma: no cover - numpy optional
+        return value
+
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
 def _json_default(value: Any) -> Any:
+    value = _coerce_numpy(value)
     if is_dataclass(value):
         return asdict(value)
     if isinstance(value, set):
@@ -20,6 +34,7 @@ def _json_default(value: Any) -> Any:
 
 
 def _serialise(value: Any) -> Any:
+    value = _coerce_numpy(value)
     if is_dataclass(value):
         return asdict(value)
     if isinstance(value, Mapping):

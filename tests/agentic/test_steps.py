@@ -356,3 +356,72 @@ def test_evidence_bundle_persists_summary(frozen_ctx: FrozenContext, tmp_path: P
     assert content["claims"][0]["id"] == "c5"
     assert content["specs"][0]["allowed_imports"] == ["math"]
     assert content["runs"][0]["outputs"]["rmse"] == 1.0
+
+
+def test_evidence_bundle_handles_numpy_types(frozen_ctx: FrozenContext, tmp_path: Path) -> None:
+    np = pytest.importorskip("numpy")
+    plugin = EvidenceBundlePlugin()
+    artifact = ArtifactPlugin(root_dir=str(tmp_path), versioned=False)
+
+    class DummyExperiment:
+        def __init__(self) -> None:
+            self.plugins = [artifact, plugin]
+            self.name = "exp"
+            self.id = "exp"
+
+        def get_plugin(self, plugin_type):
+            for plug in self.plugins:
+                if isinstance(plug, plugin_type):
+                    return plug
+            return None
+
+    experiment = DummyExperiment()
+    artifact.before_run(experiment)
+
+    claim = Claim(id="c_numpy", text="claim", acceptance={})
+    spec = Spec(allowed_imports=["math"])
+    provenance = {
+        BASELINE_CONDITION: {
+            0: [
+                {
+                    "ctx_changes": {
+                        "wrote": {
+                            "claim": {"after": claim},
+                            "spec": {"after": spec},
+                            "generated_code": {"after": "def f(): pass"},
+                            "capsule_output": {
+                                "after": {
+                                    "rmse": np.float64(1.0),
+                                    "curve": np.array([0.1, 0.2]),
+                                }
+                            },
+                        }
+                    }
+                }
+            ]
+        }
+    }
+    result = Result(
+        metrics=ExperimentMetrics(
+            baseline=TreatmentMetrics(metrics={"rmse": [np.float64(1.0)]}),
+            treatments={},
+            hypotheses=[],
+        ),
+        provenance={"ctx_changes": provenance},
+    )
+    plugin.after_run(experiment, result)
+
+    bundle_path = (
+        tmp_path
+        / "exp"
+        / "v0"
+        / BASELINE_CONDITION
+        / "evidence"
+        / "bundle.json"
+    )
+    assert bundle_path.exists()
+    content = json.loads(bundle_path.read_text())
+    assert content["metrics"]["rmse"] == [1.0]
+    outputs = content["runs"][0]["outputs"]
+    assert outputs["rmse"] == 1.0
+    assert outputs["curve"] == pytest.approx([0.1, 0.2])

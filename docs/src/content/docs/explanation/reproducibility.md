@@ -12,6 +12,7 @@ Crystallize is engineered so that every experiment can be repeated with identica
 ## Deterministic Seeding
 
 Randomness is controlled by the `SeedPlugin`. It sets a unique seed for every replicate and records the value in the context. Any function that relies on randomness—data sampling, shuffling, or model initialization—receives the same seed for a given replicate, ensuring identical behavior when rerun.
+Seeds are derived from a master seed with a deterministic offset so serial and process-based executions match exactly; thread executors share global RNG state, so they emit a warning and should be avoided when strict reproducibility is required.
 
 ## Content-Based Caching
 

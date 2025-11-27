@@ -781,15 +781,14 @@ class RandomStep(PipelineStep):
         return {}
 
 
-# TODO: Resolve this bug
-@pytest.mark.xfail(reason="Seed plugin does not yet work correctly across executors")
-def test_auto_seed_reproducible_serial_vs_parallel():
+def numpy_seed_fn(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed % (2**32 - 1))
+
+
+def test_auto_seed_reproducible_serial_vs_process_parallel():
     pipeline = Pipeline([RandomStep()])
     ds = RandomDataSource()
-
-    def numpy_seed_fn(seed: int) -> None:
-        random.seed(seed)
-        np.random.seed(seed % (2**32 - 1))
 
     serial = Experiment(
         datasource=ds,
@@ -804,7 +803,7 @@ def test_auto_seed_reproducible_serial_vs_parallel():
         pipeline=pipeline,
         plugins=[
             SeedPlugin(seed=123, auto_seed=True, seed_fn=numpy_seed_fn),
-            ParallelExecution(),
+            ParallelExecution(executor_type="process"),
         ],
     )
     parallel.validate()
@@ -812,7 +811,7 @@ def test_auto_seed_reproducible_serial_vs_parallel():
 
     assert res_serial.metrics == res_parallel.metrics
     assert res_serial.provenance["seeds"] == res_parallel.provenance["seeds"]
-    expected = [hash(123 + rep) for rep in range(3)]
+    expected = [(123 + rep * 31337) % (2**32) for rep in range(3)]
     assert res_serial.provenance["seeds"]["baseline"] == expected
 
 
@@ -831,7 +830,7 @@ def test_custom_seed_function_called():
     )
     exp.validate()
     exp.run(replicates=1)
-    assert called == [hash(7)]
+    assert called == [7]
 
 
 def test_apply_seed_function_called():
@@ -1051,7 +1050,7 @@ def test_apply_seed_plugin_autoseed():
     exp = Experiment(datasource=ds, pipeline=Pipeline([step]), plugins=[plugin])
     exp.validate()
     exp.apply(data=1)
-    assert called == [hash(7)]
+    assert called == [7]
 
 
 def test_experiment_resume_skips(tmp_path: Path, monkeypatch):

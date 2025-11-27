@@ -2,8 +2,6 @@ import random
 
 import numpy as np
 
-import pytest
-
 from crystallize.datasources.datasource import DataSource
 from crystallize.experiments.experiment import Experiment
 from crystallize.pipelines.pipeline import Pipeline
@@ -46,13 +44,19 @@ def _run(seed_plugin, execution_plugin=None):
     return res.metrics.baseline.metrics["rand"]
 
 
-# TODO: Resolve this bug
-@pytest.mark.xfail(reason="Seed plugin does not yet work correctly across executors")
-def test_seed_plugin_reproducibility_across_executors():
+def test_seed_plugin_reproducibility_process_executor():
     seed_plugin = SeedPlugin(seed=42, seed_fn=_seed_fn)
 
     serial = _run(seed_plugin)
-    thread = _run(seed_plugin, ParallelExecution(executor_type="thread"))
     process = _run(seed_plugin, ParallelExecution(executor_type="process"))
 
-    assert serial == thread == process
+    assert serial == process
+
+
+def test_seed_plugin_warns_for_thread_executor(caplog):
+    seed_plugin = SeedPlugin(seed=99, seed_fn=_seed_fn)
+
+    with caplog.at_level("WARNING", logger="crystallize"):
+        _run(seed_plugin, ParallelExecution(executor_type="thread"))
+
+    assert any("executor_type='thread'" in rec.message for rec in caplog.records)

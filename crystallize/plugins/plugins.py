@@ -13,6 +13,7 @@ from crystallize.utils.constants import (
     CONDITION_KEY,
     BASELINE_CONDITION,
     METADATA_FILENAME,
+    SEED_USED_KEY,
 )
 
 if TYPE_CHECKING:
@@ -28,6 +29,11 @@ def default_seed_function(seed: int) -> None:
         random_mod = importlib.import_module("random")
         random_mod.seed(seed)
     except ModuleNotFoundError:  # pragma: no cover - stdlib always there in tests
+        pass
+    try:
+        numpy_mod = importlib.import_module("numpy")
+        numpy_mod.random.seed(seed % (2**32 - 1))
+    except ModuleNotFoundError:  # pragma: no cover - optional dependency
         pass
 
 
@@ -91,15 +97,27 @@ class SeedPlugin(BasePlugin):
     seed_fn: Optional[Callable[[int], None]] = None
 
     def init_hook(self, experiment: Experiment) -> None:  # pragma: no cover - simple
-        pass
+        if self.seed is None:
+            import random
+
+            self.seed = random.randint(0, 2**32 - 1)
 
     def before_replicate(self, experiment: Experiment, ctx: FrozenContext) -> None:
-        if not self.auto_seed:
-            return
-        local_seed = hash((self.seed or 0) + ctx.get("replicate", 0))
+        rep = ctx.get(REPLICATE_KEY, 0)
+        if self.seed is None:
+            import random
+
+            self.seed = random.randint(0, 2**32 - 1)
+
+        if self.auto_seed:
+            replicate_seed = (self.seed + rep * 31337) % (2**32)
+        else:
+            replicate_seed = self.seed
+
+        ctx.add(SEED_USED_KEY, replicate_seed)
+
         seed_fn = self.seed_fn or default_seed_function
-        seed_fn(local_seed)
-        ctx.add("seed_used", local_seed)
+        seed_fn(replicate_seed)
 
 
 @dataclass

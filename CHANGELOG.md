@@ -46,6 +46,7 @@ All notable changes to this project are documented here. The project is currentl
 - Fluent `Experiment.builder()` API and `Experiment.apply()` for single-shot inference.
 - Optimisation helpers (`Experiment.optimize`, `Experiment.aoptimize`) built around an ask/tell `BaseOptimizer` interface.
 - `generate_docs.py` script to regenerate API reference markdown via Lazydocs.
+- Dependency injection is now strict: missing required parameters raise `TypeError`. Ensure `config.yaml` supplies all required arguments.
 
 ### Changed
 

@@ -4,6 +4,19 @@ title: Plugins
 
 ## <kbd>module</kbd> `crystallize.plugins.plugins`
 
+### Lifecycle Hooks
+
+Hooks fire in this order during `Experiment.run`:
+
+1. `init_hook(experiment)` – called when the plugin is attached to the experiment.
+2. `before_run(experiment)` – once before any replicates start.
+3. For each replicate:
+   - `before_replicate(experiment, ctx)` – before fetching data and running steps.
+   - For each step:
+     - `before_step(experiment, step)` – just before the step executes.
+     - `after_step(experiment, step, data, ctx)` – immediately after the step finishes and context/metrics are updated.
+4. `after_run(experiment, result)` – after all replicates finish and results are aggregated.
+
 
 
 
@@ -445,5 +458,4 @@ run_experiment_loop(
 Run all replicates and return their results. 
 
 Returning ``NotImplemented`` signals that the plugin does not provide a custom execution strategy and the default should be used instead. 
-
 

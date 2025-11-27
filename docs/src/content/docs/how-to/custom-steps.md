@@ -100,7 +100,30 @@ for library-specific RNGs. See
 [Tutorial: Basic Experiment](../tutorials/basic-experiment.md#step-4-assemble-and-run)
 for examples of seeding experiments.
 
-## 6. Asynchronous Steps
+## 6. Resource Management
+
+For heavyweight resources (LLMs, embedding models, GPU inferencers), prefer class-based steps so initialization happens once per experiment load instead of every replicate:
+
+```python
+from crystallize import PipelineStep
+
+class ModelStep(PipelineStep):
+    cacheable = False  # set to True if outputs can be reused safely
+
+    def __init__(self):
+        self.model = load_heavy_model()  # Loaded once when the step is constructed
+
+    def __call__(self, data, ctx):
+        return self.model.predict(data)  # Reused across replicates in the same process
+
+    @property
+    def params(self):
+        return {}
+```
+
+Instantiate `ModelStep()` once and pass the instance into your `Pipeline` so all replicates share the loaded model within a worker. For distributed/process execution, each worker loads its own model copy; to share across step instances, wrap the loader in `functools.lru_cache` at module scope.
+
+## 7. Asynchronous Steps
 
 Steps can also be defined as ``async`` functions when they perform I/O bound work
 like network requests. Decorate the async function with ``@pipeline_step`` and

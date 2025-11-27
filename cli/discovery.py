@@ -171,6 +171,7 @@ def discover_configs(
             info = {
                 "path": cfg,
                 "description": desc,
+                "name": name,
                 "replicates": repl,
                 "label": label,
                 "cli": cli_info,

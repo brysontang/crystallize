@@ -57,6 +57,12 @@ Static#title {
     color: $primary;
 }
 
+Static#dashboard-title {
+    text-style: bold;
+    color: $accent;
+    padding: 0 0 1 0;
+}
+
 ListView {
     background: $panel;
     border: tall $secondary;
@@ -166,20 +172,24 @@ LoadingIndicator {
 #main-container {
     layout: vertical;
     padding: 1;
+    height: 1fr;
 }
 
 .left-panel {
-    width: 50%;
+    width: 1fr;
+    min-width: 0;
     height: 1fr;
     border-right: solid $secondary;
     padding-right: 1;
+    layout: vertical;
 }
 
 .right-panel {
-    width: 50%;
+    width: 1fr;
+    min-width: 0;
     padding-left: 1;
     height: 1fr;
-
+    layout: vertical;
 }
 
 .details-panel {
@@ -196,6 +206,51 @@ LoadingIndicator {
     padding: 1;
     height: 1fr;
     content-align: left top;
+    overflow: auto;
+}
+
+DataTable#object-table {
+    height: 1fr;
+    width: 1fr;
+    border: solid $secondary;
+    background: $panel;
+}
+
+DataTable#object-table > .datatable--header {
+    text-style: bold;
+}
+
+#command-palette {
+    width: 70;
+    max-width: 90%;
+    border: round $primary;
+    background: $panel;
+    padding: 1;
+    layout: vertical;
+}
+
+#palette-input {
+    margin-bottom: 1;
+}
+
+#palette-options {
+    height: 12;
+    border: solid $secondary;
+    background: $surface;
+}
+
+#help-container {
+    width: 80%;
+    max-width: 90%;
+    max-height: 90%;
+    border: round $secondary;
+    background: $panel;
+    padding: 1;
+    layout: vertical;
+}
+
+#help-markdown {
+    height: 1fr;
     overflow: auto;
 }
 

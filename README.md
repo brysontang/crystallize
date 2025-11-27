@@ -112,9 +112,10 @@ See `examples/minimal_experiment/main.py` for a full runnable script with loggin
    ```bash
    crystallize
    ```
-2. The selection screen discovers every `experiments/**/config.yaml`. Key bindings:
-   - `n` create a new experiment scaffold (choose files, optional example code, and reuse outputs from other experiments).
-   - `r` refresh discovery, `e` inspect load errors, `q` quit.
+2. The selection screen now presents a sortable data table (Status, Name, Group, Replicates, Last Run) for every discovered `experiments/**/config.yaml`.
+   - Click headers to sort; highlighting updates the details/config preview on the right.
+   - `n` create a new experiment scaffold; `r` refresh discovery, `e` inspect load errors, `q` quit.
+   - `ctrl+p` opens a fuzzy command palette; `?` opens a config cheat sheet.
    - Highlight an experiment or graph and press `Enter` to open the run screen.
 3. Run screen highlights:
    - `R` toggles between **Run** and **Cancel**.

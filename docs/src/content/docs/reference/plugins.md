@@ -27,6 +27,7 @@ Hooks fire in this order during `Experiment.run`:
 - **CONDITION_KEY**
 - **BASELINE_CONDITION**
 - **METADATA_FILENAME**
+- **SEED_USED_KEY**
 
 ---
 

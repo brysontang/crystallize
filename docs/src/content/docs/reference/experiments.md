@@ -15,6 +15,7 @@ title: Experiments
 - **result_structs**
 - **result**
 - **run_results**
+- **aggregation**
 - **experiment**
 - **experiment_graph**
 - **experiment_builder**

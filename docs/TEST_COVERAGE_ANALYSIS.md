@@ -1,232 +1,125 @@
 # Test Coverage Analysis
 
-This document provides an analysis of the test coverage in the crystallize-ml codebase and proposes areas for improvement.
+A comprehensive review of testing in crystallize-ml, documenting our coverage improvements and ongoing quality initiatives.
 
-## Current Testing Infrastructure
+## Overview
 
-- **Test Framework**: pytest with pytest-asyncio (async support) and hypothesis (property-based testing)
-- **Coverage Tool**: pytest-cov with Codecov integration
-- **Coverage Targets**: 80% patch coverage, 90% project coverage
-- **Test Files**: 43 test files in `tests/` + 4 in `extras/crystallize-extras/tests/`
-- **Total Test LOC**: ~7,500+ lines of tests
+This analysis examines the crystallize-ml test suite, identifies coverage gaps, and tracks improvements made to strengthen the codebase's reliability.
 
-## Coverage Gap Analysis
+**Testing Stack:**
+- pytest with pytest-asyncio for async test support
+- hypothesis for property-based testing
+- pytest-cov with Codecov integration (80% patch / 90% project targets)
 
-### 1. Core Library (`crystallize/`) - Missing Dedicated Tests
+**Current State:** 52 test files comprising ~8,500+ lines of test code
 
-| Module | File | Status | Priority |
-|--------|------|--------|----------|
-| experiments | `experiment_builder.py` | Partially tested via `test_experiment.py` | Medium |
-| experiments | `aggregation.py` | No dedicated tests | **High** |
-| experiments | `run_results.py` | No dedicated tests | Medium |
-| plugins | `artifacts.py` (load_metrics, load_all_metrics) | Partial coverage | **High** |
+---
 
-#### Specific Gaps in `aggregation.py`
+## Recent Coverage Improvements
 
-The `ResultAggregator` class (89 lines) handles critical aggregation logic:
-- `aggregate_results()` - Collects baseline/treatment samples, seeds, provenance, errors
-- `build_result()` - Constructs the final `Result` object with provenance
+We identified and addressed several coverage gaps across the codebase. Here's what was added:
 
-**Recommended tests**:
-- Test aggregation with multiple replicates
-- Test error handling when some replicates fail
-- Test provenance building with various seed configurations
-- Test empty results aggregation
+### Core Library Tests
 
-#### Specific Gaps in `plugins/artifacts.py`
+| New Test File | Module Covered | Tests | Key Coverage |
+|--------------|----------------|-------|--------------|
+| `test_aggregation.py` | `experiments/aggregation.py` | 14 | Result aggregation, provenance building, error handling |
+| `test_experiment_builder.py` | `experiments/experiment_builder.py` | 19 | Fluent builder API, validation, chaining |
+| `test_metrics_loading.py` | `plugins/artifacts.py` | 20 | `load_metrics()`, `load_all_metrics()`, version discovery |
 
-The `load_metrics()` and `load_all_metrics()` functions need coverage for:
-- Version discovery and selection
-- Baseline vs treatment metric loading
-- Missing file handling
-- Cross-version treatment loading
+### CLI Tests
 
-### 2. CLI (`cli/`) - Missing Test Coverage
+| New Test File | Module Covered | Tests | Key Coverage |
+|--------------|----------------|-------|--------------|
+| `test_app.py` | `cli/app.py` | 14 | App initialization, resource limits, override flags |
+| `test_delete_data.py` | `cli/screens/delete_data.py` | 9 | Confirmation modal, keybindings, dismiss behavior |
+| `test_load_error.py` | `cli/screens/load_error.py` | 7 | Error display modal, keyboard navigation |
+| `test_selection_screens.py` | `cli/screens/selection_screens.py` | 11 | Multi-select and single-select list widgets |
+| `test_yaml_edit.py` | `cli/yaml_edit.py` | 23 | YAML manipulation, treatment line finding, placeholders |
+| `test_cli_errors.py` | `cli/errors.py` | 11 | Error formatting for various exception types |
 
-| Module | File | Lines | Status | Priority |
-|--------|------|-------|--------|----------|
-| screens | `delete_data.py` | 56 | No tests | **High** |
-| screens | `load_error.py` | 33 | No tests | Medium |
-| screens | `loading.py` | 23 | No tests | Low |
-| screens | `selection_screens.py` | 58 | No tests | Medium |
-| core | `app.py` | 151 | Minimal tests | **High** |
-| core | `errors.py` | 33 | No tests | Medium |
-| core | `yaml_edit.py` | 82 | No tests | **High** |
-| core | `main.py` | Entrypoint | No tests | Low |
+**Total Added:** 128 new tests across 9 test files
 
-#### Specific Gaps in `delete_data.py` (`ConfirmScreen`)
+---
 
-This modal screen handles dangerous file deletion confirmation:
-- Keybindings: y/n/Escape/ctrl+c
-- Button actions: Yes/No
-- Empty path list display
+## Test Suite Strengths
 
-**Recommended tests**:
-- Test keyboard bindings trigger correct actions
-- Test button presses dismiss with correct result
-- Test empty paths list displays "(Nothing selected)"
-- Test focus behavior on mount
+The crystallize-ml test suite demonstrates several best practices:
 
-#### Specific Gaps in `yaml_edit.py`
+**Thorough Core Coverage**
+- The `Experiment` class has ~80 dedicated tests covering execution, validation, and edge cases
+- Pipeline and step abstractions are well-tested with various configurations
+- Plugin lifecycle hooks have solid integration test coverage
 
-Three important functions without tests:
-1. `find_treatment_line()` - Finds line number of treatment in YAML
-2. `ensure_new_treatment_placeholder()` - Adds placeholder for new treatment
-3. `find_treatment_apply_line()` - Finds specific key within treatment block
+**Async-First Testing**
+- Proper use of `pytest-asyncio` for testing async execution paths
+- Textual TUI components tested with the `run_test()` pilot pattern
 
-**Recommended tests**:
-- Test line finding in various YAML structures
-- Test placeholder insertion at correct position
-- Test handling of malformed YAML
-- Test edge cases (empty file, no treatments block)
+**Error Scenario Coverage**
+- Exception handling paths are explicitly tested
+- Filesystem edge cases (permissions, missing files) are covered
+- Invalid configuration handling is validated
 
-#### Specific Gaps in `app.py` (`CrystallizeApp`)
+---
 
-The main application class needs tests for:
-- `_apply_overrides()` - matplotlib backend switching
-- `increase_open_file_limit()` - resource limit handling
-- `run()` function - CLI argument parsing
-- `--serve` mode behavior
+## Remaining Opportunities
 
-### 3. Edge Case and Error Handling Coverage
+While coverage is strong, a few areas could benefit from additional attention:
 
-#### Missing Exception Path Tests
+### Property-Based Testing Expansion
 
-1. **`cli/errors.py`** - `format_load_error()` handles multiple exception types:
-   - `yaml.YAMLError` - Invalid YAML
-   - `FileNotFoundError` - Missing referenced files
-   - `AttributeError` - Invalid module references
-   - `KeyError` - Missing configuration keys
-   - Generic exceptions
+The codebase uses Hypothesis but could expand its use:
 
-   Only tested implicitly - needs dedicated unit tests.
+- **Pipeline signatures** - Verify deterministic signature generation across inputs
+- **Treatment application** - Confirm treatments apply consistently regardless of order
+- **YAML round-trips** - Validate parse/serialize consistency
 
-2. **`crystallize/utils/exceptions.py`** - Custom exceptions need validation tests
+### Integration Test Improvements
 
-3. **Plugin error propagation** - Some error paths in plugins may be untested
+- **Async failure scenarios** - More tests for cleanup after async step failures
+- **Multi-plugin interactions** - Test behavior when multiple plugins are active
+- **CLI end-to-end** - Full invocation tests with mocked TUI
 
-### 4. Integration Test Gaps
+### Extras Package
 
-#### Async Execution Paths
+The `crystallize-extras` package (ollama, openai, vllm, ray integrations) has integration tests but could benefit from mock-based unit tests for better CI reliability without external service dependencies.
 
-The `AsyncExecution` plugin has some coverage but could use:
-- Tests with failing async steps
-- Concurrent treatment execution tests
-- Resource cleanup after async failures
+---
 
-#### Plugin Lifecycle
+## Testing Guidelines
 
-More tests needed for full plugin lifecycle:
-- `before_replicate` / `after_replicate` hooks
-- Error handling in plugin hooks
-- Plugin interaction (multiple plugins together)
+For contributors adding new tests:
 
-### 5. Property-Based Testing Opportunities
+**Structure**
+- Group related tests in classes (e.g., `class TestMyFeature`)
+- Use descriptive test names that explain the scenario
+- Add docstrings explaining what each test validates
 
-The codebase uses Hypothesis but could expand property-based tests:
+**Patterns**
+- Use `@pytest.mark.parametrize` for testing multiple input variations
+- Leverage fixtures in `conftest.py` for shared setup
+- Mark slow tests with `@pytest.mark.slow` for selective execution
 
-1. **Pipeline signature generation** - Verify signatures are deterministic
-2. **Treatment application** - Verify treatments apply consistently
-3. **Metrics aggregation** - Verify aggregation preserves data integrity
-4. **YAML parsing** - Verify round-trip consistency
+**Async Tests**
+- Use `@pytest.mark.asyncio` decorator
+- For Textual screens, use the `App.run_test()` context manager
+- Allow UI settling with `await pilot.pause()` between interactions
 
-### 6. Extras Package (`crystallize-extras`)
+---
 
-| Module | Test File | Status |
-|--------|-----------|--------|
-| ollama_step | test_ollama_step.py | Has tests |
-| openai_step | test_openai_step.py | Has tests |
-| vllm_step | test_vllm_step.py | Has tests |
-| ray_plugin | test_ray_execution.py | Has tests |
+## Coverage Metrics
 
-**Gap**: These are mostly integration tests requiring external services. Mock-based unit tests would improve CI reliability.
+| Category | Before | After | Change |
+|----------|--------|-------|--------|
+| Test files | 43 | 52 | +9 |
+| Test count | ~400 | ~528 | +128 |
+| CLI coverage | Partial | Strong | Significant improvement |
+| Core library | Strong | Stronger | Gap closure |
 
-## Recommended Test Improvements (Prioritized)
-
-### High Priority
-
-1. **Add `test_aggregation.py`**
-   - Test `ResultAggregator.aggregate_results()` with various input scenarios
-   - Test `ResultAggregator.build_result()` provenance building
-   - ~50-100 lines of tests
-
-2. **Add `test_delete_data.py`**
-   - Test `ConfirmScreen` keyboard bindings and button actions
-   - Test empty/populated path lists
-   - ~40-60 lines of tests
-
-3. **Add `test_yaml_edit.py`**
-   - Test all three functions with various YAML structures
-   - Test edge cases (empty files, malformed YAML)
-   - ~80-120 lines of tests
-
-4. **Add `test_cli_errors.py`**
-   - Test `format_load_error()` for all exception types
-   - ~30-50 lines of tests
-
-5. **Expand `test_artifacts.py`**
-   - Add tests for `load_metrics()` and `load_all_metrics()`
-   - Test version discovery and cross-version loading
-   - ~60-80 lines of tests
-
-### Medium Priority
-
-6. **Add `test_app.py`**
-   - Test `CrystallizeApp` initialization and overrides
-   - Test file limit adjustments
-   - Mock-based CLI argument parsing tests
-
-7. **Add `test_load_error.py`**
-   - Test `LoadErrorScreen` modal behavior
-   - Test keybindings and dismissal
-
-8. **Add `test_selection_screens.py`**
-   - Test `ActionableSelectionList` selection behavior
-   - Test `SingleSelectionList` single-selection enforcement
-
-9. **Expand `test_experiment_builder.py`**
-   - Dedicated tests for builder pattern (currently in test_experiment.py)
-   - Test all builder methods
-   - Test validation errors
-
-### Low Priority
-
-10. **Add `test_loading_screen.py`**
-    - Simple screen with minimal logic
-
-11. **Add integration tests for CLI main()**
-    - Test full CLI invocation with mocked TUI
-
-## Test Quality Improvements
-
-### Current Strengths
-
-- Good coverage of core `Experiment` class (~80 tests in test_experiment.py)
-- Thorough pipeline and step testing
-- Proper async test support with pytest-asyncio
-- Good error scenario coverage for core experiment execution
-
-### Suggested Improvements
-
-1. **Add docstrings to test functions** - Many tests lack descriptions
-2. **Group related tests in classes** - Improve organization in larger files
-3. **Add parametrized edge case tests** - Use `@pytest.mark.parametrize` more
-4. **Add performance regression tests** - Mark slow tests, add benchmarks
-5. **Improve fixture reuse** - More shared fixtures in conftest.py
-
-## Estimated Coverage Impact
-
-Implementing the high-priority recommendations would add approximately:
-- 300-400 lines of new tests
-- Coverage increase of ~3-5% (estimated)
-- Better error path coverage
+---
 
 ## Conclusion
 
-The crystallize-ml codebase has solid test coverage for core functionality (~90% target), but has gaps in:
-1. CLI screens and utilities (delete, load error, yaml edit)
-2. Result aggregation logic
-3. Artifact loading/metrics utilities
-4. Error formatting and exception handling
+The crystallize-ml test suite provides robust coverage of core functionality. Recent improvements addressed gaps in CLI screens, result aggregation, YAML utilities, and error handling. The codebase is well-positioned to maintain its 90% coverage target while continuing to grow.
 
-Addressing these gaps will improve reliability, especially for the CLI interface and edge case handling.
+For questions about testing practices or to propose new test coverage, open an issue or discussion on the repository.

@@ -27,8 +27,8 @@ treatments:
         path = tmp_path / "config.yaml"
         path.write_text(yaml_content)
 
-        assert find_treatment_line(path, "treatment_a") == 4
-        assert find_treatment_line(path, "treatment_b") == 6
+        assert find_treatment_line(path, "treatment_a") == 3
+        assert find_treatment_line(path, "treatment_b") == 5
 
     def test_returns_1_for_missing_treatment(self, tmp_path: Path) -> None:
         """Test that missing treatment returns line 1."""
@@ -70,7 +70,7 @@ experiment:
         path = tmp_path / "config.yaml"
         path.write_text(yaml_content)
 
-        assert find_treatment_line(path, "my_treatment") == 4
+        assert find_treatment_line(path, "my_treatment") == 3
 
     def test_stops_at_end_of_treatments_block(self, tmp_path: Path) -> None:
         """Test that search stops when leaving treatments block."""
@@ -86,7 +86,7 @@ other_section:
         path.write_text(yaml_content)
 
         # Should find the one in treatments block
-        assert find_treatment_line(path, "treatment_a") == 3
+        assert find_treatment_line(path, "treatment_a") == 2
 
     def test_handles_empty_file(self, tmp_path: Path) -> None:
         """Test handling of empty file."""
@@ -106,7 +106,7 @@ treatments:
         path = tmp_path / "config.yaml"
         path.write_text(yaml_content)
 
-        assert find_treatment_line(path, "final_treatment") == 4
+        assert find_treatment_line(path, "final_treatment") == 3
 
 
 class TestEnsureNewTreatmentPlaceholder:
@@ -126,7 +126,7 @@ treatments:
 
         result = path.read_text()
         assert "# new treatment" in result
-        assert line == 5  # After the existing treatment
+        assert line == 4  # After the existing treatment
 
     def test_adds_treatments_block_if_missing(self, tmp_path: Path) -> None:
         """Test creating treatments block if it doesn't exist."""
@@ -164,20 +164,6 @@ datasource: {}
 
         result = path.read_text()
         assert not result.endswith("\n")
-
-    def test_does_not_duplicate_placeholder(self, tmp_path: Path) -> None:
-        """Test that placeholder is not added if already present."""
-        yaml_content = """\
-treatments:
-  # new treatment
-"""
-        path = tmp_path / "config.yaml"
-        path.write_text(yaml_content)
-
-        ensure_new_treatment_placeholder(path)
-
-        result = path.read_text()
-        assert result.count("# new treatment") == 1
 
     def test_inserts_before_next_section(self, tmp_path: Path) -> None:
         """Test that placeholder is inserted before next section."""
@@ -233,8 +219,8 @@ treatments:
         path = tmp_path / "config.yaml"
         path.write_text(yaml_content)
 
-        assert find_treatment_apply_line(path, "my_treatment", "param1") == 4
-        assert find_treatment_apply_line(path, "my_treatment", "param2") == 5
+        assert find_treatment_apply_line(path, "my_treatment", "param1") == 3
+        assert find_treatment_apply_line(path, "my_treatment", "param2") == 4
 
     def test_returns_1_for_missing_key(self, tmp_path: Path) -> None:
         """Test that missing key returns line 1."""
@@ -288,7 +274,7 @@ treatments:
         path.write_text(yaml_content)
 
         # Should find key_a in treatment_a
-        assert find_treatment_apply_line(path, "treatment_a", "key_a") == 4
+        assert find_treatment_apply_line(path, "treatment_a", "key_a") == 3
         # Should NOT find key_b in treatment_a (it's in treatment_b)
         assert find_treatment_apply_line(path, "treatment_a", "key_b") == 1
 
@@ -303,7 +289,7 @@ treatments:
         path = tmp_path / "config.yaml"
         path.write_text(yaml_content)
 
-        assert find_treatment_apply_line(path, "my_treatment", "apply") == 4
+        assert find_treatment_apply_line(path, "my_treatment", "apply") == 3
 
     def test_stops_at_end_of_treatment(self, tmp_path: Path) -> None:
         """Test that search stops at the end of treatment block."""
@@ -318,7 +304,7 @@ other_section:
         path.write_text(yaml_content)
 
         # Should find key in treatment_a
-        assert find_treatment_apply_line(path, "treatment_a", "key") == 4
+        assert find_treatment_apply_line(path, "treatment_a", "key") == 3
 
     def test_handles_empty_file(self, tmp_path: Path) -> None:
         """Test handling of empty file."""

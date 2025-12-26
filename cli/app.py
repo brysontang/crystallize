@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import resource
+import logging
 import yaml
 import dotenv
 
@@ -74,8 +75,17 @@ class CrystallizeApp(App):
         if not flags.get("no_override_mat", False):
             import matplotlib
 
-            matplotlib.use("Agg")
-            print("Matplotlib backend set to 'Agg'.")
+            current_backend = matplotlib.get_backend()
+            if current_backend != "Agg":
+                try:
+                    matplotlib.use("Agg")
+                    logging.getLogger("crystallize.cli").info(
+                        f"Switched Matplotlib backend from '{current_backend}' to 'Agg'."
+                    )
+                except Exception as exc:  # pragma: no cover - backend failures are environment-specific
+                    logging.getLogger("crystallize.cli").warning(
+                        f"Could not switch Matplotlib backend: {exc}"
+                    )
 
     def increase_open_file_limit(self, desired_soft=10240):
         """Raise soft open file limit programmatically."""

@@ -92,7 +92,7 @@ A method on a plugin invoked at specific points during experiment execution. Hoo
 
 ## Next Steps
 
-- For hands-on setup, see [Tutorials: Getting Started](getting_started.md).
-- To customize steps, refer to [How-to Guides: Add a Custom Step](how-to/custom-steps.md).
-- For experiment configuration, see [How-to Guides: Customizing Experiments](how-to/customizing-experiments.md).
-- Detailed API: [Reference: PipelineStep](../reference/pipeline_step.md).
+- For hands-on setup, see [Tutorials: Getting Started](/tutorials/intro/).
+- To customize steps, refer to [How-to: Creating Custom Steps](/how-to/custom-steps/).
+- For experiment configuration, see [How-to: Customizing Experiments](/how-to/customizing-experiments/).
+- Detailed API: [Reference: PipelineStep](/reference/pipeline_step/).

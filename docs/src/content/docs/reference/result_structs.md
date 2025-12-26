@@ -7,9 +7,6 @@ title: Result Structs
 
 
 
-**Global Variables**
----------------
-- **pd**
 
 
 ---

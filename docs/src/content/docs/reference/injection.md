@@ -18,6 +18,5 @@ inject_from_ctx(fn: 'Callable[..., Any]') → Callable[..., Any]
 
 Inject missing parameters from ``ctx`` when calling ``fn``. 
 
-Parameters not explicitly provided will be looked up in the given :class:`FrozenContext` using their parameter name. If a value is not present in the context, the parameter's default is used. 
-
+Parameters not explicitly provided will be looked up in the given :class:`FrozenContext` using their parameter name. If a required parameter is absent and has no default value, a ``TypeError`` is raised immediately instead of falling back to ``None``. 
 

@@ -65,6 +65,13 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Support',
+          items: [
+            { label: 'Migration Guide', slug: 'migration' },
+            { label: 'Troubleshooting', slug: 'troubleshooting' },
+          ],
+        },
+        {
           label: 'Tutorials',
           items: [
             {
@@ -134,6 +141,7 @@ export default defineConfig({
         {
           label: 'Extras',
           items: [
+            { label: 'Extras & Integrations', slug: 'extras' },
             { label: 'RayExecution', slug: 'extras/ray' },
             { label: 'vLLM Engine', slug: 'extras/vllm' },
             { label: 'Ollama Client', slug: 'extras/ollama' },

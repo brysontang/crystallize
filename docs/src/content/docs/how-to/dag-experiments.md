@@ -46,12 +46,16 @@ result = graph.run()
 
 `ExperimentGraph.from_yaml` inspects the folder hierarchy, finds dependencies, and executes them in topological order. The returned dictionary maps experiment name to `Result`.
 
-## 4. Using the CLI
+## 4. Treatment Propagation in DAGs
+
+Treatments flow through the graph by name. When you run a downstream experiment with treatment `high_lr`, the graph activates that treatment on the downstream node and any upstream node that defines a treatment with the same name. If an upstream experiment does not define `high_lr`, it runs with its baseline condition. This keeps treatment intent consistent while avoiding surprises when parents do not have matching variants.
+
+## 5. Using the CLI
 
 - `n` opens **Create New Experiment**. Enable **Use outputs from other experiments** to select artifacts from existing folders. Each selection adds an `experiment#artifact` entry under `datasource:`.
 - Graph experiments display a `📈` icon and show dependencies in the run screen. When you run the downstream node, the CLI executes prerequisites first.
 
-## 5. Combining Multiple Outputs
+## 6. Combining Multiple Outputs
 
 If you need more control, construct an `ExperimentInput` manually:
 
@@ -67,7 +71,7 @@ consumer_experiment.datasource = ds
 
 `ExperimentInput` bundles multiple datasources and ensures replicate counts align when artifacts share the same upstream experiment.
 
-## 6. Visualising
+## 7. Visualising
 
 ```python
 ExperimentGraph.visualize_from_yaml("experiments/consumer/config.yaml")
@@ -75,7 +79,7 @@ ExperimentGraph.visualize_from_yaml("experiments/consumer/config.yaml")
 
 The helper renders a Graphviz diagram (requires Graphviz installed) showing experiment dependencies—handy for large workflows.
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 - **Missing artifact** – Ensure upstream experiments ran with `ArtifactPlugin` and that the `file_name`/step names match. The CLI error panel lists the missing path.
 - **Replicate mismatch** – If upstream artifacts have different replicate counts, update the producer configuration or homogenise the data before chaining.

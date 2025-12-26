@@ -86,6 +86,8 @@ graph TD
     experiments --> datasources
 ```
 
-## Open Questions & To-dos
-- How should experiments handle version conflicts when multiple artifact plugins point to the same directory?
-- The experiment DAG loader quietly assumes directories named after experiments; clarify behavior when names diverge from folder structure.
+## Design Considerations
+
+**Artifact version conflicts**: When multiple `ArtifactPlugin` instances point to the same directory, the latest write wins. For isolated versioning, configure each plugin with a unique `root_dir` or use the `versioned=True` flag to auto-increment version directories.
+
+**DAG experiment naming**: The experiment graph loader resolves dependencies by matching folder names to experiment names. If an experiment's `name` field differs from its folder name, reference it explicitly in `config.yaml` using the declared name rather than the folder path.

@@ -33,8 +33,8 @@ experiment = Experiment(
 
 `SeedPlugin` exposes three knobs:
 
-- `seed`: base integer. When provided, replicate `r` gets `hash(seed + r)`.
-- `auto_seed`: disable if you want to manage randomness manually.
+- `seed`: base integer. When provided, replicate `r` gets `(seed + r * 31337) % 2**32`.
+- `auto_seed`: set to `False` to reuse the master seed for every replicate; omit the plugin to manage randomness manually.
 - `seed_fn`: custom callable invoked with the computed seed (ideal for seeding NumPy, PyTorch, etc.).
 
 ```python
@@ -49,7 +49,9 @@ def seed_all(seed: int) -> None:
 seeded = SeedPlugin(seed=123, seed_fn=seed_all)
 ```
 
+If you omit `seed_fn`, Crystallize seeds both Python's `random` module and NumPy with the computed value.
 The selected seed is stored in the context under `"seed_used"` and appears in the provenance tree.
+Thread executors share global RNG state; Crystallize emits a warning when SeedPlugin is combined with `executor_type="thread"`. Use processes when you need strict reproducibility.
 
 ## 3. Shared Resources via `resource_factory`
 

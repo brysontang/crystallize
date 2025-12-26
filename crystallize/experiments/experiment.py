@@ -10,12 +10,10 @@ import sys
 from pathlib import Path
 from typing import (
     Any,
-    DefaultDict,
     Dict,
     List,
     Mapping,
     Optional,
-    Sequence,
     Tuple,
 )
 import inspect
@@ -40,6 +38,7 @@ from crystallize.plugins.plugins import (
     SeedPlugin,
     default_seed_function,
 )
+from crystallize.experiments.aggregation import ResultAggregator
 from crystallize.experiments.result import Result
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
@@ -358,6 +357,28 @@ class Experiment:
         )
         return dict(run_ctx.metrics.as_dict()), local_seed, prov
 
+    async def _run_baseline_safely(
+        self,
+        rep: int,
+        base_ctx: FrozenContext,
+        baseline_treatment: Optional[Treatment],
+    ) -> Tuple[
+        Optional[Mapping[str, Any]],
+        Optional[int],
+        Optional[List[Mapping[str, Any]]],
+        Optional[Exception],
+    ]:
+        """Run the baseline condition and capture errors for reporting."""
+        try:
+            metrics, seed, prov = await self._run_condition(base_ctx, baseline_treatment)
+            return metrics, seed, prov, None
+        except Exception as exc:
+            tb_str = traceback.format_exc()
+            setattr(exc, "traceback_str", tb_str)
+            setattr(exc, "replicate", rep)
+            setattr(exc, "condition", BASELINE_CONDITION)
+            return None, None, None, exc
+
     async def _execute_replicate(
         self,
         rep: int,
@@ -381,17 +402,14 @@ class Experiment:
             }
         )
         if run_baseline:
-            try:
-                baseline_result, baseline_seed, base_prov = await self._run_condition(
-                    base_ctx,
-                    baseline_treatment,
-                )
-                provenance[BASELINE_CONDITION] = base_prov
-            except Exception as exc:
-                tb_str = traceback.format_exc()
-                setattr(exc, "traceback_str", tb_str)
-                rep_errors[f"baseline_rep_{rep}"] = exc
-
+            (
+                baseline_result,
+                baseline_seed,
+                base_prov,
+                base_err,
+            ) = await self._run_baseline_safely(rep, base_ctx, baseline_treatment)
+            if base_err:
+                rep_errors[f"baseline_rep_{rep}"] = base_err
                 return ReplicateResult(
                     baseline_metrics=baseline_result,
                     baseline_seed=baseline_seed,
@@ -400,6 +418,8 @@ class Experiment:
                     errors=rep_errors,
                     provenance=provenance,
                 )
+            if base_prov is not None:
+                provenance[BASELINE_CONDITION] = base_prov
 
         for t in treatments:
             ctx = FrozenContext(
@@ -438,62 +458,6 @@ class Experiment:
                 return plugin
         return SerialExecution()
 
-    def _aggregate_results(self, results_list: List[ReplicateResult]) -> AggregateData:
-        baseline_samples: List[Mapping[str, Any]] = []
-        treatment_samples: Dict[str, List[Mapping[str, Any]]] = defaultdict(list)
-        baseline_seeds: List[int] = []
-        treatment_seeds_agg: Dict[str, List[int]] = defaultdict(list)
-
-        provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]] = (
-            defaultdict(dict)
-        )
-        errors: Dict[str, Exception] = {}
-
-        for rep, res in enumerate(results_list):
-            base = res.baseline_metrics
-            seed = res.baseline_seed
-            treats = res.treatment_metrics
-            seeds = res.treatment_seeds
-            errs = res.errors
-            prov = res.provenance
-
-            if base is not None:
-                baseline_samples.append(base)
-            if seed is not None:
-                baseline_seeds.append(seed)
-            for name, sample in treats.items():
-                treatment_samples[name].append(sample)
-            for name, sd in seeds.items():
-                treatment_seeds_agg[name].append(sd)
-            for name, p in prov.items():
-                provenance_runs[name][rep] = p
-            errors.update(errs)
-
-        def collect_all_samples(
-            samples: List[Mapping[str, Sequence[Any]]],
-        ) -> Dict[str, List[Any]]:
-            metrics: DefaultDict[str, List[Any]] = defaultdict(list)
-            for i, sample in enumerate(samples):
-                for metric, values in sample.items():
-                    metrics[metric].extend(list(values))
-            result = dict(metrics)
-            return result
-
-        baseline_metrics = collect_all_samples(baseline_samples)
-
-        treatment_metrics_dict = {}
-        for name, samp in treatment_samples.items():
-            treatment_metrics_dict[name] = collect_all_samples(samp)
-
-        return AggregateData(
-            baseline_metrics=baseline_metrics,
-            treatment_metrics_dict=treatment_metrics_dict,
-            baseline_seeds=baseline_seeds,
-            treatment_seeds_agg=treatment_seeds_agg,
-            provenance_runs=provenance_runs,
-            errors=errors,
-        )
-
     def _verify_hypotheses(
         self,
         baseline_metrics: Dict[str, List[Any]],
@@ -521,22 +485,6 @@ class Experiment:
             )
         return results
 
-    def _build_result(
-        self,
-        metrics: ExperimentMetrics,
-        errors: Dict[str, Exception],
-        provenance_runs: DefaultDict[str, Dict[int, List[Mapping[str, Any]]]],
-        baseline_seeds: List[int],
-        treatment_seeds_agg: Dict[str, List[int]],
-    ) -> Result:
-        provenance = {
-            "pipeline_signature": self.pipeline.signature(),
-            "replicates": self.replicates,
-            "seeds": {BASELINE_CONDITION: baseline_seeds, **treatment_seeds_agg},
-            "ctx_changes": {k: v for k, v in provenance_runs.items()},
-        }
-        return Result(metrics=metrics, errors=errors, provenance=provenance)
-
     # ------------------------------------------------------------------ #
 
     strategy: str = "rerun"
@@ -551,6 +499,17 @@ class Experiment:
     ) -> Result:
         """Synchronous wrapper for the async run method. Convenient for tests and scripts."""
         import asyncio
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            raise RuntimeError(
+                "An asyncio event loop is already running (likely Jupyter). "
+                "Please use 'await experiment.arun(...)' instead of 'experiment.run(...)'."
+            )
 
         return asyncio.run(
             self.arun(
@@ -609,6 +568,7 @@ class Experiment:
             replicates = datasource_reps or self.replicates
 
         replicates = max(1, replicates)
+        result_aggregator = ResultAggregator(self.pipeline, replicates)
         # TEST: When replicates > datasource_reps, the experiment should run with the datasource_reps % n
 
         from crystallize.utils.cache import compute_hash
@@ -677,13 +637,15 @@ class Experiment:
                 },
                 hypotheses=hypothesis_results,
             )
-            return self._build_result(
-                metrics,
-                {},
-                defaultdict(lambda: defaultdict(list)),
-                [],
-                {t.name: [] for t in run_treatments},
+            empty_aggregate = AggregateData(
+                baseline_metrics=baseline_loaded,
+                treatment_metrics_dict=treatments_loaded,
+                baseline_seeds=[],
+                treatment_seeds_agg={t.name: [] for t in run_treatments},
+                provenance_runs=defaultdict(lambda: defaultdict(list)),
+                errors={},
             )
+            return result_aggregator.build_result(metrics, empty_aggregate)
 
         with self._runtime_state(
             run_treatments,
@@ -733,7 +695,7 @@ class Experiment:
                     else:
                         results_list = loop_result
 
-                aggregate = self._aggregate_results(results_list)
+                aggregate = result_aggregator.aggregate_results(results_list)
 
                 # Merge metrics loaded from completed runs with newly produced
                 # metrics from this execution.
@@ -761,13 +723,7 @@ class Experiment:
                     hypotheses=hypothesis_results,
                 )
 
-                result = self._build_result(
-                    metrics,
-                    aggregate.errors,
-                    aggregate.provenance_runs,
-                    aggregate.baseline_seeds,
-                    aggregate.treatment_seeds_agg,
-                )
+                result = result_aggregator.build_result(metrics, aggregate)
             finally:
                 for step in self.pipeline.steps:
                     step.teardown(self._setup_ctx)
@@ -964,12 +920,19 @@ class Experiment:
 
         exp_name = cfg.get("name", base.name)
 
-        ds_spec = cfg.get("datasource", {})
+        if "datasource" not in cfg:
+            raise ValueError("config.yaml must define a 'datasource' section.")
+
+        ds_spec = cfg.get("datasource")
+        if ds_spec in (None, {}, []):
+            raise ValueError("config.yaml must declare at least one datasource.")
         if isinstance(ds_spec, list):
             tmp = {}
             for item in ds_spec:
                 tmp.update(item)
             ds_spec = tmp
+        elif not isinstance(ds_spec, dict):
+            raise TypeError("datasource must be provided as a mapping or list of maps.")
 
         inputs: dict[str, DataSource | Artifact] = {}
         has_ref = False
@@ -1068,7 +1031,16 @@ class Experiment:
         hypotheses: list[Hypothesis] = []
         if ver_mod:
             for h in cfg.get("hypotheses", []):
-                v_fn = _load("verifiers", h["verifier"])()
+                verifier_name = h.get("verifier")
+                if verifier_name is None:
+                    raise ValueError("Each hypothesis must specify a 'verifier'.")
+                try:
+                    verifier_factory = _load("verifiers", verifier_name)
+                except AttributeError as exc:
+                    raise ValueError(
+                        f"Verifier '{verifier_name}' not found in verifiers.py"
+                    ) from exc
+                v_fn = verifier_factory()
                 metrics = h.get("metrics")
                 h_name = h.get("name")
                 hypotheses.append(

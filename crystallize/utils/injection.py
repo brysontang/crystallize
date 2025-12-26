@@ -8,6 +8,19 @@ from .context import FrozenContext
 from crystallize.datasources import Artifact
 
 
+class _Missing:
+    """Sentinel that survives deepcopy for FrozenContext.get."""
+
+    def __repr__(self) -> str:
+        return "<missing>"
+
+    def __deepcopy__(self, memo: Any) -> "_Missing":
+        return self
+
+
+_MISSING = _Missing()
+
+
 def inject_from_ctx(fn: Callable[..., Any]) -> Callable[..., Any]:
     """Inject missing parameters from ``ctx`` when calling ``fn``.
 
@@ -41,10 +54,15 @@ def inject_from_ctx(fn: Callable[..., Any]) -> Callable[..., Any]:
         for name, param in signature.parameters.items():
             if name in bound.arguments or name == "ctx" or name == "data":
                 continue
-            default = (
-                param.default if param.default is not inspect.Signature.empty else None
-            )
-            value = ctx.get(name, default)
+            value = ctx.get(name, _MISSING)
+            if value is _MISSING:
+                if param.default is not inspect.Signature.empty:
+                    value = param.default
+                else:
+                    raise TypeError(
+                        f"Dependency Injection Error: Parameter '{name}' in step '{fn.__name__}' "
+                        f"is not found in the Context and has no default value."
+                    )
             if callable(value):
                 sig = inspect.signature(value)
                 if "ctx" in sig.parameters:

@@ -43,6 +43,10 @@ The strategy submits each replicate to the chosen executor and collects results
 as they complete. Order is preserved by storing the replicate index alongside
 its future. The optional `progress` flag works the same as in `SerialExecution`.
 
+> **Warning:** When the `SeedPlugin` is enabled, `executor_type="thread"` reuses
+> Python's global RNG state and can interleave seeds between threads. Use
+> `executor_type="process"` for any workload that must be reproducible.
+
 ## Thread vs. Process Executors
 
 Choosing the right executor type is crucial for performance:

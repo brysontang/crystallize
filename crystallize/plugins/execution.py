@@ -58,6 +58,21 @@ class ParallelExecution(BasePlugin):
             raise ValueError(
                 f"executor_type must be one of {VALID_EXECUTOR_TYPES}, got '{self.executor_type}'"
             )
+
+        from .plugins import SeedPlugin
+
+        get_plugin = getattr(experiment, "get_plugin", None)
+        if (
+            self.executor_type == "thread"
+            and callable(get_plugin)
+            and get_plugin(SeedPlugin)
+        ):
+            import logging
+
+            logging.getLogger("crystallize").warning(
+                "Using SeedPlugin with executor_type='thread' is not reproducible "
+                "because 'random' state is shared. Use 'process' for determinism."
+            )
         if self.executor_type == "process":
             from crystallize.experiments.experiment import _run_replicate_remote
 

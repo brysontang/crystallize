@@ -47,6 +47,9 @@ include = ["crystallize*", "cli*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+markers = [
+    "demo: demonstration / integration tests (opt-in; set RUN_DEMOS=1)",
+]
 
 [tool.ruff]
 line-length = 88

@@ -1,5 +1,6 @@
 ---
 title: Plugins
+description: API reference for experiment lifecycle plugins.
 ---
 
 ## <kbd>module</kbd> `crystallize.plugins.plugins`
@@ -456,7 +457,135 @@ run_experiment_loop(
 ) → List[Any]
 ```
 
-Run all replicates and return their results. 
+Run all replicates and return their results.
 
-Returning ``NotImplemented`` signals that the plugin does not provide a custom execution strategy and the default should be used instead. 
+Returning ``NotImplemented`` signals that the plugin does not provide a custom execution strategy and the default should be used instead.
 
+---
+
+## <kbd>module</kbd> `crystallize.plugins.provenance`
+
+Plugins for tracking provenance in agentic harness workflows.
+
+---
+
+## <kbd>class</kbd> `PromptProvenancePlugin`
+
+Collect and persist metadata about LLM prompt/response pairs during agentic synthesis.
+
+This plugin monitors context changes after each pipeline step, collecting entries with keys starting with `llm_call`. At the end of the run, it persists all collected calls to JSON files organized by condition.
+
+### <kbd>method</kbd> `PromptProvenancePlugin.__init__`
+
+```python
+__init__(artifact_name: str = "llm_calls.json") → None
+```
+
+**Parameters:**
+
+- **`artifact_name`**: Filename for the persisted JSON. Default: `"llm_calls.json"`.
+
+**Output location:** `{artifact_dir}/{experiment_id}/v{version}/{condition}/prompts/{artifact_name}`
+
+---
+
+### <kbd>property</kbd> PromptProvenancePlugin.calls_by_condition
+
+```python
+@property
+def calls_by_condition() -> Mapping[str, List[Mapping[str, Any]]]
+```
+
+Returns a copy of collected LLM calls organized by condition name.
+
+---
+
+### <kbd>method</kbd> `PromptProvenancePlugin.before_run`
+
+```python
+before_run(experiment: 'Experiment') → None
+```
+
+Reset collected calls at the start of each run.
+
+---
+
+### <kbd>method</kbd> `PromptProvenancePlugin.before_replicate`
+
+```python
+before_replicate(experiment: 'Experiment', ctx: 'FrozenContext') → None
+```
+
+Track the current condition and snapshot existing context keys.
+
+---
+
+### <kbd>method</kbd> `PromptProvenancePlugin.after_step`
+
+```python
+after_step(
+    experiment: 'Experiment',
+    step: 'PipelineStep',
+    data: 'Any',
+    ctx: 'FrozenContext'
+) → None
+```
+
+Collect any new `llm_call*` entries added to the context.
+
+---
+
+### <kbd>method</kbd> `PromptProvenancePlugin.after_run`
+
+```python
+after_run(experiment: 'Experiment', result: 'Result') → None
+```
+
+Persist collected LLM calls to JSON files, one per condition.
+
+---
+
+## <kbd>class</kbd> `EvidenceBundlePlugin`
+
+Persist an evidence bundle linking claim, spec, code, execution outputs, and hypothesis verdicts.
+
+Creates comprehensive audit trails for agentic synthesis workflows. The bundle provides full provenance from the initial claim through to the final verdict.
+
+### <kbd>method</kbd> `EvidenceBundlePlugin.__init__`
+
+```python
+__init__(filename: str = "bundle.json") → None
+```
+
+**Parameters:**
+
+- **`filename`**: Filename for the persisted bundle. Default: `"bundle.json"`.
+
+**Output location:** `{artifact_dir}/{experiment_id}/v{version}/{condition}/evidence/{filename}`
+
+---
+
+### <kbd>method</kbd> `EvidenceBundlePlugin.after_run`
+
+```python
+after_run(experiment: 'Experiment', result: 'Result') → None
+```
+
+Build and persist evidence bundles for each condition.
+
+**Bundle structure:**
+
+```json
+{
+  "condition": "baseline",
+  "claims": [{"id": "...", "text": "...", "acceptance": {...}}],
+  "specs": [{"allowed_imports": [...], "properties": [...], ...}],
+  "code": [{"replicate": 0, "source": "def fit_and_eval(data): ..."}],
+  "runs": [{"replicate": 0, "outputs": {"rmse": 0.15, ...}}],
+  "metrics": {"rmse": [0.15, 0.14, 0.16], ...},
+  "verdicts": [{"hypothesis": "...", "result": {...}, "ranking": {...}}],
+  "llm_calls": [...]
+}
+```
+
+The plugin deduplicates claims and specs across replicates and includes LLM call traces if `PromptProvenancePlugin` is also enabled.

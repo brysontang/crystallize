@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented here. The project is currently in alpha; expect frequent updates until the API stabilises.
 
+## [0.26.2](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.26.1...crystallize-ml@v0.26.2) (2025-12-26)
+
+
+### Bug Fixes
+
+* Correct test assertions and API usage ([56de06e](https://github.com/brysontang/crystallize/commit/56de06e756ae4c9bcc9a3fe6c876e7a2baca5e96))
+* Remove unused imports and fix lint issues in tests ([f18a2e1](https://github.com/brysontang/crystallize/commit/f18a2e1dd076d90d83982d3a6b0138bf37fa85b6))
+
+
+### Documentation
+
+* Add comprehensive test coverage analysis ([80439f7](https://github.com/brysontang/crystallize/commit/80439f7c7f86c14992748b35ab98d591dec3383f))
+* Add comprehensive test coverage analysis ([5f1b36a](https://github.com/brysontang/crystallize/commit/5f1b36a944d1774cb6dbf9b1cd24d3d33dec19fb))
+* Polish architecture and glossary pages ([e11ac13](https://github.com/brysontang/crystallize/commit/e11ac136735699cf77b9c569ecc48290dcc0436d))
+* Refresh test coverage analysis with completed improvements ([870799e](https://github.com/brysontang/crystallize/commit/870799e5901bb159ea4647075fe9b30f59118515))
+
 ## [0.26.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.26.0...crystallize-ml@v0.26.1) (2025-11-27)
 
 

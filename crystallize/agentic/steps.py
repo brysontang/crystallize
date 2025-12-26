@@ -7,6 +7,7 @@ import builtins as py_builtins
 import copy
 import hashlib
 import json
+import logging
 import multiprocessing as mp
 import textwrap
 import uuid
@@ -17,6 +18,8 @@ from typing import Any, Callable, Dict, Iterable, Mapping, MutableMapping, Optio
 from crystallize import FrozenContext, pipeline_step
 
 from .schema import Claim, Spec
+
+_logger = logging.getLogger(__name__)
 
 # Normalises import lists into deterministic tuples so repeated guards don't
 # rebuild set/tuple structures on every invocation.
@@ -356,12 +359,22 @@ def bounded_synthesis(
     code_str = textwrap.dedent(code)
     tree = ast.parse(code_str)
     _ast_allowlisted(tree, spec_obj.allowed_imports)
-    if not any(
-        isinstance(node, ast.FunctionDef) and node.name == entrypoint
-        for node in tree.body
-    ):
+    entrypoint_node = next(
+        (
+            node
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == entrypoint
+        ),
+        None,
+    )
+    if entrypoint_node is None:
         raise BoundedExecutionError(
             f"Generated code must define the entrypoint '{entrypoint}'"
+        )
+    if isinstance(entrypoint_node, ast.AsyncFunctionDef):
+        raise BoundedExecutionError(
+            f"Entrypoint '{entrypoint}' must be a sync function, not async"
         )
     ctx.add("generated_code", code_str)
     code_hash = hashlib.sha256(code_str.encode("utf-8")).hexdigest()
@@ -421,12 +434,13 @@ def _permute_rows_aligned(payload: Any) -> Any:
         try:
             length = len(payload[0])
         except Exception:
+            _logger.debug("Cannot determine length of first tuple element; falling back to _permute_rows")
             return _permute_rows(payload)
         if length == 0:
             return payload
         indices = list(range(length))[::-1]
         permuted_items = []
-        for item in payload:
+        for idx_item, item in enumerate(payload):
             try:
                 import numpy as np  # type: ignore  # pragma: no cover - optional
 
@@ -439,11 +453,20 @@ def _permute_rows_aligned(payload: Any) -> Any:
                 permuted_items.append(type(item)(item[idx] for idx in indices))
                 continue
             except Exception:
-                pass
+                _logger.debug(
+                    "Could not reconstruct type %s for item %d; trying list fallback",
+                    type(item).__name__,
+                    idx_item,
+                )
             try:
                 permuted_items.append([item[idx] for idx in indices])
                 continue
             except Exception:
+                _logger.debug(
+                    "Could not index item %d of type %s; leaving unchanged",
+                    idx_item,
+                    type(item).__name__,
+                )
                 permuted_items.append(item)
         return tuple(permuted_items)
     return _permute_rows(payload)

@@ -111,6 +111,21 @@ def fit_and_eval(data):
         synth_step(spec_data, frozen_ctx)
 
 
+def test_bounded_synthesis_rejects_async_entrypoint(frozen_ctx: FrozenContext) -> None:
+    claim_step = specify_claim(claim={"id": "c3c", "text": "async", "acceptance": {}})
+    claim_data, _ = claim_step([], frozen_ctx)
+    spec_step = generate_spec(spec=Spec(allowed_imports=[]))
+    spec_data, _ = spec_step(claim_data, frozen_ctx)
+    synth_step = bounded_synthesis(
+        code="""
+async def fit_and_eval(data):
+    return {"value": 1}
+"""
+    )
+    with pytest.raises(BoundedExecutionError, match="must be a sync function"):
+        synth_step(spec_data, frozen_ctx)
+
+
 def test_execute_capsule_runs_code(frozen_ctx: FrozenContext) -> None:
     claim_step = specify_claim(claim={"id": "c4", "text": "capsule", "acceptance": {}})
     claim_data, _ = claim_step(3, frozen_ctx)

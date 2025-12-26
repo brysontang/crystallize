@@ -27,6 +27,12 @@ def meets_claim(
     *,
     min_pct: float = 5.0,
 ) -> Dict[str, Any]:
+    """Check whether treatment RMSE improves over baseline by at least min_pct.
+
+    Note: The p_value returned is a simplified heuristic (inverse of improvement
+    percentage), not a formal statistical test. For rigorous hypothesis testing,
+    consider using scipy.stats.ttest_ind or a similar test.
+    """
     baseline_values = list(baseline_samples.get("rmse", ()))
     treatment_values = list(treatment_samples.get("rmse", ()))
     if not baseline_values:
@@ -38,6 +44,7 @@ def meets_claim(
         else baseline_mean
     )
     improvement = 100.0 * (baseline_mean - treatment_mean) / baseline_mean
+    # Simplified heuristic p-value; not a formal statistical test.
     p_value = max(0.0, 1.0 - min(max(improvement, 0.0) / 100.0, 1.0))
     return {
         "pct_improvement": improvement,

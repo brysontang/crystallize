@@ -276,6 +276,75 @@ def fit_and_eval(data):
     assert stored["metrics"]["first"] == (3, 6)
 
 
+def test_permute_rows_aligned_fallback_no_len() -> None:
+    """Test _permute_rows_aligned falls back when first element has no len()."""
+    from crystallize.agentic.steps import _permute_rows_aligned
+
+    # Object without __len__ as first element triggers fallback to _permute_rows
+    class NoLen:
+        pass
+
+    no_len_obj = NoLen()
+    payload = (no_len_obj, [1, 2, 3])
+    result = _permute_rows_aligned(payload)
+    # Falls back to _permute_rows which processes each tuple element:
+    # - NoLen object can't be sliced, returned unchanged
+    # - List [1, 2, 3] gets reversed to [3, 2, 1]
+    assert len(result) == 2
+    assert isinstance(result[0], NoLen)  # NoLen object unchanged (can't be reversed)
+    assert result[1] == [3, 2, 1]  # List gets reversed
+
+
+def test_permute_rows_aligned_empty_first_element() -> None:
+    """Test _permute_rows_aligned returns unchanged when first element is empty."""
+    from crystallize.agentic.steps import _permute_rows_aligned
+
+    # Empty first element (length == 0) returns payload unchanged
+    payload = ([], [])
+    result = _permute_rows_aligned(payload)
+    assert result is payload  # Same object returned unchanged
+
+
+def test_permute_rows_aligned_fallback_non_reconstructible_type() -> None:
+    """Test _permute_rows_aligned uses list fallback for non-reconstructible types."""
+    from crystallize.agentic.steps import _permute_rows_aligned
+
+    # frozenset can be indexed but can't be reconstructed from a generator
+    # Use a custom class that supports indexing but not reconstruction
+    class IndexableButNotReconstructible:
+        def __init__(self):
+            self._data = [1, 2, 3]
+
+        def __len__(self):
+            return len(self._data)
+
+        def __getitem__(self, idx):
+            return self._data[idx]
+
+    payload = (IndexableButNotReconstructible(), [4, 5, 6])
+    result = _permute_rows_aligned(payload)
+    # First item should become a list (fallback), second stays as list
+    assert result[0] == [3, 2, 1]
+    assert result[1] == [6, 5, 4]
+
+
+def test_permute_rows_aligned_fallback_non_indexable() -> None:
+    """Test _permute_rows_aligned leaves non-indexable items unchanged."""
+    from crystallize.agentic.steps import _permute_rows_aligned
+
+    # Object that has len but can't be indexed
+    class HasLenButNoIndex:
+        def __len__(self):
+            return 3
+
+    item = HasLenButNoIndex()
+    payload = ([1, 2, 3], item)
+    result = _permute_rows_aligned(payload)
+    # First item reversed, second item unchanged (same object)
+    assert result[0] == [3, 2, 1]
+    assert result[1] is item
+
+
 @pytest.mark.parametrize("prompt_keys", [["llm_call_custom"], ["llm_call_a", "llm_call_b"]])
 def test_prompt_provenance_collects_calls(frozen_ctx: FrozenContext, tmp_path: Path, prompt_keys: list[str]) -> None:
     plugin = PromptProvenancePlugin()
@@ -371,6 +440,94 @@ def test_evidence_bundle_persists_summary(frozen_ctx: FrozenContext, tmp_path: P
     assert content["claims"][0]["id"] == "c5"
     assert content["specs"][0]["allowed_imports"] == ["math"]
     assert content["runs"][0]["outputs"]["rmse"] == 1.0
+
+
+def test_metamorphic_verifier_all_pass() -> None:
+    """Test metamorphic verifier when all properties pass."""
+    from crystallize.agentic.verifiers import metamorphic
+
+    verifier_fn = metamorphic()  # Factory returns callable
+    baseline = {}
+    treatment = {"perm_pass": [True, True], "align_pass": [True, True]}
+    result = verifier_fn(baseline, treatment)
+    assert result["metamorphic_ok"] is True
+    assert result["perm_pass"] is True
+    assert result["align_pass"] is True
+
+
+def test_metamorphic_verifier_some_fail() -> None:
+    """Test metamorphic verifier when some properties fail."""
+    from crystallize.agentic.verifiers import metamorphic
+
+    verifier_fn = metamorphic()
+    baseline = {}
+    treatment = {"perm_pass": [True, False], "align_pass": [True, True]}
+    result = verifier_fn(baseline, treatment)
+    assert result["metamorphic_ok"] is False
+    assert result["perm_pass"] is False
+    assert result["align_pass"] is True
+
+
+def test_metamorphic_verifier_no_properties() -> None:
+    """Test metamorphic verifier with no properties."""
+    from crystallize.agentic.verifiers import metamorphic
+
+    verifier_fn = metamorphic()
+    baseline = {}
+    treatment = {"some_metric": [1, 2, 3]}  # No _pass keys
+    result = verifier_fn(baseline, treatment)
+    assert result["metamorphic_ok"] is True  # No properties = ok
+
+
+def test_meets_claim_verifier_improvement() -> None:
+    """Test meets_claim verifier with improvement."""
+    from crystallize.agentic.verifiers import meets_claim
+
+    verifier_fn = meets_claim(min_pct=10.0)
+    baseline = {"rmse": [1.0, 1.0, 1.0]}
+    treatment = {"rmse": [0.8, 0.8, 0.8]}  # 20% improvement
+    result = verifier_fn(baseline, treatment)
+    assert result["meets_claim"] is True
+    assert result["pct_improvement"] == pytest.approx(20.0)
+    assert result["p_value"] == pytest.approx(0.8)
+
+
+def test_meets_claim_verifier_no_improvement() -> None:
+    """Test meets_claim verifier with no improvement."""
+    from crystallize.agentic.verifiers import meets_claim
+
+    verifier_fn = meets_claim(min_pct=5.0)
+    baseline = {"rmse": [1.0, 1.0, 1.0]}
+    treatment = {"rmse": [1.0, 1.0, 1.0]}  # No improvement
+    result = verifier_fn(baseline, treatment)
+    assert result["meets_claim"] is False
+    assert result["pct_improvement"] == pytest.approx(0.0)
+
+
+def test_meets_claim_verifier_no_baseline() -> None:
+    """Test meets_claim verifier with no baseline values."""
+    from crystallize.agentic.verifiers import meets_claim
+
+    verifier_fn = meets_claim()
+    baseline = {}  # No rmse key
+    treatment = {"rmse": [0.5]}
+    result = verifier_fn(baseline, treatment)
+    assert result["meets_claim"] is False
+    assert result["pct_improvement"] == 0.0
+    assert result["p_value"] == 1.0
+
+
+def test_meets_claim_verifier_no_treatment() -> None:
+    """Test meets_claim verifier with no treatment values."""
+    from crystallize.agentic.verifiers import meets_claim
+
+    verifier_fn = meets_claim()
+    baseline = {"rmse": [1.0, 1.0]}
+    treatment = {}  # No rmse key
+    result = verifier_fn(baseline, treatment)
+    # Treatment mean defaults to baseline mean, so 0% improvement
+    assert result["meets_claim"] is False
+    assert result["pct_improvement"] == pytest.approx(0.0)
 
 
 def test_evidence_bundle_handles_numpy_types(frozen_ctx: FrozenContext, tmp_path: Path) -> None:

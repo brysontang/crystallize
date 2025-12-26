@@ -4,13 +4,6 @@ title: Execution
 
 ## <kbd>module</kbd> `crystallize.plugins.execution`
 
-Execution is delegated out of `Experiment` into two collaborators:
-
-- An execution plugin (e.g., `SerialExecution`, `ParallelExecution`, or `AsyncExecution`) that drives the replicate loop via `run_experiment_loop`.
-- `ResultAggregator` (from `crystallize.experiments.aggregation`) which collates replicate outputs, seeds, provenance, and metrics into a `Result`.
-
-`Experiment.run/arun` selects the strategy plugin, passes in the replicate callable, and then hands the collected replicate results to `ResultAggregator`. Override or swap these collaborators instead of subclassing `Experiment` to change aggregation behavior; the legacy `_aggregate_results` hook is no longer part of the execution path.
-
 
 
 
@@ -120,6 +113,7 @@ run_experiment_loop(
     replicate_fn: 'Callable[[int], Any]'
 ) → List[Any]
 ```
+
 
 
 

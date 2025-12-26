@@ -209,17 +209,7 @@ run(
 ) → Result
 ```
 
-Synchronous wrapper for the async run method. Convenient for tests and scripts. Checks for an active event loop before dispatching work and raises a clear error in notebook contexts so you can switch to the async variant. Replicates flow through the pipeline, and ``ResultAggregator`` collates metrics once execution completes.
-
-Use this pattern in Jupyter and other environments that keep an event loop alive:
-
-```python
-import asyncio
-if asyncio.get_running_loop():
-    await exp.arun()
-else:
-    exp.run()
-```
+Synchronous wrapper for the async run method. Convenient for tests and scripts. 
 
 ---
 
@@ -240,6 +230,7 @@ set_default_plugins() → None
 ```python
 validate() → None
 ```
+
 
 
 

@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import pytest
 import yaml
 
 from cli.errors import ExperimentLoadError, format_load_error

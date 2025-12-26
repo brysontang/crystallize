@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from cli.yaml_edit import (
     find_treatment_line,
     ensure_new_treatment_placeholder,
@@ -137,7 +135,7 @@ datasource: {}
         path = tmp_path / "config.yaml"
         path.write_text(yaml_content)
 
-        line = ensure_new_treatment_placeholder(path)
+        ensure_new_treatment_placeholder(path)
 
         result = path.read_text()
         assert "treatments:" in result
@@ -177,15 +175,15 @@ other_section:
         path = tmp_path / "config.yaml"
         path.write_text(yaml_content)
 
-        line = ensure_new_treatment_placeholder(path)
+        ensure_new_treatment_placeholder(path)
 
         result = path.read_text()
         lines = result.splitlines()
         # Placeholder should be before "other_section"
         placeholder_idx = next(
-            i for i, l in enumerate(lines) if "# new treatment" in l
+            i for i, line in enumerate(lines) if "# new treatment" in line
         )
-        other_idx = next(i for i, l in enumerate(lines) if "other_section" in l)
+        other_idx = next(i for i, line in enumerate(lines) if "other_section" in line)
         assert placeholder_idx < other_idx
 
     def test_handles_indented_treatments_block(self, tmp_path: Path) -> None:

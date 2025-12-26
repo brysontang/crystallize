@@ -2,7 +2,6 @@
 
 import pytest
 from textual.app import App
-from textual.widgets import Button, Static
 
 from cli.screens.load_error import LoadErrorScreen
 

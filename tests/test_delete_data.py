@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 from textual.app import App
-from textual.widgets import Button
 
 from cli.screens.delete_data import ConfirmScreen
 

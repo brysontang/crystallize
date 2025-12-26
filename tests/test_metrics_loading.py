@@ -3,8 +3,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from crystallize.plugins.artifacts import load_metrics, load_all_metrics
 from crystallize.utils.constants import BASELINE_CONDITION
 

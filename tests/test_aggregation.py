@@ -2,8 +2,6 @@
 
 from collections import defaultdict
 
-import pytest
-
 from crystallize.experiments.aggregation import ResultAggregator
 from crystallize.experiments.run_results import ReplicateResult
 from crystallize.experiments.result_structs import (

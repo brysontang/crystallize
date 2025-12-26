@@ -1,10 +1,6 @@
 """Tests for cli.app module."""
 
 import resource
-from unittest.mock import MagicMock, patch
-import sys
-
-import pytest
 
 from cli.app import CrystallizeApp, themes
 
@@ -115,7 +111,6 @@ class TestCrystallizeApp:
         """Test that file limit override is skipped when flag is set."""
         app = CrystallizeApp()
         call_count = [0]
-        original_method = app.increase_open_file_limit
 
         def counting_method(*args, **kwargs):
             call_count[0] += 1

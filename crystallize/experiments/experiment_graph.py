@@ -339,7 +339,7 @@ class ExperimentGraph:
             if run_strategy == "resume":
                 plugin = exp.get_plugin(ArtifactPlugin)
                 if plugin is not None:
-                    base_root = Path(plugin.root_dir) / (exp.name or exp.id)
+                    base_root = Path(plugin.root_dir) / (exp.name or exp.id or "experiment")
                     versions = [
                         int(p.name[1:])
                         for p in base_root.glob("v*")
@@ -362,12 +362,14 @@ class ExperimentGraph:
 
                     all_done = base is not None
                     if all_done:
+                        assert base is not None  # for type narrowing
                         for cond in conditions_to_check:
                             if not (base / cond / ".crystallize_complete").exists():
                                 all_done = False
                                 break
 
                     if all_done:
+                        assert base is not None  # for type narrowing
                         succ = getattr(self._graph, "_succ", {})
                         entry = succ.get(name, {})
                         downstream = list(

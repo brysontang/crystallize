@@ -5,7 +5,7 @@ import inspect
 from dataclasses import dataclass
 import os
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
-from typing import Callable, List, Any, Optional, TYPE_CHECKING
+from typing import Callable, List, Any, Optional, TYPE_CHECKING, Type, Union
 
 from .plugins import BasePlugin
 
@@ -73,6 +73,10 @@ class ParallelExecution(BasePlugin):
                 "Using SeedPlugin with executor_type='thread' is not reproducible "
                 "because 'random' state is shared. Use 'process' for determinism."
             )
+        exec_cls: Type[Union[ProcessPoolExecutor, ThreadPoolExecutor]]
+        submit_target: Callable[..., Any]
+        arg_list: List[Any]
+
         if self.executor_type == "process":
             from crystallize.experiments.experiment import _run_replicate_remote
 

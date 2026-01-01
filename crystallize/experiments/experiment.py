@@ -15,6 +15,8 @@ from typing import (
     Mapping,
     Optional,
     Tuple,
+    Type,
+    TypeVar,
 )
 import inspect
 
@@ -58,6 +60,9 @@ from crystallize.utils.constants import (
     CONDITION_KEY,
     SEED_USED_KEY,
 )
+
+# TypeVar for generic plugin retrieval
+_PluginT = TypeVar("_PluginT", bound=BasePlugin)
 
 
 def _run_replicate_remote(
@@ -172,11 +177,11 @@ class Experiment:
 
     # ------------------------------------------------------------------ #
 
-    def get_plugin(self, plugin_class: type) -> Optional[BasePlugin]:
+    def get_plugin(self, plugin_class: Type[_PluginT]) -> Optional[_PluginT]:
         """Return the first plugin instance matching ``plugin_class``."""
         for plugin in self.plugins:
             if isinstance(plugin, plugin_class):
-                return plugin
+                return plugin  # type: ignore[return-value]
         return None
 
     # ------------------------------------------------------------------ #
@@ -653,8 +658,8 @@ class Experiment:
             replicates,
             baseline_treatment=baseline_treatment,
         ):
-            for plugin in self.plugins:
-                plugin.before_run(self)
+            for p in self.plugins:
+                p.before_run(self)
 
             try:
                 for step in self.pipeline.steps:
@@ -728,8 +733,8 @@ class Experiment:
                 for step in self.pipeline.steps:
                     step.teardown(self._setup_ctx)
 
-            for plugin in self.plugins:
-                plugin.after_run(self, result)
+            for p in self.plugins:
+                p.after_run(self, result)
 
             return result
 

@@ -6,7 +6,7 @@ import os
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, List, Optional, Mapping, Union
 
 from crystallize.utils.constants import (
     REPLICATE_KEY,
@@ -79,11 +79,13 @@ class BasePlugin(ABC):
         self,
         experiment: "Experiment",
         replicate_fn: Callable[[int], Any],
-    ) -> List[Any]:
+    ) -> Union[List[Any], Coroutine[Any, Any, List[Any]]]:
         """Run all replicates and return their results.
 
         Returning ``NotImplemented`` signals that the plugin does not provide a
         custom execution strategy and the default should be used instead.
+
+        May return either a list directly (sync) or a coroutine (async).
         """
         return NotImplemented
 
@@ -209,6 +211,8 @@ class ArtifactPlugin(BasePlugin):
     def __post_init__(self) -> None:
         self._manifest: dict[str, str] = {}
         self._artifact_paths: dict[str, dict[str, Path]] = {}
+        self.experiment_id: str = ""
+        self.version: int = 0
         if self.artifact_retention == 3:
             val = os.getenv("CRYSTALLIZE_ARTIFACT_RETENTION")
             if val is not None:
@@ -225,7 +229,7 @@ class ArtifactPlugin(BasePlugin):
                     self.big_file_threshold_mb = 10
 
     def before_run(self, experiment: Experiment) -> None:
-        self.experiment_id = experiment.name or experiment.id
+        self.experiment_id = experiment.name or experiment.id or "experiment"
         base = Path(self.root_dir) / self.experiment_id
         base.mkdir(parents=True, exist_ok=True)
         if self.versioned:

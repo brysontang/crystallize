@@ -143,7 +143,7 @@ class Artifact(DataSource):
         if plugin is None:
             raise RuntimeError("ArtifactPlugin required to load artifacts")
         # This logic is now self-sufficient and doesn't rely on plugin.version
-        exp_dir = Path(plugin.root_dir) / (self._producer.name or self._producer.id)
+        exp_dir = Path(plugin.root_dir) / (self._producer.name or self._producer.id or "experiment")
 
         # Find the latest version by looking at the directories on disk
         if plugin.versioned:
@@ -178,7 +178,7 @@ class Artifact(DataSource):
                 with open(meta_path) as f:
                     meta = json.load(f)
                 self.replicates = meta.get("replicates")
-        step_name = self._manifest.get(self.name)
+        step_name = self._manifest.get(self.name) if self._manifest else None
         if step_name is None:
             raise FileNotFoundError(f"Manifest missing entry for {self.name}")
 

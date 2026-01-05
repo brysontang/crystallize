@@ -13,12 +13,19 @@ class FrozenMetrics:
 
     def __init__(self) -> None:
         self._metrics: DefaultDict[str, List[Any]] = defaultdict(list)
+        self._tags: DefaultDict[str, List[Dict[str, Any]]] = defaultdict(list)
 
     def __getitem__(self, key: str) -> Tuple[Any, ...]:
         return tuple(self._metrics[key])
 
-    def add(self, key: str, value: Any) -> None:
+    def add(self, key: str, value: Any, tags: Optional[Dict[str, Any]] = None) -> None:
+        """Append a value to the metric list, optionally with tags."""
         self._metrics[key].append(value)
+        self._tags[key].append(tags or {})
+
+    def get_tags(self, key: str) -> Tuple[Dict[str, Any], ...]:
+        """Return the tags for each recorded value of a metric."""
+        return tuple(self._tags[key])
 
     def as_dict(self) -> Mapping[str, Tuple[Any, ...]]:
         return MappingProxyType({k: tuple(v) for k, v in self._metrics.items()})
@@ -67,6 +74,28 @@ class FrozenContext:
 
     def as_dict(self) -> Mapping[str, Any]:
         return MappingProxyType(copy.deepcopy(self._data))
+
+    def record(
+        self, metric_name: str, value: Any, tags: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Record a metric value with optional tags.
+
+        This is a more explicit alternative to ``ctx.metrics.add()``.
+
+        Parameters
+        ----------
+        metric_name:
+            Name of the metric to record.
+        value:
+            The metric value.
+        tags:
+            Optional dictionary of tags for categorization and filtering.
+
+        Example
+        -------
+        >>> ctx.record("loss", 0.5, tags={"epoch": 1, "split": "train"})
+        """
+        self.metrics.add(metric_name, value, tags)
 
 
 class LoggingContext(FrozenContext):

@@ -10,12 +10,12 @@ pip install crystallize-ml
 
 ## Quick Start
 
-### Exploratory Mode
+### Phase 1: Explore
 
 Just play around. No ceremony.
 
 ```python
-from crystallize import run
+from crystallize import explore
 
 def play_game(config, ctx):
     # Your logic here
@@ -23,7 +23,7 @@ def play_game(config, ctx):
     ctx.record("win", 1 if winner == "treatment" else 0)
     return {"winner": winner}
 
-results = run(
+exp = explore(
     fn=play_game,
     configs={
         "weak": {"power": 2},
@@ -35,8 +35,8 @@ results = run(
 
 Output:
 ```
-⚠  Exploratory mode — perfect for playing around.
-   When ready to prove something: hypothesis="a.x > b.x"
+⚠  Exploratory mode (run: exp_a1b2c3d4)
+   When ready to prove something: exp.crystallize("a.x > b.x")
 
 Results:
   weak:
@@ -45,47 +45,66 @@ Results:
     win: [1, 1, 1, 1, 1] → μ=1.00
 ```
 
-### Confirmatory Mode
+### Phase 2: Crystallize
 
 You noticed something. Now prove it.
 
 ```python
-results = run(
-    fn=play_game,
-    configs={
-        "weak": {"power": 2},
-        "strong": {"power": 10},
-    },
-    replicates=20,
+result = exp.crystallize(
     hypothesis="strong.win > weak.win",
-    seed=42,
+    replicates=20,
 )
+print(result.report())
 ```
 
 Output:
 ```
-✓ Confirmatory mode
-  Hypothesis: strong.win > weak.win
-  Seed: 42
+✓ Integrity: VALID
 
-✓ Hypothesis SUPPORTED
+✓ Hypothesis SUPPORTED: strong.win > weak.win
   strong.win (μ=1.00, n=20) > weak.win (μ=0.00, n=20)
-  Effect size: 1.00, p=0.000
+  Effect: 1.000, 95% CI [1.000, 1.000]
+  p = 0.0002
+
+Proof:
+  run_id: conf_e5f6g7h8
+  parent: exp_a1b2c3d4
+  lineage: lin_xyz123
+  prereg: .crystallize/prereg/conf_e5f6g7h8.json
+  replicates: 5-24
+  fn_sha: abc123def456
+  git: 80439f7
+  results: .crystallize/runs/conf_e5f6g7h8.json
 ```
 
 ## The API
 
-```python
-from crystallize import run
+### explore()
 
-results = run(
-    fn=my_function,           # Your function: fn(config) or fn(config, ctx)
+```python
+from crystallize import explore
+
+exp = explore(
+    fn=my_function,           # fn(config) or fn(config, ctx)
     configs={...},            # {"name": {config_dict}, ...}
-    replicates=10,            # How many times to run each config
+    replicates=5,             # How many times per config
     seed=42,                  # For reproducibility
-    hypothesis="a.x > b.x",   # Triggers confirmatory mode
-    on_event=callback,        # For live UIs (viewer integration)
+    audit="calls",            # "calls" or "none" (for ctx.http tracking)
+    on_event=callback,        # For live UIs
     progress=True,            # Show progress bar
+)
+```
+
+### exp.crystallize()
+
+```python
+result = exp.crystallize(
+    hypothesis="a.metric > b.metric",  # What to prove
+    replicates=20,                     # Fresh replicates for confirm
+    allow_confounds=False,             # Override: allow hidden variables
+    allow_no_audit=False,              # Override: allow no ctx.http usage
+    allow_fn_change=False,             # Override: allow function change
+    seed=42,                           # Seed for confirm run
 )
 ```
 
@@ -102,50 +121,71 @@ def my_function(config, ctx):
     return result
 ```
 
-### Hypothesis Syntax
+### Audited HTTP Calls
 
 ```python
-# Config A's metric > Config B's metric
-hypothesis="treatment.accuracy > baseline.accuracy"
-
-# Less than
-hypothesis="fast.latency < slow.latency"
-
-# Greater than or equal
-hypothesis="new.score >= old.score"
+def my_function(config, ctx):
+    # Use ctx.http for provenance tracking
+    response = ctx.http.post(
+        "https://api.example.com/chat",
+        json={"model": config["model"], "prompt": "Hello"}
+    )
+    return response.json()
 ```
+
+### Hidden Variables
+
+```python
+# Check what parameters aren't controlled by config
+print(exp.hidden_variables().pretty())
+```
+
+Output:
+```
+Hidden Variables Report
+========================================
+
+🔴 [HIGH] temperature
+   Value: None
+   Source: implicit_default
+   Why: 'temperature' (affects model behavior) was not set; API will use default
+   Seen in: baseline, treatment
+
+🟡 [MED] system
+   Value: "You are a helpful assistant"
+   Source: hardcoded
+   Why: 'system' (affects model behavior) is hardcoded to 'You are...'
+   Seen in: baseline, treatment
+```
+
+### Integrity Status
+
+Results include integrity verification:
+
+- **VALID**: All conditions met for a valid experiment
+- **CONFOUNDED**: Hidden variables detected
+- **REUSED_DATA**: Replicates were not fresh
+- **NO_AUDIT**: `ctx.http` not used (unknown provenance)
+- **FN_CHANGED**: Function changed between explore and confirm
+- **NO_PREREG**: Pre-registration missing
 
 ### Results
 
 ```python
-results = run(...)
+# Access results
+exp.results["config_name"]           # [result1, result2, ...]
+exp.metrics["config_name"]["metric"] # [val1, val2, ...]
+exp.config_fingerprints["config"]    # SHA256 fingerprint
 
-# Raw return values
-results.results["config_name"]  # [result1, result2, ...]
+# After crystallize
+result.supported                     # True/False
+result.hypothesis_result.p_value     # Statistical significance
+result.hypothesis_result.ci          # 95% confidence interval
+result.integrity                     # IntegrityStatus
+result.report()                      # Formatted report
 
-# Recorded metrics
-results.metrics["config_name"]["metric_name"]  # [val1, val2, ...]
-
-# Hypothesis result (if provided)
-results.hypothesis_result.supported  # True/False
-results.hypothesis_result.p_value    # Statistical significance
-
-# Save results
-results.to_json("results.json")
-```
-
-### Live Updates
-
-```python
-def on_event(event):
-    if event["type"] == "metric":
-        print(f"{event['config']}: {event['metric']} = {event['value']}")
-
-results = run(
-    fn=my_function,
-    configs={...},
-    on_event=on_event,
-)
+# Serialization
+result.to_dict()                     # Python dict
 ```
 
 ## Philosophy
@@ -153,16 +193,19 @@ results = run(
 1. **No ceremony for exploration** — Just run the function with configs
 2. **Same code, more rigor** — Add `hypothesis=` to crystallize, don't rewrite
 3. **Hypothesis as pre-registration** — Commit before seeing results
-4. **Statistical output built-in** — p-values, effect sizes, not just means
+4. **Integrity built-in** — Hidden variables, fresh replicates, audit trail
 
 ## Install
 
 ```bash
-# Basic (no statistical tests, just mean comparison)
+# Basic (permutation tests built-in)
 pip install crystallize-ml
 
-# With statistical tests (scipy)
+# With scipy for more statistical tests
 pip install crystallize-ml[stats]
+
+# With requests for ctx.http
+pip install crystallize-ml[http]
 ```
 
 ## v0.x Legacy

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crystallize-ml"
-version = "1.0.0a1"
+version = "1.0.0a2"
 authors = [{ name = "Bryson Tang", email = "brysontang@gmail.com" }]
 description = "From Play to Proof. Run experiments, then crystallize your findings."
 readme = "README.md"
@@ -22,7 +22,8 @@ dependencies = [
 
 [project.optional-dependencies]
 stats = ["scipy >=1.10.0,<2", "numpy >=1.24.0,<3"]
-dev = ["pytest", "pytest-cov", "ruff", "scipy", "numpy"]
+http = ["requests >=2.28.0,<3"]
+dev = ["pytest", "pytest-cov", "ruff", "scipy", "numpy", "requests"]
 
 [project.urls]
 Homepage = "https://github.com/brysontang/crystallize"

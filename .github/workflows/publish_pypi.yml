@@ -4,6 +4,7 @@ on:
   release:
     types:
       - released
+      - prereleased
       - edited
 
 permissions:
@@ -11,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  publish-main:
+  publish:
     if: contains(github.event.release.tag_name, 'crystallize-ml@')
     runs-on: ubuntu-latest
     steps:
@@ -24,21 +25,3 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
-          skip-token: true
-
-  publish-extras:
-    if: contains(github.event.release.tag_name, 'crystallize-extras@')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - run: pip install build twine
-      - working-directory: extras/crystallize-extras
-        run: python -m build
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: extras/crystallize-extras/dist/
-          skip-existing: true
-          skip-token: true

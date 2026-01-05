@@ -26,4 +26,5 @@ dist/
 
 .hypothesis/
 
-data/
+data/.crystallize/
+uv.lock

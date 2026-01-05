@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.0.0-alpha.2] - 2026-01-05
+
+### New Features
+
+- **`explore()` function**: Two-phase API replaces `run()`
+  - Returns `Experiment` object that can be crystallized
+  - `exp.crystallize(hypothesis, replicates)` for confirmatory runs
+- **Protocol audit with `ctx.http`**: Instrumented HTTP wrapper tracks field provenance
+  - `ctx.http.post()` / `ctx.http.get()` for audited API calls
+  - Automatic provenance detection: `config.*`, `hardcoded`, `implicit_default`
+- **Hidden variables detection**: `exp.hidden_variables()` reports uncontrolled parameters
+  - Risk levels: HIGH (sensitive fields), MED (hardcoded), LOW (non-sensitive)
+- **Fresh replicate management**: Lineage tracking ensures no data reuse
+  - Ledger tracks replicate indices per lineage/config
+  - Pre-registration artifacts written before sampling
+- **Integrity status**: `ConfirmRun.integrity` shows VALID, CONFOUNDED, REUSED_DATA, etc.
+  - Override flags: `allow_reuse`, `allow_confounds`, `allow_no_audit`, `allow_fn_change`
+- **Permutation test**: Non-parametric statistical test (no distributional assumptions)
+- **Bootstrap CI**: 95% confidence intervals for effect sizes
+- **Function fingerprinting**: Detects if experiment function changed between runs
+- **Git integration**: Auto-captures commit SHA and dirty status
+
+### New Modules
+
+- `crystallize/core.py` - explore(), Experiment, crystallize(), ConfirmRun
+- `crystallize/context.py` - Enhanced Context with ctx.http
+- `crystallize/http.py` - InstrumentedHTTP wrapper
+- `crystallize/protocol.py` - ProtocolEvent, HiddenVariable, ProtocolDiff
+- `crystallize/stats.py` - permutation_test, bootstrap_ci
+- `crystallize/integrity.py` - IntegrityStatus, compute_integrity
+- `crystallize/store.py` - .crystallize/ filesystem, atomic writes, ledger
+- `crystallize/ids.py` - run_id, lineage_id, config_fingerprint
+- `crystallize/fingerprint.py` - Function fingerprinting
+
+### Deprecated
+
+- `run()` function: Still works but prints deprecation warning. Use `explore()` instead.
+
+---
+
 ## [1.0.0-alpha.1] - 2026-01-05
 
 ### Breaking Changes

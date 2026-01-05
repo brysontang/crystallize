@@ -198,39 +198,102 @@ def hypothesis(
     return decorator
 
 
-def data_source(fn: Callable[..., Any]) -> Callable[..., DataSource]:
-    """Decorate a function to produce a :class:`DataSource` factory."""
+def data_source(
+    fn_or_name: Union[Callable[..., Any], str, None] = None,
+    *,
+    register: bool = False,
+) -> Union[Callable[..., DataSource], Callable[[Callable[..., Any]], Callable[..., DataSource]]]:
+    """Decorate a function to produce a :class:`DataSource` factory.
 
-    sig = inspect.signature(fn)
-    param_names = [p.name for p in sig.parameters.values() if p.name != "ctx"]
-    defaults = {
-        name: p.default
-        for name, p in sig.parameters.items()
-        if name != "ctx" and p.default is not inspect.Signature.empty
-    }
+    Can be used in several ways:
 
-    def factory(**overrides: Any) -> DataSource:
-        params = {**defaults, **overrides}
-        missing = [n for n in param_names if n not in params]
-        if missing:
-            raise TypeError(f"Missing parameters: {', '.join(missing)}")
+    1. Simple decorator (no registration):
+       >>> @data_source
+       ... def my_source(ctx):
+       ...     return [1, 2, 3]
 
-        class FunctionSource(DataSource):
-            def fetch(self, ctx: FrozenContext) -> Any:
-                kwargs = {n: params[n] for n in param_names}
-                return fn(ctx, **kwargs)
+    2. Named decorator with auto-registration:
+       >>> @data_source("training_data", register=True)
+       ... def my_source(ctx):
+       ...     return [1, 2, 3]
+       >>> # Now accessible via get_datasource("training_data")
 
-            @property
-            def params(self) -> dict:
-                return {n: params[n] for n in param_names}
+    3. Register with function name:
+       >>> @data_source(register=True)
+       ... def training_data(ctx):
+       ...     return [1, 2, 3]
+       >>> # Now accessible via get_datasource("training_data")
 
-            def __reduce__(self):
-                return _reconstruct_from_factory, (factory, params)
+    Parameters
+    ----------
+    fn_or_name:
+        Either the function to decorate, or a string name for registration.
+    register:
+        If True, register the datasource with the given name (or function name).
+    """
+    from crystallize.datasources.registry import register_datasource
 
-        FunctionSource.__name__ = f"{fn.__name__.title()}Source"
-        return FunctionSource()
+    def _make_factory(fn: Callable[..., Any], reg_name: Optional[str] = None) -> Callable[..., DataSource]:
+        sig = inspect.signature(fn)
+        param_names = [p.name for p in sig.parameters.values() if p.name != "ctx"]
+        defaults = {
+            name: p.default
+            for name, p in sig.parameters.items()
+            if name != "ctx" and p.default is not inspect.Signature.empty
+        }
 
-    return update_wrapper(factory, fn)
+        def factory(**overrides: Any) -> DataSource:
+            params = {**defaults, **overrides}
+            missing = [n for n in param_names if n not in params]
+            if missing:
+                raise TypeError(f"Missing parameters: {', '.join(missing)}")
+
+            class FunctionSource(DataSource):
+                def fetch(self, ctx: FrozenContext) -> Any:
+                    kwargs = {n: params[n] for n in param_names}
+                    return fn(ctx, **kwargs)
+
+                @property
+                def params(self) -> dict:
+                    return {n: params[n] for n in param_names}
+
+                def __reduce__(self):
+                    return _reconstruct_from_factory, (factory, params)
+
+            FunctionSource.__name__ = f"{fn.__name__.title()}Source"
+            return FunctionSource()
+
+        result = update_wrapper(factory, fn)
+
+        # Register if requested
+        if reg_name is not None:
+            # Create a default instance for registration
+            try:
+                default_ds = factory()
+                register_datasource(reg_name, default_ds)
+            except TypeError:
+                # Can't create default instance (missing required params)
+                # User will need to register manually after calling factory
+                pass
+
+        return result
+
+    # Handle different calling patterns
+    if fn_or_name is None:
+        # @data_source() or @data_source(register=True)
+        def decorator(fn: Callable[..., Any]) -> Callable[..., DataSource]:
+            name = fn.__name__ if register else None
+            return _make_factory(fn, name)
+        return decorator
+    elif isinstance(fn_or_name, str):
+        # @data_source("name") or @data_source("name", register=True)
+        def decorator(fn: Callable[..., Any]) -> Callable[..., DataSource]:
+            name = fn_or_name if register else None
+            return _make_factory(fn, name)
+        return decorator
+    else:
+        # @data_source (no parens)
+        return _make_factory(fn_or_name, fn_or_name.__name__ if register else None)
 
 
 class VerifierCallable:

@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. The project is currently in alpha; expect frequent updates until the API stabilises.
 
+## [0.27.0](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.26.2...crystallize-ml@v0.27.0) (2026-01-05)
+
+
+### Features
+
+* Add DX improvements for better developer ergonomics ([a783ba3](https://github.com/brysontang/crystallize/commit/a783ba3dcc1ca90c90777dcda927a012fd502f2c))
+* DX improvements for better developer ergonomics ([5299850](https://github.com/brysontang/crystallize/commit/52998504d19e4a45f601bc082653e1aa2cc4d7f5))
+
 ## [0.26.2](https://github.com/brysontang/crystallize/compare/crystallize-ml@v0.26.1...crystallize-ml@v0.26.2) (2025-12-26)
 
 

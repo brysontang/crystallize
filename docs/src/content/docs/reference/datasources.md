@@ -11,5 +11,6 @@ title: Datasources
 ---------------
 - **datasource**
 - **artifacts**
+- **registry**
 
 

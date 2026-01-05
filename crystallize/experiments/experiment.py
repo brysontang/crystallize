@@ -520,6 +520,92 @@ class Experiment:
             )
         )
 
+    def debug(
+        self,
+        treatment: str | Treatment | None = None,
+        *,
+        verbose: bool = True,
+    ) -> Result:
+        """Run a single replicate for quick iteration and debugging.
+
+        This is a convenience method for the "does this even work?" phase.
+        It runs one replicate with serial execution and verbose logging,
+        making it easy to see what's happening without waiting for full runs.
+
+        Parameters
+        ----------
+        treatment:
+            Optional treatment to run. Can be a Treatment instance or a string
+            name matching one of the experiment's treatments. If None, runs
+            baseline only.
+        verbose:
+            Enable verbose logging. Default is True.
+
+        Returns
+        -------
+        Result
+            The experiment result from a single replicate.
+
+        Example
+        -------
+        >>> # Quick check that baseline works
+        >>> result = experiment.debug()
+        >>>
+        >>> # Test a specific treatment
+        >>> result = experiment.debug("dolphin")
+        >>>
+        >>> # Or pass a Treatment directly
+        >>> result = experiment.debug(Treatment("test", {"param": 1}))
+        """
+        # Save original state
+        original_plugins = self.plugins.copy()
+        original_replicates = self.replicates
+
+        try:
+            # Force serial execution by removing parallel plugins
+            self.plugins = [
+                p for p in self.plugins
+                if not isinstance(p, (ParallelExecution,))
+                and not (hasattr(p, 'run_experiment_loop') and
+                        getattr(p.run_experiment_loop, '__func__', None)
+                        is not BasePlugin.run_experiment_loop
+                        and not isinstance(p, SerialExecution))
+            ]
+
+            # Ensure we have verbose logging
+            log_plugin = self.get_plugin(LoggingPlugin)
+            if log_plugin is None:
+                self.plugins.append(LoggingPlugin(verbose=verbose))
+            elif verbose:
+                log_plugin.verbose = True
+
+            # Resolve treatment if string
+            run_treatments: List[Treatment] = []
+            if treatment is not None:
+                if isinstance(treatment, str):
+                    # Find treatment by name
+                    found = next(
+                        (t for t in self.treatments if t.name == treatment),
+                        None
+                    )
+                    if found is None:
+                        # Create ad-hoc treatment with empty apply
+                        found = Treatment(treatment, {})
+                    run_treatments = [found]
+                else:
+                    run_treatments = [treatment]
+
+            # Run single replicate
+            return self.run(
+                treatments=run_treatments,
+                hypotheses=[],  # Skip hypothesis verification in debug
+                replicates=1,
+            )
+        finally:
+            # Restore original state
+            self.plugins = original_plugins
+            self.replicates = original_replicates
+
     async def arun(
         self,
         *,

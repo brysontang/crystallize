@@ -12,10 +12,14 @@ from crystallize import (
     standalone_context,
     quick_experiment,
     FrozenContext,
+    Experiment,
+    Treatment,
     data_source,
     get_datasource,
     list_datasources,
     register_datasource,
+    pipeline_step,
+    pipeline,
 )
 from crystallize.datasources.registry import clear_registry
 from crystallize.experiments.result import Result
@@ -362,3 +366,76 @@ class TestQuickExperiment:
         assert "Running test replicate 1/2" in captured.out
         assert "Running test replicate 2/2" in captured.out
         assert "Done!" in captured.out
+
+
+class TestExperimentDebug:
+    """Tests for experiment.debug() method."""
+
+    @pytest.fixture
+    def simple_experiment(self):
+        """Create a simple experiment for testing."""
+        @data_source
+        def simple_data(ctx):
+            return {"value": 10}
+
+        @pipeline_step()
+        def double_value(data, ctx):
+            result = data["value"] * 2
+            ctx.metrics.add("result", result)
+            return result
+
+        return Experiment(
+            datasource=simple_data(),
+            pipeline=pipeline(double_value()),
+            replicates=5,  # Default to 5 replicates
+        )
+
+    def test_debug_runs_single_replicate(self, simple_experiment):
+        result = simple_experiment.debug()
+
+        # Should only have 1 replicate worth of metrics
+        assert len(result.metrics.baseline.metrics["result"]) == 1
+        assert result.metrics.baseline.metrics["result"][0] == 20
+
+    def test_debug_restores_replicates(self, simple_experiment):
+        original_replicates = simple_experiment.replicates
+
+        simple_experiment.debug()
+
+        # Should restore original replicates count
+        assert simple_experiment.replicates == original_replicates
+
+    def test_debug_with_treatment_string(self, simple_experiment):
+        # Add a treatment
+        simple_experiment.treatments = [
+            Treatment("double_again", {"multiplier": 2})
+        ]
+
+        result = simple_experiment.debug("double_again")
+
+        # Should have treatment metrics
+        assert "double_again" in result.metrics.treatments
+
+    def test_debug_with_treatment_instance(self, simple_experiment):
+        treatment = Treatment("custom", {"x": 1})
+
+        result = simple_experiment.debug(treatment)
+
+        assert "custom" in result.metrics.treatments
+
+    def test_debug_with_unknown_treatment_name(self, simple_experiment):
+        # Should create ad-hoc treatment
+        result = simple_experiment.debug("nonexistent")
+
+        assert "nonexistent" in result.metrics.treatments
+
+    def test_debug_skips_hypotheses(self, simple_experiment):
+        result = simple_experiment.debug()
+
+        # No hypothesis results in debug mode
+        assert result.metrics.hypotheses == []
+
+    def test_debug_verbose_false(self, simple_experiment):
+        # Should not raise, just run quietly
+        result = simple_experiment.debug(verbose=False)
+        assert result is not None

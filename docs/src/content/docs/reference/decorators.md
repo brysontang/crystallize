@@ -74,10 +74,40 @@ Decorate a ranker function and produce a :class:`Hypothesis`.
 ## <kbd>function</kbd> `data_source`
 
 ```python
-data_source(fn: 'Callable[..., Any]') → Callable[..., DataSource]
+data_source(
+    fn_or_name: 'Union[Callable[..., Any], str, None]' = None,
+    register: 'bool' = False
+) → Union[Callable[..., DataSource], Callable[[Callable[..., Any]], Callable[..., DataSource]]]
 ```
 
 Decorate a function to produce a :class:`DataSource` factory. 
+
+Can be used in several ways: 
+
+1. Simple decorator (no registration): ``` @data_source```
+    ... def my_source(ctx):
+    ...     return [1, 2, 3]
+
+2. Named decorator with auto-registration:
+    >>> @data_source("training_data", register=True)
+    ... def my_source(ctx):
+    ...     return [1, 2, 3]
+    >>> # Now accessible via get_datasource("training_data")
+
+3. Register with function name:
+    >>> @data_source(register=True)
+    ... def training_data(ctx):
+    ...     return [1, 2, 3]
+    >>> # Now accessible via get_datasource("training_data")
+
+Parameters
+
+----------
+fn_or_name:
+     Either the function to decorate, or a string name for registration.
+register:
+     If True, register the datasource with the given name (or function name).
+
 
 
 ---

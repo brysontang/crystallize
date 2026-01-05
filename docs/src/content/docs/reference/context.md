@@ -32,12 +32,10 @@ __init__() → None
 ### <kbd>method</kbd> `FrozenMetrics.add`
 
 ```python
-add(key: str, value: Any) → None
+add(key: str, value: Any, tags: Optional[Dict[str, Any]] = None) → None
 ```
 
-
-
-
+Append a value to the metric list, optionally with tags. 
 
 ---
 
@@ -50,6 +48,16 @@ as_dict() → Mapping[str, Tuple[Any, ...]]
 
 
 
+
+---
+
+### <kbd>method</kbd> `FrozenMetrics.get_tags`
+
+```python
+get_tags(key: str) → Tuple[Dict[str, Any], ...]
+```
+
+Return the tags for each recorded value of a metric. 
 
 
 ---
@@ -114,6 +122,29 @@ get(key: str, default: Optional[Any] = None) → Any
 
 Return the value for ``key`` if present else ``default``. 
 
+---
+
+### <kbd>method</kbd> `FrozenContext.record`
+
+```python
+record(
+    metric_name: str,
+    value: Any,
+    tags: Optional[Dict[str, Any]] = None
+) → None
+```
+
+Record a metric value with optional tags. 
+
+This is a more explicit alternative to ``ctx.metrics.add()``. 
+
+Parameters 
+---------- metric_name:  Name of the metric to record. value:  The metric value. tags:  Optional dictionary of tags for categorization and filtering. 
+
+Example 
+------- ``` ctx.record("loss", 0.5, tags={"epoch": 1, "split": "train"})```
+
+
 
 ---
 
@@ -173,6 +204,29 @@ get(key: str, default: Optional[Any] = None) → Any
 
 
 
+
+
+---
+
+### <kbd>method</kbd> `LoggingContext.record`
+
+```python
+record(
+    metric_name: str,
+    value: Any,
+    tags: Optional[Dict[str, Any]] = None
+) → None
+```
+
+Record a metric value with optional tags. 
+
+This is a more explicit alternative to ``ctx.metrics.add()``. 
+
+Parameters 
+---------- metric_name:  Name of the metric to record. value:  The metric value. tags:  Optional dictionary of tags for categorization and filtering. 
+
+Example 
+------- ``` ctx.record("loss", 0.5, tags={"epoch": 1, "split": "train"})```
 
 
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0-alpha.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v1.0.0-alpha.1...crystallize-ml@v2.0.0-alpha.1) (2026-01-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* v1.0.0a2 - two-phase explore/crystallize API with audit ([#229](https://github.com/brysontang/crystallize/issues/229))
+
+### Features
+
+* V1.0.0a2 - two-phase explore/crystallize API with audit ([#229](https://github.com/brysontang/crystallize/issues/229)) ([d74a1ea](https://github.com/brysontang/crystallize/commit/d74a1eaf5a17d05d43c95976daa3bdba07189e0b))
+
+
+### Bug Fixes
+
+* Add prereleased trigger to publish workflow ([2e4efed](https://github.com/brysontang/crystallize/commit/2e4efed4f4c21dfcd2ced852e72e5001c39faa52))
+
 ## [1.0.0-alpha.2] - 2026-01-05
 
 ### New Features

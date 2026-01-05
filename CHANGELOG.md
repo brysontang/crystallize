@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1-alpha.1](https://github.com/brysontang/crystallize/compare/crystallize-ml@v1.0.0-alpha.1...crystallize-ml@v1.0.1-alpha.1) (2026-01-05)
+
+
+### Bug Fixes
+
+* Add prereleased trigger to publish workflow ([2e4efed](https://github.com/brysontang/crystallize/commit/2e4efed4f4c21dfcd2ced852e72e5001c39faa52))
+
 ## [1.0.0-alpha.1] - 2026-01-05
 
 ### Breaking Changes

@@ -164,6 +164,34 @@ Return a fluent builder for constructing an ``Experiment``.
 
 ---
 
+### <kbd>method</kbd> `Experiment.debug`
+
+```python
+debug(
+    treatment: 'str | Treatment | None' = None,
+    verbose: 'bool' = True
+) → Result
+```
+
+Run a single replicate for quick iteration and debugging. 
+
+This is a convenience method for the "does this even work?" phase. It runs one replicate with serial execution and verbose logging, making it easy to see what's happening without waiting for full runs. 
+
+Parameters 
+---------- treatment:  Optional treatment to run. Can be a Treatment instance or a string  name matching one of the experiment's treatments. If None, runs  baseline only. verbose:  Enable verbose logging. Default is True. 
+
+Returns 
+------- Result  The experiment result from a single replicate. 
+
+Example 
+------- ``` # Quick check that baseline works```
+``` result = experiment.debug()``` ``````
+``` # Test a specific treatment``` ``` result = experiment.debug("dolphin")```
+`````` ``` # Or pass a Treatment directly```
+``` result = experiment.debug(Treatment("test", {"param": 1}))``` 
+
+---
+
 ### <kbd>classmethod</kbd> `Experiment.from_yaml`
 
 ```python

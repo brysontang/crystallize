@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "crystallize-ml"
-version = "1.0.0a2"
+version = "2.0.0-alpha.1"
 authors = [{ name = "Bryson Tang", email = "brysontang@gmail.com" }]
 description = "From Play to Proof. Run experiments, then crystallize your findings."
 readme = "README.md"

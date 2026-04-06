@@ -5,7 +5,7 @@
 The distance between "huh, that's weird" and "statistically significant" should be one line of code.
 
 ```bash
-pip install crystallize-ml
+pip install crystallize-ml --pre
 ```
 
 ## The Story
@@ -134,9 +134,9 @@ print(exp.hidden_variables().pretty())
 ## Install
 
 ```bash
-pip install crystallize-ml              # Core (permutation tests built-in)
-pip install crystallize-ml[stats]       # + scipy for more tests
-pip install crystallize-ml[http]        # + requests for ctx.http auditing
+pip install crystallize-ml --pre              # Core (permutation tests built-in)
+pip install "crystallize-ml[stats]" --pre     # + scipy for more tests
+pip install "crystallize-ml[http]" --pre      # + requests for ctx.http auditing
 ```
 
 ## Philosophy

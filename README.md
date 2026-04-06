@@ -10,7 +10,7 @@ pip install crystallize-ml
 
 ## The Story
 
-I was running AI social deduction games — models playing Werewolf against each other. After a dozen rounds, I noticed Claude kept winning. Was that real, or was I pattern-matching on noise?
+I was running AI social deduction games — models playing Werewolf against each other. After a dozen rounds, I noticed Claude kept winning as the werewolf. Was that real, or was I pattern-matching on noise?
 
 I didn't want to set up a "proper" experiment framework. I wanted to answer the question.
 
@@ -18,7 +18,7 @@ I didn't want to set up a "proper" experiment framework. I wanted to answer the 
 from crystallize import explore
 
 def play_werewolf(config, ctx):
-    game = WerewolfGame(model=config["model"], rounds=config["rounds"])
+    game = WerewolfGame(werewolf=config["model"], rounds=config["rounds"])
     result = game.play()
     ctx.record("wins", result.wins)
     ctx.record("survival_rate", result.survived / result.total)
